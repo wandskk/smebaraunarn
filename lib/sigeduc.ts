@@ -108,6 +108,7 @@ export interface PaginatedResponse<T> {
   pagina: number;
   tamanho: number;
   totalElementos: number;
+  totalPaginas: number;
   temProximaPagina: boolean;
 }
 
@@ -127,20 +128,60 @@ export interface EstudanteResponse {
   codigo_Nis: string | null;
 }
 
+/**
+ * Formato real observado em produção — bastante diferente do descrito
+ * originalmente. `consulta-nota` é paginada por ALUNO (não por nota):
+ * cada elemento de `dados` traz um aluno com todas as suas disciplinas e
+ * bimestres aninhados em `turmas_componentes[].notas[]`.
+ */
 export interface NotaBimestral {
-  unidade: number;
+  unidade: number; // bimestre (1-4)
   nota: number;
   descricao: string;
 }
 
+export interface TurmaComponenteNota {
+  escola: string;
+  etapa_ensino: string;
+  serie: string;
+  turma: string;
+  disciplina: string;
+  quantidade_notas: number;
+  notas: NotaBimestral[];
+}
+
+export interface ConsultaNotaAluno {
+  matricula: string;
+  estudante: string;
+  cpf: string | null;
+  turmas_componentes: TurmaComponenteNota[];
+}
+
+/**
+ * `consulta-frequencia` também é paginada por ALUNO, com os registros
+ * diários aninhados em `frequencias[]`. Atenção: o campo `unidade` aqui
+ * traz o NOME DA ESCOLA (nome herdado de um esquema interno da Educ21),
+ * não tem relação com bimestre — não confundir com `NotaBimestral.unidade`.
+ */
 export interface FrequenciaRegistro {
+  unidade: string; // nome da escola (ver nota acima)
+  etapa_ensino: string;
+  serie: string;
+  turma: string;
+  disciplina: string;
   data: string;
   falta: number;
   quantidade_aula: number;
   abonada: boolean;
   motivo_abono: string | null;
-  disciplina: string;
-  turma: string;
+}
+
+export interface ConsultaFrequenciaAluno {
+  matricula: string;
+  estudante: string;
+  cpf: string | null;
+  quantidade_frequencia: number;
+  frequencias: FrequenciaRegistro[];
 }
 
 // ---------- Escolas / Cargos ----------
@@ -213,8 +254,8 @@ export function consultarNotas(
   ano: number,
   pagina = 0,
   tamanho = 1000,
-): Promise<PaginatedResponse<unknown>> {
-  return sigeducFetch<PaginatedResponse<unknown>>("/api/v1/consulta-nota", {
+): Promise<PaginatedResponse<ConsultaNotaAluno>> {
+  return sigeducFetch<PaginatedResponse<ConsultaNotaAluno>>("/api/v1/consulta-nota", {
     method: "GET",
     searchParams: { ano, pagina, tamanho },
   });
@@ -234,8 +275,8 @@ export function consultarFrequencia(
   dataFim: string,
   pagina = 0,
   tamanho = 1000,
-): Promise<PaginatedResponse<FrequenciaRegistro>> {
-  return sigeducFetch<PaginatedResponse<FrequenciaRegistro>>("/api/v1/consulta-frequencia", {
+): Promise<PaginatedResponse<ConsultaFrequenciaAluno>> {
+  return sigeducFetch<PaginatedResponse<ConsultaFrequenciaAluno>>("/api/v1/consulta-frequencia", {
     method: "GET",
     searchParams: { data_inicio: dataInicio, data_fim: dataFim, pagina, tamanho },
   });
@@ -245,8 +286,8 @@ export function consultarFrequenciaIndividual(
   identificador: string,
   dataInicio: string,
   dataFim: string,
-): Promise<FrequenciaRegistro[]> {
-  return sigeducFetch<FrequenciaRegistro[]>(
+): Promise<unknown> {
+  return sigeducFetch<unknown>(
     `/api/v1/consulta-frequencia/${encodeURIComponent(identificador)}`,
     {
       method: "GET",

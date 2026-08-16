@@ -1,7 +1,15 @@
 import { RefreshCw } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { syncCargosAction, syncEscolasAction, syncEstudantesChunkAction, syncServidoresChunkAction } from "./actions";
+import {
+  syncCargosAction,
+  syncEscolasAction,
+  syncEstudantesChunkAction,
+  syncNotasChunkAction,
+  syncServidoresChunkAction,
+} from "./actions";
 import { ChunkedSyncButton } from "./chunked-sync-button";
+import { PagedSyncButton } from "./paged-sync-button";
+import { FrequenciaSyncPanel } from "./frequencia-sync-panel";
 
 const STATUS_STYLE: Record<string, string> = {
   SUCESSO: "bg-emerald-50 text-emerald-700",
@@ -17,17 +25,19 @@ export default async function SincronizacaoPage() {
 
   const anoAtual = new Date().getFullYear();
   const syncEstudantesAction = syncEstudantesChunkAction.bind(null, anoAtual);
+  const syncNotasAction = syncNotasChunkAction.bind(null, anoAtual);
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Sincronização SIGEduc</h1>
       <p className="mt-1 text-sm text-slate-500">
         Importa dados diretamente da API Educ 21. Execute nesta ordem: Escolas → Cargos →
-        Servidores → Estudantes. Servidores e Estudantes são sincronizados em lotes por escola,
-        para não estourar o tempo limite da função — acompanhe o progresso no próprio botão.
+        Servidores → Estudantes → Notas → Frequência. Os módulos maiores são sincronizados em
+        lotes, para não estourar o tempo limite da função — acompanhe o progresso no próprio
+        botão.
       </p>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <form action={syncEscolasAction}>
           <SyncCard title="1. Escolas" desc="Consulta /consulta-escola" />
         </form>
@@ -44,6 +54,12 @@ export default async function SincronizacaoPage() {
           desc="Consulta /consulta-estudante/enturmado"
           runChunk={syncEstudantesAction}
         />
+        <PagedSyncButton
+          title={`5. Notas (${anoAtual})`}
+          desc="Consulta /consulta-nota"
+          runChunk={syncNotasAction}
+        />
+        <FrequenciaSyncPanel />
       </div>
 
       <div className="mt-10">

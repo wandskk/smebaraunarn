@@ -5,6 +5,8 @@ import {
   consultarCargos,
   consultarEscolas,
   consultarEstudantesEnturmados,
+  consultarFrequencia,
+  consultarNotas,
   consultarServidores,
 } from "@/lib/sigeduc";
 import { normalizeBirthDate, normalizeCpf } from "@/lib/utils";
@@ -16,6 +18,13 @@ export interface ChunkResult {
   done: boolean;
   nextIndex: number;
   totalEscolas: number;
+  registrosNestaExecucao: number;
+}
+
+export interface PageChunkResult {
+  done: boolean;
+  nextPagina: number;
+  totalPaginas: number;
   registrosNestaExecucao: number;
 }
 
@@ -233,6 +242,174 @@ export async function syncEstudantesChunk(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     await logSync("ESTUDANTES", "ERRO", registros, message, Date.now() - start);
+    throw error;
+  }
+}
+
+/**
+ * `consulta-nota` é paginada por aluno (não por nota), então cada página
+ * inteira pertence a um conjunto fechado de matrículas — é seguro apagar e
+ * recriar as notas desse ano só para essas matrículas a cada página,
+ * evitando duplicar registros a cada re-sincronização.
+ */
+export async function syncNotasChunk(
+  ano: number,
+  startPagina = 0,
+  budgetMs = DEFAULT_BUDGET_MS,
+): Promise<PageChunkResult> {
+  const start = Date.now();
+  let registros = 0;
+  let pagina = startPagina;
+  let totalPaginas = startPagina + 1;
+  let done = false;
+
+  const estudantesValidos = new Set(
+    (await prisma.estudante.findMany({ select: { matricula: true } })).map((e) => e.matricula),
+  );
+
+  try {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (Date.now() - start > budgetMs) break;
+
+      const resposta = await consultarNotas(ano, pagina, 300);
+      totalPaginas = resposta.totalPaginas;
+
+      const alunosValidos = resposta.dados.filter((aluno) => estudantesValidos.has(aluno.matricula));
+      const matriculas = alunosValidos.map((aluno) => aluno.matricula);
+
+      if (matriculas.length > 0) {
+        await prisma.notaEstudante.deleteMany({
+          where: { estudanteMatricula: { in: matriculas }, ano },
+        });
+
+        const rows = alunosValidos.flatMap((aluno) =>
+          aluno.turmas_componentes.flatMap((tc) =>
+            tc.notas.map((n) => ({
+              estudanteMatricula: aluno.matricula,
+              ano,
+              escola: tc.escola,
+              etapaEnsino: tc.etapa_ensino,
+              serie: tc.serie,
+              turma: tc.turma,
+              disciplina: tc.disciplina,
+              unidade: n.unidade,
+              nota: n.nota,
+              descricao: n.descricao,
+            })),
+          ),
+        );
+
+        if (rows.length > 0) {
+          await prisma.notaEstudante.createMany({ data: rows, skipDuplicates: true });
+          registros += rows.length;
+        }
+      }
+
+      pagina += 1;
+      if (!resposta.temProximaPagina) {
+        done = true;
+        break;
+      }
+    }
+
+    await logSync(
+      "NOTAS",
+      done ? "SUCESSO" : "PROCESSANDO",
+      registros,
+      done ? null : `Lote parcial: páginas ${startPagina + 1}-${pagina} de ${totalPaginas} (ano ${ano})`,
+      Date.now() - start,
+    );
+
+    return { done, nextPagina: pagina, totalPaginas, registrosNestaExecucao: registros };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
+    await logSync("NOTAS", "ERRO", registros, message, Date.now() - start);
+    throw error;
+  }
+}
+
+/**
+ * `consulta-frequencia` também é paginada por aluno. O apaga-e-recria é
+ * restrito à janela [dataInicio, dataFim] sendo sincronizada, para não
+ * apagar frequência de outras janelas já sincronizadas anteriormente.
+ */
+export async function syncFrequenciaChunk(
+  dataInicio: string,
+  dataFim: string,
+  startPagina = 0,
+  budgetMs = DEFAULT_BUDGET_MS,
+): Promise<PageChunkResult> {
+  const start = Date.now();
+  let registros = 0;
+  let pagina = startPagina;
+  let totalPaginas = startPagina + 1;
+  let done = false;
+
+  const estudantesValidos = new Set(
+    (await prisma.estudante.findMany({ select: { matricula: true } })).map((e) => e.matricula),
+  );
+
+  try {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (Date.now() - start > budgetMs) break;
+
+      const resposta = await consultarFrequencia(dataInicio, dataFim, pagina, 300);
+      totalPaginas = resposta.totalPaginas;
+
+      const alunosValidos = resposta.dados.filter((aluno) => estudantesValidos.has(aluno.matricula));
+      const matriculas = alunosValidos.map((aluno) => aluno.matricula);
+
+      if (matriculas.length > 0) {
+        await prisma.frequenciaEstudante.deleteMany({
+          where: {
+            estudanteMatricula: { in: matriculas },
+            data: { gte: dataInicio, lte: dataFim },
+          },
+        });
+
+        const rows = alunosValidos.flatMap((aluno) =>
+          aluno.frequencias.map((f) => ({
+            estudanteMatricula: aluno.matricula,
+            data: f.data,
+            disciplina: f.disciplina,
+            turma: f.turma,
+            etapaEnsino: f.etapa_ensino,
+            falta: f.falta,
+            quantidadeAula: f.quantidade_aula,
+            abonada: f.abonada,
+            motivoAbono: f.motivo_abono || null,
+          })),
+        );
+
+        if (rows.length > 0) {
+          await prisma.frequenciaEstudante.createMany({ data: rows, skipDuplicates: true });
+          registros += rows.length;
+        }
+      }
+
+      pagina += 1;
+      if (!resposta.temProximaPagina) {
+        done = true;
+        break;
+      }
+    }
+
+    await logSync(
+      "FREQUENCIA",
+      done ? "SUCESSO" : "PROCESSANDO",
+      registros,
+      done
+        ? null
+        : `Lote parcial: páginas ${startPagina + 1}-${pagina} de ${totalPaginas} (${dataInicio} a ${dataFim})`,
+      Date.now() - start,
+    );
+
+    return { done, nextPagina: pagina, totalPaginas, registrosNestaExecucao: registros };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
+    await logSync("FREQUENCIA", "ERRO", registros, message, Date.now() - start);
     throw error;
   }
 }

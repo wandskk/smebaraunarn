@@ -140,6 +140,7 @@ model NotaEstudante {
   descricao          String?
   createdAt          DateTime   @default(now())
 
+  @@unique([estudanteMatricula, ano, disciplina, unidade], name: "notaEstudanteUnica")
   @@index([estudanteMatricula, ano])
 }
 
@@ -157,6 +158,7 @@ model FrequenciaEstudante {
   motivoAbono        String?
   createdAt          DateTime   @default(now())
 
+  @@unique([estudanteMatricula, data, disciplina], name: "frequenciaEstudanteUnica")
   @@index([estudanteMatricula, data])
 }
 
