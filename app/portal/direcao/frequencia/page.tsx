@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 
@@ -68,7 +69,14 @@ export default async function DirecaoFrequenciaPage() {
             <tbody className="divide-y divide-slate-100">
               {linhas.map((l) => (
                 <tr key={l.turma}>
-                  <td className="px-4 py-3 font-medium text-slate-900">{l.turma}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900">
+                    <Link
+                      href={`/portal/direcao/turmas/${encodeURIComponent(l.turma)}`}
+                      className="hover:text-brand-700 hover:underline"
+                    >
+                      {l.turma}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{l.totalAulas}</td>
                   <td className="px-4 py-3 text-slate-500">{l.totalFaltas}</td>
                   <td className="px-4 py-3 text-slate-900">

@@ -6,6 +6,7 @@ import {
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
+  LayoutGrid,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { logoutAction } from "@/app/logout/actions";
 const NAV = [
   { href: "/portal/direcao", label: "Início", icon: LayoutDashboard },
   { href: "/portal/direcao/servidores", label: "Servidores", icon: Users },
+  { href: "/portal/direcao/turmas", label: "Turmas", icon: LayoutGrid },
   { href: "/portal/direcao/estudantes", label: "Estudantes", icon: GraduationCap },
   { href: "/portal/direcao/notas", label: "Notas", icon: BookOpen },
   { href: "/portal/direcao/frequencia", label: "Frequência", icon: CalendarCheck },

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminEscolasPage() {
@@ -30,7 +31,11 @@ export default async function AdminEscolasPage() {
           <tbody className="divide-y divide-slate-100">
             {escolas.map((e) => (
               <tr key={e.id}>
-                <td className="px-4 py-3 font-medium text-slate-900">{e.nome}</td>
+                <td className="px-4 py-3 font-medium text-slate-900">
+                  <Link href={`/admin/escolas/${e.id}`} className="hover:text-brand-700 hover:underline">
+                    {e.nome}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-slate-500">{e.codigoInep ?? "-"}</td>
                 <td className="px-4 py-3 text-slate-500">{e._count.servidores}</td>
                 <td className="px-4 py-3 text-slate-500">{e._count.estudantes}</td>

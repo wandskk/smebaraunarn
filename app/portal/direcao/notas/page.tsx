@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 
@@ -59,9 +60,12 @@ export default async function DirecaoNotasPage({
             const itens = [...(porTurma[turma] ?? [])].sort((a, b) => a.disciplina.localeCompare(b.disciplina));
             return (
               <div key={turma} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
+                <Link
+                  href={`/portal/direcao/turmas/${encodeURIComponent(turma)}`}
+                  className="block border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900 hover:text-brand-700 hover:underline"
+                >
                   {turma}
-                </div>
+                </Link>
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                     <tr>
