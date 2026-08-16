@@ -36,6 +36,12 @@ export default async function SincronizacaoPage() {
         lotes, para não estourar o tempo limite da função — acompanhe o progresso no próprio
         botão.
       </p>
+      <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
+        Desde que o CRON_SECRET esteja configurado na Vercel, todos os módulos abaixo também
+        rodam automaticamente todo dia de madrugada (Frequência sincroniza uma janela dos
+        últimos 3 dias, não o ano inteiro). Os disparos automáticos aparecem no histórico como
+        qualquer outra sincronização.
+      </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <form action={syncEscolasAction}>

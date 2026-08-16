@@ -1,0 +1,9 @@
+{
+  "crons": [
+    { "path": "/api/cron/sync-base", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/sync-servidores", "schedule": "10 5 * * *" },
+    { "path": "/api/cron/sync-estudantes", "schedule": "25 5 * * *" },
+    { "path": "/api/cron/sync-notas", "schedule": "40 5 * * *" },
+    { "path": "/api/cron/sync-frequencia", "schedule": "50 5 * * *" }
+  ]
+}
