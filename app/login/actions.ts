@@ -40,16 +40,40 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
 
     for (const candidato of candidatosSenha) {
       if (await verifyPassword(candidato, existingUser.passwordHash)) {
+        // Reflete mudanças na fonte (SIGEduc) a cada login — ex.: a Secretaria
+        // vinculou a escola de um diretor, ou o cargo do servidor mudou —
+        // sem isso, a conta ficaria presa para sempre no snapshot do 1º login.
+        let { role, escolaId, nome } = existingUser;
+
+        if (existingUser.servidorId) {
+          const servidor = await prisma.servidor.findUnique({ where: { id: existingUser.servidorId } });
+          if (servidor) {
+            role = classifyServidorRole(servidor.cargo, servidor.funcao);
+            escolaId = servidor.escolaId;
+            nome = servidor.nome;
+          }
+        } else if (existingUser.estudanteId) {
+          const estudante = await prisma.estudante.findUnique({ where: { id: existingUser.estudanteId } });
+          if (estudante) {
+            escolaId = estudante.escolaId;
+            nome = estudante.nome;
+          }
+        }
+
+        if (role !== existingUser.role || escolaId !== existingUser.escolaId || nome !== existingUser.nome) {
+          await prisma.user.update({ where: { id: existingUser.id }, data: { role, escolaId, nome } });
+        }
+
         await establishSession({
           userId: existingUser.id,
           cpf: existingUser.cpf,
-          nome: existingUser.nome,
-          role: existingUser.role,
-          escolaId: existingUser.escolaId,
+          nome,
+          role,
+          escolaId,
           servidorId: existingUser.servidorId,
           estudanteId: existingUser.estudanteId,
         });
-        redirect(roleHomePath(existingUser.role));
+        redirect(roleHomePath(role));
       }
     }
 
