@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatCpf } from "@/lib/utils";
 import { UserForm } from "./user-form";
 import { ToggleAtivoButton } from "./toggle-ativo-button";
+import { ResetPasswordButton } from "./reset-password-button";
 
 export default async function AdminUsuariosPage() {
   const usuarios = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
@@ -28,6 +30,9 @@ export default async function AdminUsuariosPage() {
               <th className="px-4 py-3">Papel</th>
               <th className="px-4 py-3">Criado em</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Vínculo</th>
+              <th className="px-4 py-3">Senha</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -40,11 +45,22 @@ export default async function AdminUsuariosPage() {
                 <td className="px-4 py-3">
                   <ToggleAtivoButton userId={u.id} ativo={u.ativo} />
                 </td>
+                <td className="px-4 py-3 text-slate-500">
+                  {u.servidorId ? "Servidor" : u.estudanteId ? "Estudante" : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <ResetPasswordButton userId={u.id} temOrigem={Boolean(u.servidorId || u.estudanteId)} />
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <Link href={`/admin/usuarios/${u.id}`} className="text-brand-700 hover:underline">
+                    Editar
+                  </Link>
+                </td>
               </tr>
             ))}
             {usuarios.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
                   Nenhum usuário cadastrado ainda.
                 </td>
               </tr>
