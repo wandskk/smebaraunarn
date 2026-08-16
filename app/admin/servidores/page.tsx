@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { formatCpf } from "@/lib/utils";
 import { classifyServidorRole } from "@/lib/roles";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { EscolaSelect } from "./escola-select";
 
 interface PageProps {
-  searchParams: { q?: string };
+  searchParams: { q?: string; page?: string; pageSize?: string };
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -15,16 +18,21 @@ const ROLE_LABEL: Record<string, string> = {
 
 export default async function AdminServidoresPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
 
-  const [servidores, escolas] = await Promise.all([
+  const where = q
+    ? { OR: [{ nome: { contains: q, mode: "insensitive" as const } }, { cpf: { contains: q } }] }
+    : undefined;
+
+  const [servidores, total, escolas] = await Promise.all([
     prisma.servidor.findMany({
-      where: q
-        ? { OR: [{ nome: { contains: q, mode: "insensitive" } }, { cpf: { contains: q } }] }
-        : undefined,
+      where,
       orderBy: { nome: "asc" },
-      take: 100,
+      skip,
+      take,
       include: { escola: true },
     }),
+    prisma.servidor.count({ where }),
     prisma.escola.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
   ]);
 
@@ -33,18 +41,10 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
       <h1 className="text-xl font-semibold text-slate-900">Servidores</h1>
       <p className="mt-1 text-sm text-slate-500">
         Base sincronizada com o SIGEduc. Cargos de direção/coordenação vêm sem escola vinculada na
-        origem (ficam lotados na Secretaria) — atribua manualmente abaixo.
+        origem (ficam lotados na Secretaria) — atribua manualmente abaixo. {total} servidor(es).
       </p>
 
-      <form className="mt-4">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          placeholder="Buscar por nome ou CPF..."
-          className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </form>
+      <ListToolbar searchPlaceholder="Buscar por nome ou CPF..." />
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -83,6 +83,13 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/admin/servidores"
+        searchParams={searchParams}
+      />
     </div>
   );
 }

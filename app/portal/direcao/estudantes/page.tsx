@@ -1,39 +1,37 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 
 interface PageProps {
-  searchParams: { q?: string };
+  searchParams: { q?: string; page?: string; pageSize?: string };
 }
 
 export default async function DirecaoEstudantesPage({ searchParams }: PageProps) {
   const session = await requireSession(["DIRETOR"]);
   const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
 
-  const estudantes = await prisma.estudante.findMany({
-    where: {
-      escolaId: session.escolaId!,
-      ...(q
-        ? { OR: [{ nome: { contains: q, mode: "insensitive" } }, { matricula: { contains: q } }] }
-        : {}),
-    },
-    orderBy: { nome: "asc" },
-  });
+  const where = {
+    escolaId: session.escolaId!,
+    ...(q
+      ? { OR: [{ nome: { contains: q, mode: "insensitive" as const } }, { matricula: { contains: q } }] }
+      : {}),
+  };
+
+  const [estudantes, total] = await Promise.all([
+    prisma.estudante.findMany({ where, orderBy: { nome: "asc" }, skip, take }),
+    prisma.estudante.count({ where }),
+  ]);
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Estudantes</h1>
-      <p className="mt-1 text-sm text-slate-500">{estudantes.length} estudante(s) enturmado(s).</p>
+      <p className="mt-1 text-sm text-slate-500">{total} estudante(s) enturmado(s).</p>
 
-      <form className="mt-4">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          placeholder="Buscar por nome ou matrícula..."
-          className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </form>
+      <ListToolbar searchPlaceholder="Buscar por nome ou matrícula..." />
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -63,13 +61,20 @@ export default async function DirecaoEstudantesPage({ searchParams }: PageProps)
             {estudantes.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum estudante sincronizado para esta escola.
+                  Nenhum estudante encontrado.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/portal/direcao/estudantes"
+        searchParams={searchParams}
+      />
     </div>
   );
 }

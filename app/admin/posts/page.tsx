@@ -1,17 +1,34 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { DeletePostButton } from "./delete-post-button";
 
-export default async function AdminPostsPage() {
-  const posts = await prisma.post.findMany({ orderBy: { dataPublicacao: "desc" } });
+interface PageProps {
+  searchParams: { q?: string; page?: string; pageSize?: string };
+}
+
+export default async function AdminPostsPage({ searchParams }: PageProps) {
+  const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
+
+  const where = q ? { titulo: { contains: q, mode: "insensitive" as const } } : undefined;
+
+  const [posts, total] = await Promise.all([
+    prisma.post.findMany({ where, orderBy: { dataPublicacao: "desc" }, skip, take }),
+    prisma.post.count({ where }),
+  ]);
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Notícias / CMS</h1>
-          <p className="mt-1 text-sm text-slate-500">Gerencie as publicações do portal institucional.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Gerencie as publicações do portal institucional. {total} publicação(ões).
+          </p>
         </div>
         <Link
           href="/admin/posts/new"
@@ -21,6 +38,8 @@ export default async function AdminPostsPage() {
           Nova Publicação
         </Link>
       </div>
+
+      <ListToolbar searchPlaceholder="Buscar por título..." />
 
       <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -65,13 +84,20 @@ export default async function AdminPostsPage() {
             {posts.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
-                  Nenhuma publicação cadastrada.
+                  Nenhuma publicação encontrada.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/admin/posts"
+        searchParams={searchParams}
+      />
     </div>
   );
 }

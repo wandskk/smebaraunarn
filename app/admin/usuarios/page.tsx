@@ -1,25 +1,44 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatCpf } from "@/lib/utils";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { UserForm } from "./user-form";
 import { ToggleAtivoButton } from "./toggle-ativo-button";
 import { ResetPasswordButton } from "./reset-password-button";
 
-export default async function AdminUsuariosPage() {
-  const usuarios = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+interface PageProps {
+  searchParams: { q?: string; page?: string; pageSize?: string };
+}
+
+export default async function AdminUsuariosPage({ searchParams }: PageProps) {
+  const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
+
+  const where = q
+    ? { OR: [{ nome: { contains: q, mode: "insensitive" as const } }, { cpf: { contains: q } }] }
+    : undefined;
+
+  const [usuarios, total] = await Promise.all([
+    prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip, take }),
+    prisma.user.count({ where }),
+  ]);
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Usuários e Acessos</h1>
       <p className="mt-1 text-sm text-slate-500">
         Contas provisionadas automaticamente no primeiro login (CPF + data de nascimento) e acessos
-        manuais criados pela administração.
+        manuais criados pela administração. {total} usuário(s).
       </p>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Criar acesso manual</h2>
         <UserForm />
       </div>
+
+      <ListToolbar searchPlaceholder="Buscar por nome ou CPF..." />
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -61,13 +80,20 @@ export default async function AdminUsuariosPage() {
             {usuarios.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum usuário cadastrado ainda.
+                  Nenhum usuário encontrado.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/admin/usuarios"
+        searchParams={searchParams}
+      />
     </div>
   );
 }

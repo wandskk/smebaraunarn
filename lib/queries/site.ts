@@ -51,12 +51,24 @@ export async function getDocumentosPublicos(limit = 8) {
 
 export interface PostListFilters {
   categoria?: "NOTICIA" | "AVISO" | "DESTAQUE" | "DOCUMENTO";
+  q?: string;
   page?: number;
   pageSize?: number;
 }
 
-export async function listPosts({ categoria, page = 1, pageSize = 9 }: PostListFilters) {
-  const where = { publicado: true, ...(categoria ? { categoria } : {}) };
+export async function listPosts({ categoria, q, page = 1, pageSize = 9 }: PostListFilters) {
+  const where = {
+    publicado: true,
+    ...(categoria ? { categoria } : {}),
+    ...(q
+      ? {
+          OR: [
+            { titulo: { contains: q, mode: "insensitive" as const } },
+            { resumo: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
   const [posts, total] = await Promise.all([
     prisma.post.findMany({
       where,

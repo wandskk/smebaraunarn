@@ -1,11 +1,36 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 
-export default async function AdminEscolasPage() {
-  const escolas = await prisma.escola.findMany({
-    orderBy: { nome: "asc" },
-    include: { _count: { select: { servidores: true, estudantes: true } } },
-  });
+interface PageProps {
+  searchParams: { q?: string; page?: string; pageSize?: string };
+}
+
+export default async function AdminEscolasPage({ searchParams }: PageProps) {
+  const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
+
+  const where = q
+    ? {
+        OR: [
+          { nome: { contains: q, mode: "insensitive" as const } },
+          { codigoInep: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
+    : undefined;
+
+  const [escolas, total] = await Promise.all([
+    prisma.escola.findMany({
+      where,
+      orderBy: { nome: "asc" },
+      skip,
+      take,
+      include: { _count: { select: { servidores: true, estudantes: true } } },
+    }),
+    prisma.escola.count({ where }),
+  ]);
 
   return (
     <div>
@@ -15,8 +40,10 @@ export default async function AdminEscolasPage() {
         <a href="/admin/sincronizacao" className="text-brand-700 underline">
           Sincronização
         </a>{" "}
-        para atualizar.
+        para atualizar. {total} escola(s).
       </p>
+
+      <ListToolbar searchPlaceholder="Buscar por nome ou código INEP..." />
 
       <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -44,13 +71,20 @@ export default async function AdminEscolasPage() {
             {escolas.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-10 text-center text-slate-400">
-                  Nenhuma escola sincronizada ainda.
+                  Nenhuma escola encontrada.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/admin/escolas"
+        searchParams={searchParams}
+      />
     </div>
   );
 }

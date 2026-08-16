@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 
 const TIPO_LABEL: Record<string, string> = {
   FLUENCIA_LEITORA: "Fluência Leitora",
@@ -9,11 +12,33 @@ const TIPO_LABEL: Record<string, string> = {
   PROVA_MUNICIPAL: "Prova Municipal",
 };
 
-export default async function AdminAvaliacoesPage() {
-  const avaliacoes = await prisma.avaliacao.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { resultados: true, questoes: true } } },
-  });
+interface PageProps {
+  searchParams: { q?: string; page?: string; pageSize?: string };
+}
+
+export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
+  const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
+
+  const where = q
+    ? {
+        OR: [
+          { nome: { contains: q, mode: "insensitive" as const } },
+          { codigo: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
+    : undefined;
+
+  const [avaliacoes, total] = await Promise.all([
+    prisma.avaliacao.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+      include: { _count: { select: { resultados: true, questoes: true } } },
+    }),
+    prisma.avaliacao.count({ where }),
+  ]);
 
   return (
     <div>
@@ -21,7 +46,7 @@ export default async function AdminAvaliacoesPage() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Avaliações Municipais</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Fluência Leitora, SPADEB, simulados e provas municipais.
+            Fluência Leitora, SPADEB, simulados e provas municipais. {total} avaliação(ões).
           </p>
         </div>
         <Link
@@ -32,6 +57,8 @@ export default async function AdminAvaliacoesPage() {
           Nova Avaliação
         </Link>
       </div>
+
+      <ListToolbar searchPlaceholder="Buscar por nome ou código..." />
 
       <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -65,13 +92,20 @@ export default async function AdminAvaliacoesPage() {
             {avaliacoes.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                  Nenhuma avaliação cadastrada.
+                  Nenhuma avaliação encontrada.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/admin/avaliacoes"
+        searchParams={searchParams}
+      />
     </div>
   );
 }

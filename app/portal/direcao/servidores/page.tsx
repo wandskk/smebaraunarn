@@ -1,17 +1,34 @@
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 
-export default async function DirecaoServidoresPage() {
+interface PageProps {
+  searchParams: { q?: string; page?: string; pageSize?: string };
+}
+
+export default async function DirecaoServidoresPage({ searchParams }: PageProps) {
   const session = await requireSession(["DIRETOR"]);
-  const servidores = await prisma.servidor.findMany({
-    where: { escolaId: session.escolaId! },
-    orderBy: { nome: "asc" },
-  });
+  const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
+
+  const where = {
+    escolaId: session.escolaId!,
+    ...(q ? { nome: { contains: q, mode: "insensitive" as const } } : {}),
+  };
+
+  const [servidores, total] = await Promise.all([
+    prisma.servidor.findMany({ where, orderBy: { nome: "asc" }, skip, take }),
+    prisma.servidor.count({ where }),
+  ]);
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Servidores</h1>
-      <p className="mt-1 text-sm text-slate-500">{servidores.length} servidor(es) lotado(s) na escola.</p>
+      <p className="mt-1 text-sm text-slate-500">{total} servidor(es) lotado(s) na escola.</p>
+
+      <ListToolbar searchPlaceholder="Buscar por nome..." />
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -37,13 +54,20 @@ export default async function DirecaoServidoresPage() {
             {servidores.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum servidor sincronizado para esta escola.
+                  Nenhum servidor encontrado.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/portal/direcao/servidores"
+        searchParams={searchParams}
+      />
     </div>
   );
 }

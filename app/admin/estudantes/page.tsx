@@ -1,42 +1,44 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
+import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 
 interface PageProps {
-  searchParams: { q?: string };
+  searchParams: { q?: string; page?: string; pageSize?: string };
 }
 
 export default async function AdminEstudantesPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim();
+  const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
 
-  const estudantes = await prisma.estudante.findMany({
-    where: q
-      ? {
-          OR: [
-            { nome: { contains: q, mode: "insensitive" } },
-            { matricula: { contains: q } },
-            { cpf: { contains: q } },
-          ],
-        }
-      : undefined,
-    orderBy: { nome: "asc" },
-    take: 100,
-    include: { escola: true },
-  });
+  const where = q
+    ? {
+        OR: [
+          { nome: { contains: q, mode: "insensitive" as const } },
+          { matricula: { contains: q } },
+          { cpf: { contains: q } },
+        ],
+      }
+    : undefined;
+
+  const [estudantes, total] = await Promise.all([
+    prisma.estudante.findMany({
+      where,
+      orderBy: { nome: "asc" },
+      skip,
+      take,
+      include: { escola: true },
+    }),
+    prisma.estudante.count({ where }),
+  ]);
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Estudantes</h1>
-      <p className="mt-1 text-sm text-slate-500">Base sincronizada com o SIGEduc.</p>
+      <p className="mt-1 text-sm text-slate-500">Base sincronizada com o SIGEduc. {total} estudante(s).</p>
 
-      <form className="mt-4">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          placeholder="Buscar por nome, matrícula ou CPF..."
-          className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </form>
+      <ListToolbar searchPlaceholder="Buscar por nome, matrícula ou CPF..." />
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -73,6 +75,13 @@ export default async function AdminEstudantesPage({ searchParams }: PageProps) {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+        basePath="/admin/estudantes"
+        searchParams={searchParams}
+      />
     </div>
   );
 }
