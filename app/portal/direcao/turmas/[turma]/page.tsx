@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
-import { getTurmaDetalhe } from "@/lib/queries/academico";
+import { formatTurmaLabel, getTurmaDetalhe } from "@/lib/queries/academico";
 
 interface PageProps {
   params: { turma: string };
@@ -17,7 +17,7 @@ export default async function DirecaoTurmaDetalhePage({ params }: PageProps) {
       <Link href="/portal/direcao/turmas" className="text-sm text-brand-700 hover:underline">
         ← Turmas
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">{detalhe.serie ?? turma}</h1>
+      <h1 className="mt-2 text-xl font-semibold text-slate-900">{formatTurmaLabel(detalhe.serie, turma)}</h1>
       <p className="mt-1 text-sm text-slate-500">
         {detalhe.serie && <span className="text-slate-400">{turma} · </span>}
         {detalhe.alunos.length} aluno(s) enturmado(s).

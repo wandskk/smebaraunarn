@@ -43,6 +43,21 @@ async function getSeriePorTurma(turmas: string[]): Promise<Map<string, string>> 
   return series;
 }
 
+/**
+ * Combina a série com a letra da seção (ex.: "6º Ano" + "EFAFM6A" -> "6º Ano
+ * A"), pra diferenciar turmas que compartilham a mesma série (A/B/C/D...).
+ * A origem não dá essa letra como campo separado — é inferida do último
+ * caractere do código, que segue esse padrão na esmagadora maioria dos
+ * casos observados. Turmas multianuais (código termina em "-M<dígito>", ex.
+ * "MULTIINTM1A5A-M3") não seguem esse padrão; nesses casos cai para a série
+ * sozinha em vez de arriscar uma letra errada.
+ */
+export function formatTurmaLabel(serie: string | null, turma: string): string {
+  if (!serie) return turma;
+  const letra = /^[A-Z]$/.test(turma.slice(-1)) && !/-M\d$/.test(turma) ? turma.slice(-1) : null;
+  return letra ? `${serie} ${letra}` : serie;
+}
+
 /** Lista as turmas de uma escola (a partir dos alunos enturmados), com contagem. */
 export async function getTurmasDaEscola(escolaId: number): Promise<TurmaResumo[]> {
   const grupos = await prisma.estudante.groupBy({

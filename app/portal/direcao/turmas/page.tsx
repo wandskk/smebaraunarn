@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
-import { getTurmasDaEscola } from "@/lib/queries/academico";
+import { formatTurmaLabel, getTurmasDaEscola } from "@/lib/queries/academico";
 
 export default async function DirecaoTurmasPage() {
   const session = await requireSession(["DIRETOR"]);
@@ -28,7 +28,7 @@ export default async function DirecaoTurmasPage() {
             >
               <Users className="h-6 w-6 shrink-0 text-brand-600" />
               <div>
-                <div className="font-semibold text-slate-900">{t.serie ?? t.turma}</div>
+                <div className="font-semibold text-slate-900">{formatTurmaLabel(t.serie, t.turma)}</div>
                 <div className="text-xs text-slate-400">{t.turma}</div>
                 <div className="text-sm text-slate-500">{t.totalAlunos} aluno(s)</div>
               </div>

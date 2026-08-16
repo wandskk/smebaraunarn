@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getTurmaDetalhe } from "@/lib/queries/academico";
+import { formatTurmaLabel, getTurmaDetalhe } from "@/lib/queries/academico";
 
 interface PageProps {
   params: { id: string; turma: string };
@@ -21,7 +21,7 @@ export default async function AdminTurmaDetalhePage({ params }: PageProps) {
       <Link href={`/admin/escolas/${escolaId}`} className="text-sm text-brand-700 hover:underline">
         ← {escola.nome}
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">{detalhe.serie ?? turma}</h1>
+      <h1 className="mt-2 text-xl font-semibold text-slate-900">{formatTurmaLabel(detalhe.serie, turma)}</h1>
       <p className="mt-1 text-sm text-slate-500">
         {detalhe.serie && <span className="text-slate-400">{turma} · </span>}
         {detalhe.alunos.length} aluno(s) enturmado(s).
