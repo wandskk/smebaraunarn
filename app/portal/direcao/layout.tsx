@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, GraduationCap, LayoutDashboard, TriangleAlert, Users } from "lucide-react";
+import {
+  BookOpen,
+  CalendarCheck,
+  ClipboardList,
+  GraduationCap,
+  LayoutDashboard,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 import { PortalTopbar } from "@/components/portal/topbar";
@@ -10,6 +18,8 @@ const NAV = [
   { href: "/portal/direcao", label: "Início", icon: LayoutDashboard },
   { href: "/portal/direcao/servidores", label: "Servidores", icon: Users },
   { href: "/portal/direcao/estudantes", label: "Estudantes", icon: GraduationCap },
+  { href: "/portal/direcao/notas", label: "Notas", icon: BookOpen },
+  { href: "/portal/direcao/frequencia", label: "Frequência", icon: CalendarCheck },
   { href: "/portal/direcao/avaliacoes", label: "Avaliações Municipais", icon: ClipboardList },
 ];
 

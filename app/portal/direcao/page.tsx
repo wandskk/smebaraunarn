@@ -1,21 +1,32 @@
 import Link from "next/link";
-import { ClipboardList, GraduationCap, Users } from "lucide-react";
+import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 
 export default async function DirecaoHomePage() {
   const session = await requireSession(["DIRETOR"]);
   const escolaId = session.escolaId!;
+  const anoAtual = new Date().getFullYear();
 
-  const [totalServidores, totalEstudantes, totalResultadosAvaliacao] = await Promise.all([
-    prisma.servidor.count({ where: { escolaId } }),
-    prisma.estudante.count({ where: { escolaId } }),
-    prisma.avaliacaoResultadoAluno.count({ where: { escolaId } }),
-  ]);
+  const [totalServidores, totalEstudantes, totalResultadosAvaliacao, totalNotas, totalFrequencias] =
+    await Promise.all([
+      prisma.servidor.count({ where: { escolaId } }),
+      prisma.estudante.count({ where: { escolaId } }),
+      prisma.avaliacaoResultadoAluno.count({ where: { escolaId } }),
+      prisma.notaEstudante.count({ where: { ano: anoAtual, estudante: { escolaId } } }),
+      prisma.frequenciaEstudante.count({ where: { estudante: { escolaId } } }),
+    ]);
 
   const cards = [
     { href: "/portal/direcao/servidores", label: "Servidores", value: totalServidores, icon: Users },
     { href: "/portal/direcao/estudantes", label: "Estudantes", value: totalEstudantes, icon: GraduationCap },
+    { href: "/portal/direcao/notas", label: `Notas lançadas (${anoAtual})`, value: totalNotas, icon: BookOpen },
+    {
+      href: "/portal/direcao/frequencia",
+      label: "Registros de frequência",
+      value: totalFrequencias,
+      icon: CalendarCheck,
+    },
     {
       href: "/portal/direcao/avaliacoes",
       label: "Resultados de Avaliações",
