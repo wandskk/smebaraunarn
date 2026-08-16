@@ -44,9 +44,9 @@ export default async function SincronizacaoPage() {
         <form action={syncCargosAction}>
           <SyncCard title="2. Cargos" desc="Consulta /consulta-cargo" />
         </form>
-        <ChunkedSyncButton
+        <PagedSyncButton
           title="3. Servidores"
-          desc="Consulta /consulta-servidor por escola"
+          desc="Consulta /consulta-servidor (inclui cargos lotados na Secretaria)"
           runChunk={syncServidoresChunkAction}
         />
         <ChunkedSyncButton

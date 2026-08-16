@@ -1,26 +1,40 @@
 import { prisma } from "@/lib/prisma";
 import { formatCpf } from "@/lib/utils";
+import { classifyServidorRole } from "@/lib/roles";
+import { EscolaSelect } from "./escola-select";
 
 interface PageProps {
   searchParams: { q?: string };
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  DIRETOR: "Direção",
+  PROFESSOR: "Professor(a)",
+  SERVIDOR_GERAL: "Servidor Geral",
+};
+
 export default async function AdminServidoresPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim();
 
-  const servidores = await prisma.servidor.findMany({
-    where: q
-      ? { OR: [{ nome: { contains: q, mode: "insensitive" } }, { cpf: { contains: q } }] }
-      : undefined,
-    orderBy: { nome: "asc" },
-    take: 100,
-    include: { escola: true },
-  });
+  const [servidores, escolas] = await Promise.all([
+    prisma.servidor.findMany({
+      where: q
+        ? { OR: [{ nome: { contains: q, mode: "insensitive" } }, { cpf: { contains: q } }] }
+        : undefined,
+      orderBy: { nome: "asc" },
+      take: 100,
+      include: { escola: true },
+    }),
+    prisma.escola.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+  ]);
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Servidores</h1>
-      <p className="mt-1 text-sm text-slate-500">Base sincronizada com o SIGEduc.</p>
+      <p className="mt-1 text-sm text-slate-500">
+        Base sincronizada com o SIGEduc. Cargos de direção/coordenação vêm sem escola vinculada na
+        origem (ficam lotados na Secretaria) — atribua manualmente abaixo.
+      </p>
 
       <form className="mt-4">
         <input
@@ -39,6 +53,7 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
               <th className="px-4 py-3">Nome</th>
               <th className="px-4 py-3">CPF</th>
               <th className="px-4 py-3">Cargo</th>
+              <th className="px-4 py-3">Papel no portal</th>
               <th className="px-4 py-3">Escola</th>
               <th className="px-4 py-3">Status</th>
             </tr>
@@ -49,13 +64,18 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
                 <td className="px-4 py-3 font-medium text-slate-900">{s.nome}</td>
                 <td className="px-4 py-3 text-slate-500">{formatCpf(s.cpf)}</td>
                 <td className="px-4 py-3 text-slate-500">{s.cargo ?? "-"}</td>
-                <td className="px-4 py-3 text-slate-500">{s.escola?.nome ?? s.escolaNome ?? "-"}</td>
+                <td className="px-4 py-3 text-slate-500">
+                  {ROLE_LABEL[classifyServidorRole(s.cargo, s.funcao)]}
+                </td>
+                <td className="px-4 py-3">
+                  <EscolaSelect servidorId={s.id} escolaId={s.escolaId} escolas={escolas} />
+                </td>
                 <td className="px-4 py-3 text-slate-500">{s.status ?? "-"}</td>
               </tr>
             ))}
             {servidores.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                   Nenhum servidor encontrado.
                 </td>
               </tr>

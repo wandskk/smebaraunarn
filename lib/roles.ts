@@ -1,7 +1,15 @@
 import type { Role } from "@prisma/client";
 
-const DIRECAO_KEYWORDS = ["DIRETOR", "VICE-DIRETOR", "VICE DIRETOR", "COORDENA"];
-const DOCENTE_KEYWORDS = ["PROFESSOR", "DOCENTE"];
+/**
+ * Baseado no vocabulário real de cargos observado na API Educ 21 (tabela
+ * Cargo sincronizada): DIRETOR, VICE DIRETOR, COORDENADOR, COORDENADOR
+ * GERAL, SUBCOORDENADOR — todos cobertos por "DIRETOR"/"COORDENA".
+ * PROFESSOR TEMPORARIO, PROF PERM NIVEL - I..VI, PROFESSOR AUXILIAR,
+ * PROFESSOR - CONVENIO — todos cobertos por "PROF" (abreviação comum nos
+ * cargos reais; nenhum outro cargo do município contém essa substring).
+ */
+const DIRECAO_KEYWORDS = ["DIRETOR", "COORDENA"];
+const DOCENTE_KEYWORDS = ["PROF", "DOCENTE"];
 
 /**
  * Classifica o papel (Role) de um servidor a partir do cargo/função retornados

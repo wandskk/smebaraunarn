@@ -26,13 +26,13 @@ export async function syncCargosAction() {
 }
 
 /**
- * Sincroniza um lote de escolas por chamada, para não estourar o timeout da
+ * Sincroniza um lote de páginas por chamada, para não estourar o timeout da
  * função serverless em redes com muitos servidores. O cliente chama de novo
- * com `startIndex = nextIndex` até `done === true`.
+ * com `startPagina = nextPagina` até `done === true`.
  */
-export async function syncServidoresChunkAction(startIndex: number): Promise<ChunkResult> {
+export async function syncServidoresChunkAction(startPagina: number): Promise<PageChunkResult> {
   await requireSession(["ADMIN", "SECRETARIA"]);
-  const result = await syncServidoresChunk(startIndex);
+  const result = await syncServidoresChunk(startPagina);
   if (result.done) revalidatePath("/admin/sincronizacao");
   return result;
 }

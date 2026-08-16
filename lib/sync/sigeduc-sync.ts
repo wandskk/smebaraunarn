@@ -85,78 +85,90 @@ export async function syncCargos() {
   }
 }
 
-async function upsertServidor(escolaId: number, s: Awaited<ReturnType<typeof consultarServidores>>["dados"][number]) {
-  if (!s.cpf) return false;
-  const cpf = normalizeCpf(s.cpf);
-  const data = {
-    nome: s.nome,
-    matricula: s.matricula,
-    dataNascimento: normalizeBirthDate(s.data_nascimento) ?? s.data_nascimento,
-    cargo: s.cargo,
-    funcao: s.funo,
-    disciplina: s.disciplina,
-    escolaId,
-    escolaNome: s.escola,
-    pendenciaPedagogica: s.pendencia_pedagogica,
-    tipoVinculo: s.tipo_vinculo,
-    status: s.status,
-    email: s.email,
-    telefone: s.telefone,
-    cargaTrabalho: s.carga_trabalho,
-    turma: s.turma,
-    serie: s.serie,
-    turno: s.turno,
-  };
-  await prisma.servidor.upsert({
-    where: { cpf },
-    update: data,
-    create: { cpf, ...data },
-  });
-  return true;
-}
-
 /**
- * Sincroniza servidores em lotes por escola, respeitando um orçamento de
+ * Sincroniza servidores em lotes de páginas, respeitando um orçamento de
  * tempo (budgetMs) para não estourar o timeout da função serverless.
- * Chame novamente com `startIndex = nextIndex` até `done` ser `true`.
+ * Chame novamente com `startPagina = nextPagina` até `done` ser `true`.
+ *
+ * Importante: /consulta-servidor é paginada por (servidor × turma), sem
+ * filtro de escola — cargos de direção/coordenação (DIRETOR, VICE DIRETOR,
+ * COORDENADOR...) aparecem vinculados à "SME - Secretaria Municipal de
+ * Educação", não a uma escola física, então filtrar por idsEscolas os
+ * deixava de fora inteiramente. Aqui resolvemos escolaId a partir do
+ * codigo_inep_escola retornado, e deixamos null quando não há
+ * correspondência (ex.: cargos lotados na Secretaria).
  */
 export async function syncServidoresChunk(
-  startIndex = 0,
+  startPagina = 0,
   budgetMs = DEFAULT_BUDGET_MS,
-): Promise<ChunkResult> {
+): Promise<PageChunkResult> {
   const start = Date.now();
   let registros = 0;
-  const escolas = await prisma.escola.findMany({ orderBy: { id: "asc" } });
+  let pagina = startPagina;
+  let totalPaginas = startPagina + 1;
+  let done = false;
 
-  let index = startIndex;
+  const escolasPorInep = new Map(
+    (await prisma.escola.findMany({ select: { id: true, codigoInep: true } }))
+      .filter((e) => e.codigoInep)
+      .map((e) => [e.codigoInep, e.id]),
+  );
+
   try {
-    while (index < escolas.length) {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
       if (Date.now() - start > budgetMs) break;
 
-      const escola = escolas[index]!;
-      let pagina = 0;
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const resposta = await consultarServidores({ idsEscolas: [escola.id] }, pagina, 1000);
-        for (const s of resposta.dados) {
-          if (await upsertServidor(escola.id, s)) registros += 1;
-        }
-        if (!resposta.temProximaPagina) break;
-        pagina += 1;
+      const resposta = await consultarServidores({}, pagina, 500);
+      totalPaginas = resposta.totalPaginas;
+
+      for (const s of resposta.dados) {
+        if (!s.cpf) continue;
+        const cpf = normalizeCpf(s.cpf);
+        const escolaId = s.codigo_inep_escola ? (escolasPorInep.get(s.codigo_inep_escola) ?? null) : null;
+        const data = {
+          nome: s.nome,
+          matricula: s.matricula,
+          dataNascimento: normalizeBirthDate(s.data_nascimento) ?? s.data_nascimento,
+          cargo: s.cargo,
+          funcao: s.funo,
+          disciplina: s.disciplina,
+          escolaId,
+          escolaNome: s.escola,
+          pendenciaPedagogica: s.pendencia_pedagogica,
+          tipoVinculo: s.tipo_vinculo,
+          status: s.status,
+          email: s.email,
+          telefone: s.telefone,
+          cargaTrabalho: s.carga_trabalho,
+          turma: s.turma,
+          serie: s.serie,
+          turno: s.turno,
+        };
+        await prisma.servidor.upsert({
+          where: { cpf },
+          update: data,
+          create: { cpf, ...data },
+        });
+        registros += 1;
       }
-      index += 1;
+
+      pagina += 1;
+      if (!resposta.temProximaPagina) {
+        done = true;
+        break;
+      }
     }
 
-    const done = index >= escolas.length;
     await logSync(
       "SERVIDORES",
       done ? "SUCESSO" : "PROCESSANDO",
       registros,
-      done ? null : `Lote parcial: escolas ${startIndex + 1}-${index} de ${escolas.length}`,
+      done ? null : `Lote parcial: páginas ${startPagina + 1}-${pagina} de ${totalPaginas}`,
       Date.now() - start,
     );
 
-    return { done, nextIndex: index, totalEscolas: escolas.length, registrosNestaExecucao: registros };
+    return { done, nextPagina: pagina, totalPaginas, registrosNestaExecucao: registros };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     await logSync("SERVIDORES", "ERRO", registros, message, Date.now() - start);
