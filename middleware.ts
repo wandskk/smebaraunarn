@@ -1,13 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ROLE_ALLOWED_PREFIXES, SESSION_COOKIE_NAME, verifySessionToken, roleHomePath } from "@/lib/session";
 
-const PROTECTED_PREFIXES = ["/admin", "/portal"];
+const ROLE_RESTRICTED_PREFIXES = ["/admin", "/portal"];
+/** Rotas que exigem apenas uma sessão válida, sem restrição por papel. */
+const AUTHENTICATED_ONLY_PREFIXES = ["/conta"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-  if (!isProtected) {
+  const isRoleRestricted = ROLE_RESTRICTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  const isAuthenticatedOnly = AUTHENTICATED_ONLY_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+  if (!isRoleRestricted && !isAuthenticatedOnly) {
     return NextResponse.next();
   }
 
@@ -18,6 +22,10 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (isAuthenticatedOnly) {
+    return NextResponse.next();
   }
 
   const allowedPrefixes = ROLE_ALLOWED_PREFIXES[session.role] ?? [];
@@ -31,5 +39,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/portal/:path*"],
+  matcher: ["/admin/:path*", "/portal/:path*", "/conta/:path*"],
 };
