@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/require-session";
 import {
   type ChunkResult,
   type PageChunkResult,
+  type ServidorChunkResult,
   syncCargos,
   syncEscolas,
   syncEstudantesChunk,
@@ -28,11 +29,15 @@ export async function syncCargosAction() {
 /**
  * Sincroniza um lote de páginas por chamada, para não estourar o timeout da
  * função serverless em redes com muitos servidores. O cliente chama de novo
- * com `startPagina = nextPagina` até `done === true`.
+ * com `startPagina = nextPagina` e o mesmo `syncStartedAt` retornado, até
+ * `done === true`.
  */
-export async function syncServidoresChunkAction(startPagina: number): Promise<PageChunkResult> {
+export async function syncServidoresChunkAction(
+  startPagina: number,
+  syncStartedAt?: string,
+): Promise<ServidorChunkResult> {
   await requireSession(["ADMIN", "SECRETARIA"]);
-  const result = await syncServidoresChunk(startPagina);
+  const result = await syncServidoresChunk(startPagina, undefined, syncStartedAt);
   if (result.done) revalidatePath("/admin/sincronizacao");
   return result;
 }

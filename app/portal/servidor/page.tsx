@@ -6,15 +6,18 @@ export default async function ServidorHomePage() {
   const servidor = await getServidorBySession(session);
   if (!servidor) return null;
 
+  const turnos = [...new Set(servidor.turmas.map((t) => t.turno).filter(Boolean))];
+  const cargaTotal = servidor.turmas.reduce((sum, t) => sum + (t.cargaTrabalho ?? 0), 0);
+
   const fields = [
     { label: "Matrícula", value: servidor.matricula },
     { label: "Cargo", value: servidor.cargo },
     { label: "Função", value: servidor.funcao },
     { label: "Tipo de Vínculo", value: servidor.tipoVinculo },
     { label: "Escola", value: servidor.escolaNome ?? servidor.escola?.nome },
-    { label: "Turno", value: servidor.turno },
+    { label: "Turno", value: turnos.length > 0 ? turnos.join(", ") : null },
     { label: "Status", value: servidor.status },
-    { label: "Carga de Trabalho", value: servidor.cargaTrabalho ? `${servidor.cargaTrabalho}h` : null },
+    { label: "Carga de Trabalho", value: servidor.turmas.length > 0 ? `${cargaTotal}h` : null },
   ];
 
   return (

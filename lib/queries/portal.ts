@@ -13,6 +13,6 @@ export async function getServidorBySession(session: SessionPayload) {
   if (!session.servidorId) return null;
   return prisma.servidor.findUnique({
     where: { id: session.servidorId },
-    include: { escola: true },
+    include: { escola: true, turmas: { orderBy: { turma: "asc" } } },
   });
 }

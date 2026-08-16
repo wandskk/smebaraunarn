@@ -1,14 +1,9 @@
 import { RefreshCw } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import {
-  syncCargosAction,
-  syncEscolasAction,
-  syncEstudantesChunkAction,
-  syncNotasChunkAction,
-  syncServidoresChunkAction,
-} from "./actions";
+import { syncCargosAction, syncEscolasAction, syncEstudantesChunkAction, syncNotasChunkAction } from "./actions";
 import { ChunkedSyncButton } from "./chunked-sync-button";
 import { PagedSyncButton } from "./paged-sync-button";
+import { ServidorSyncButton } from "./servidor-sync-button";
 import { FrequenciaSyncPanel } from "./frequencia-sync-panel";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -50,11 +45,7 @@ export default async function SincronizacaoPage() {
         <form action={syncCargosAction}>
           <SyncCard title="2. Cargos" desc="Consulta /consulta-cargo" />
         </form>
-        <PagedSyncButton
-          title="3. Servidores"
-          desc="Consulta /consulta-servidor (inclui cargos lotados na Secretaria)"
-          runChunk={syncServidoresChunkAction}
-        />
+        <ServidorSyncButton />
         <ChunkedSyncButton
           title={`4. Estudantes (${anoAtual})`}
           desc="Consulta /consulta-estudante/enturmado"

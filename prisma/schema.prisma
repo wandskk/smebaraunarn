@@ -77,29 +77,46 @@ model Cargo {
 }
 
 model Servidor {
-  id                  Int       @id @default(autoincrement())
-  cpf                 String    @unique
+  id                  Int             @id @default(autoincrement())
+  cpf                 String          @unique
   matricula           String?
   nome                String
   dataNascimento      String?
   sexo                String?
   cargo               String?
   funcao              String?
-  disciplina          String?
-  cargaTrabalho       Int?
   tipoVinculo         String?
-  status              String?   @default("Ativo")
+  status              String?         @default("Ativo")
   pendenciaPedagogica String?
   email               String?
   telefone            String?
   escolaId            Int?
-  escola              Escola?   @relation(fields: [escolaId], references: [id])
+  escola              Escola?         @relation(fields: [escolaId], references: [id])
   escolaNome          String?
-  turma               String?
-  serie               String?
-  turno               String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  turmas              ServidorTurma[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+// Uma linha por (servidor × turma) lecionada/atribuída — a origem
+// (SIGEduc) pagina servidores exatamente nessa granularidade, então um
+// servidor com várias turmas aparece em várias linhas. Isolar isso do
+// Servidor evita que o sync sobrescreva a turma de um professor a cada
+// nova turma processada (só a última sobrevivia antes desta tabela).
+model ServidorTurma {
+  id            String   @id @default(cuid())
+  servidorId    Int
+  servidor      Servidor @relation(fields: [servidorId], references: [id], onDelete: Cascade)
+  turma         String
+  serie         String?
+  turno         String?
+  disciplina    String?
+  cargaTrabalho Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([servidorId, turma])
+  @@index([servidorId])
 }
 
 model Estudante {

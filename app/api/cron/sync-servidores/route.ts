@@ -20,9 +20,11 @@ export async function GET(request: NextRequest) {
     let pagina = 0;
     let done = false;
     let total = 0;
+    let syncStartedAt: string | undefined;
 
     while (!done) {
-      const result = await syncServidoresChunk(pagina);
+      const result = await syncServidoresChunk(pagina, undefined, syncStartedAt);
+      syncStartedAt = result.syncStartedAt;
       total += result.registrosNestaExecucao;
       done = result.done;
       pagina = result.nextPagina;

@@ -85,10 +85,16 @@ export async function syncCargos() {
   }
 }
 
+export interface ServidorChunkResult extends PageChunkResult {
+  /** Repasse este valor nas próximas chamadas da mesma sincronização. */
+  syncStartedAt: string;
+}
+
 /**
  * Sincroniza servidores em lotes de páginas, respeitando um orçamento de
  * tempo (budgetMs) para não estourar o timeout da função serverless.
- * Chame novamente com `startPagina = nextPagina` até `done` ser `true`.
+ * Chame novamente com `startPagina = nextPagina` e o mesmo `syncStartedAt`
+ * retornado na chamada anterior, até `done` ser `true`.
  *
  * Importante: /consulta-servidor é paginada por (servidor × turma), sem
  * filtro de escola — cargos de direção/coordenação (DIRETOR, VICE DIRETOR,
@@ -97,11 +103,18 @@ export async function syncCargos() {
  * deixava de fora inteiramente. Aqui resolvemos escolaId a partir do
  * codigo_inep_escola retornado, e deixamos null quando não há
  * correspondência (ex.: cargos lotados na Secretaria).
+ *
+ * Um mesmo servidor aparece em uma linha por turma; cada turma vira uma
+ * linha em ServidorTurma (upsert por servidorId+turma). Ao final de uma
+ * sincronização completa (`done === true`), remove turmas não tocadas
+ * desde `syncStartedAt` — ou seja, turmas que o servidor tinha antes mas
+ * que não vieram mais nesta rodada (mudou de turma/saiu da escola).
  */
 export async function syncServidoresChunk(
   startPagina = 0,
   budgetMs = DEFAULT_BUDGET_MS,
-): Promise<PageChunkResult> {
+  syncStartedAt: string = new Date().toISOString(),
+): Promise<ServidorChunkResult> {
   const start = Date.now();
   let registros = 0;
   let pagina = startPagina;
@@ -132,7 +145,6 @@ export async function syncServidoresChunk(
           dataNascimento: normalizeBirthDate(s.data_nascimento) ?? s.data_nascimento,
           cargo: s.cargo,
           funcao: s.funo,
-          disciplina: s.disciplina,
           escolaId,
           escolaNome: s.escola,
           pendenciaPedagogica: s.pendencia_pedagogica,
@@ -140,16 +152,27 @@ export async function syncServidoresChunk(
           status: s.status,
           email: s.email,
           telefone: s.telefone,
-          cargaTrabalho: s.carga_trabalho,
-          turma: s.turma,
-          serie: s.serie,
-          turno: s.turno,
         };
-        await prisma.servidor.upsert({
+        const servidor = await prisma.servidor.upsert({
           where: { cpf },
           update: data,
           create: { cpf, ...data },
         });
+
+        if (s.turma) {
+          const turmaData = {
+            serie: s.serie,
+            turno: s.turno,
+            disciplina: s.disciplina,
+            cargaTrabalho: s.carga_trabalho,
+          };
+          await prisma.servidorTurma.upsert({
+            where: { servidorId_turma: { servidorId: servidor.id, turma: s.turma } },
+            update: turmaData,
+            create: { servidorId: servidor.id, turma: s.turma, ...turmaData },
+          });
+        }
+
         registros += 1;
       }
 
@@ -160,6 +183,12 @@ export async function syncServidoresChunk(
       }
     }
 
+    if (done) {
+      await prisma.servidorTurma.deleteMany({
+        where: { updatedAt: { lt: new Date(syncStartedAt) } },
+      });
+    }
+
     await logSync(
       "SERVIDORES",
       done ? "SUCESSO" : "PROCESSANDO",
@@ -168,7 +197,7 @@ export async function syncServidoresChunk(
       Date.now() - start,
     );
 
-    return { done, nextPagina: pagina, totalPaginas, registrosNestaExecucao: registros };
+    return { done, nextPagina: pagina, totalPaginas, registrosNestaExecucao: registros, syncStartedAt };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     await logSync("SERVIDORES", "ERRO", registros, message, Date.now() - start);
