@@ -9,6 +9,7 @@ import {
   consultarNotas,
   consultarServidores,
 } from "@/lib/sigeduc";
+import { classifyServidorRole } from "@/lib/roles";
 import { normalizeBirthDate, normalizeCpf, normalizeCpfLoose } from "@/lib/utils";
 
 /** Margem de segurança para não estourar o timeout da função serverless. */
@@ -145,7 +146,6 @@ export async function syncServidoresChunk(
           dataNascimento: normalizeBirthDate(s.data_nascimento) ?? s.data_nascimento,
           cargo: s.cargo,
           funcao: s.funo,
-          escolaId,
           escolaNome: s.escola,
           pendenciaPedagogica: s.pendencia_pedagogica,
           tipoVinculo: s.tipo_vinculo,
@@ -153,10 +153,16 @@ export async function syncServidoresChunk(
           email: s.email,
           telefone: s.telefone,
         };
+        // Cargos de direção/coordenação vêm sem escola na origem (lotados na
+        // Secretaria) — a atribuição em /admin/servidores é a única fonte
+        // para eles. Sem este desvio, todo sync apagava esse vínculo manual
+        // de volta para null. Para os demais cargos, a origem continua
+        // mandando: se um servidor de fato perde a escola lá, refletimos.
+        const preservarEscolaManual = escolaId === null && classifyServidorRole(s.cargo, s.funo) === "DIRETOR";
         const servidor = await prisma.servidor.upsert({
           where: { cpf },
-          update: data,
-          create: { cpf, ...data },
+          update: preservarEscolaManual ? data : { ...data, escolaId },
+          create: { cpf, ...data, escolaId },
         });
 
         if (s.turma) {
