@@ -15,8 +15,10 @@ export default async function AlunoDetailPage({ params }: PageProps) {
   const alunoId = Number(params.id);
   const aluno = await prisma.estudante.findUnique({ where: { id: alunoId } });
 
-  // Escopo travado: professor só pode ver alunos da própria escola.
-  if (!aluno || aluno.escolaId !== servidor.escolaId) notFound();
+  // Escopo travado: professor só pode ver alunos da própria escola e turma
+  // (mesma regra de filtro usada na listagem em turma/page.tsx).
+  const turmaPermitida = !servidor.turma || aluno?.turmaSerie === servidor.turma;
+  if (!aluno || aluno.escolaId !== servidor.escolaId || !turmaPermitida) notFound();
 
   const [notas, frequencias] = await Promise.all([
     prisma.notaEstudante.findMany({
