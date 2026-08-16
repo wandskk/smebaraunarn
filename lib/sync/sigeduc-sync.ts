@@ -9,9 +9,19 @@ import {
 } from "@/lib/sigeduc";
 import { normalizeBirthDate, normalizeCpf } from "@/lib/utils";
 
+/** Margem de segurança para não estourar o timeout da função serverless. */
+const DEFAULT_BUDGET_MS = 45_000;
+
+export interface ChunkResult {
+  done: boolean;
+  nextIndex: number;
+  totalEscolas: number;
+  registrosNestaExecucao: number;
+}
+
 async function logSync(
   modulo: string,
-  status: "SUCESSO" | "ERRO",
+  status: "SUCESSO" | "ERRO" | "PROCESSANDO",
   registros: number,
   mensagem: string | null,
   duracaoMs: number,
@@ -66,85 +76,132 @@ export async function syncCargos() {
   }
 }
 
-export async function syncServidores() {
-  const start = Date.now();
-  let total = 0;
-  try {
-    const escolas = await prisma.escola.findMany();
+async function upsertServidor(escolaId: number, s: Awaited<ReturnType<typeof consultarServidores>>["dados"][number]) {
+  if (!s.cpf) return false;
+  const cpf = normalizeCpf(s.cpf);
+  const data = {
+    nome: s.nome,
+    matricula: s.matricula,
+    dataNascimento: normalizeBirthDate(s.data_nascimento) ?? s.data_nascimento,
+    cargo: s.cargo,
+    funcao: s.funo,
+    disciplina: s.disciplina,
+    escolaId,
+    escolaNome: s.escola,
+    pendenciaPedagogica: s.pendencia_pedagogica,
+    tipoVinculo: s.tipo_vinculo,
+    status: s.status,
+    email: s.email,
+    telefone: s.telefone,
+    cargaTrabalho: s.carga_trabalho,
+    turma: s.turma,
+    serie: s.serie,
+    turno: s.turno,
+  };
+  await prisma.servidor.upsert({
+    where: { cpf },
+    update: data,
+    create: { cpf, ...data },
+  });
+  return true;
+}
 
-    for (const escola of escolas) {
+/**
+ * Sincroniza servidores em lotes por escola, respeitando um orçamento de
+ * tempo (budgetMs) para não estourar o timeout da função serverless.
+ * Chame novamente com `startIndex = nextIndex` até `done` ser `true`.
+ */
+export async function syncServidoresChunk(
+  startIndex = 0,
+  budgetMs = DEFAULT_BUDGET_MS,
+): Promise<ChunkResult> {
+  const start = Date.now();
+  let registros = 0;
+  const escolas = await prisma.escola.findMany({ orderBy: { id: "asc" } });
+
+  let index = startIndex;
+  try {
+    while (index < escolas.length) {
+      if (Date.now() - start > budgetMs) break;
+
+      const escola = escolas[index]!;
       let pagina = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const resposta = await consultarServidores({ idsEscolas: [escola.id] }, pagina, 1000);
         for (const s of resposta.dados) {
-          if (!s.cpf) continue;
-          const cpf = normalizeCpf(s.cpf);
-          await prisma.servidor.upsert({
-            where: { cpf },
-            update: {
-              nome: s.nome,
-              matricula: s.matricula,
-              dataNascimento: normalizeBirthDate(s.data_nascimento) ?? s.data_nascimento,
-              cargo: s.cargo,
-              funcao: s.funo,
-              disciplina: s.disciplina,
-              escolaId: escola.id,
-              escolaNome: s.escola,
-              pendenciaPedagogica: s.pendencia_pedagogica,
-              tipoVinculo: s.tipo_vinculo,
-              status: s.status,
-              email: s.email,
-              telefone: s.telefone,
-              cargaTrabalho: s.carga_trabalho,
-              turma: s.turma,
-              serie: s.serie,
-              turno: s.turno,
-            },
-            create: {
-              cpf,
-              nome: s.nome,
-              matricula: s.matricula,
-              dataNascimento: normalizeBirthDate(s.data_nascimento) ?? s.data_nascimento,
-              cargo: s.cargo,
-              funcao: s.funo,
-              disciplina: s.disciplina,
-              escolaId: escola.id,
-              escolaNome: s.escola,
-              pendenciaPedagogica: s.pendencia_pedagogica,
-              tipoVinculo: s.tipo_vinculo,
-              status: s.status,
-              email: s.email,
-              telefone: s.telefone,
-              cargaTrabalho: s.carga_trabalho,
-              turma: s.turma,
-              serie: s.serie,
-              turno: s.turno,
-            },
-          });
-          total += 1;
+          if (await upsertServidor(escola.id, s)) registros += 1;
         }
         if (!resposta.temProximaPagina) break;
         pagina += 1;
       }
+      index += 1;
     }
 
-    await logSync("SERVIDORES", "SUCESSO", total, null, Date.now() - start);
-    return { count: total };
+    const done = index >= escolas.length;
+    await logSync(
+      "SERVIDORES",
+      done ? "SUCESSO" : "PROCESSANDO",
+      registros,
+      done ? null : `Lote parcial: escolas ${startIndex + 1}-${index} de ${escolas.length}`,
+      Date.now() - start,
+    );
+
+    return { done, nextIndex: index, totalEscolas: escolas.length, registrosNestaExecucao: registros };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
-    await logSync("SERVIDORES", "ERRO", total, message, Date.now() - start);
+    await logSync("SERVIDORES", "ERRO", registros, message, Date.now() - start);
     throw error;
   }
 }
 
-export async function syncEstudantes(ano: number) {
-  const start = Date.now();
-  let total = 0;
-  try {
-    const escolas = await prisma.escola.findMany();
+async function upsertEstudante(
+  ano: number,
+  escolaId: number,
+  e: Awaited<ReturnType<typeof consultarEstudantesEnturmados>>["dados"][number],
+) {
+  const data = {
+    matricula: e.matricula,
+    cpf: e.cpf ? normalizeCpf(e.cpf) : null,
+    nome: e.nome,
+    dataNascimento: normalizeBirthDate(e.data_nascimento) ?? e.data_nascimento,
+    ano,
+    turmaSerie: e.nome_turma_serie,
+    escolaId,
+    nomeEscola: e.nomeEscola,
+    nomeFiliacao1: e.nome_filiacao_1,
+    nomeFiliacao2: e.nome_filiacao_2,
+    nomeResponsavel: e.nome_responsavel,
+    documentoResponsavel: e.documento_Responsavel,
+    codigoNis: e.codigo_Nis,
+  };
+  await prisma.estudante.upsert({
+    where: { id: e.id },
+    update: data,
+    create: { id: e.id, ...data },
+  });
+}
 
-    for (const escola of escolas) {
+/**
+ * Sincroniza estudantes enturmados em lotes por escola, respeitando um
+ * orçamento de tempo. Chame novamente com `startIndex = nextIndex` até
+ * `done` ser `true`.
+ */
+export async function syncEstudantesChunk(
+  ano: number,
+  startIndex = 0,
+  budgetMs = DEFAULT_BUDGET_MS,
+): Promise<ChunkResult> {
+  const start = Date.now();
+  let registros = 0;
+  const escolas = await prisma.escola.findMany({ orderBy: { id: "asc" } });
+
+  let index = startIndex;
+  try {
+    while (index < escolas.length) {
+      if (Date.now() - start > budgetMs) break;
+
+      const escola = escolas[index]!;
       let pagina = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -154,52 +211,28 @@ export async function syncEstudantes(ano: number) {
           1000,
         );
         for (const e of resposta.dados) {
-          await prisma.estudante.upsert({
-            where: { id: e.id },
-            update: {
-              matricula: e.matricula,
-              cpf: e.cpf ? normalizeCpf(e.cpf) : null,
-              nome: e.nome,
-              dataNascimento: normalizeBirthDate(e.data_nascimento) ?? e.data_nascimento,
-              ano,
-              turmaSerie: e.nome_turma_serie,
-              escolaId: escola.id,
-              nomeEscola: e.nomeEscola,
-              nomeFiliacao1: e.nome_filiacao_1,
-              nomeFiliacao2: e.nome_filiacao_2,
-              nomeResponsavel: e.nome_responsavel,
-              documentoResponsavel: e.documento_Responsavel,
-              codigoNis: e.codigo_Nis,
-            },
-            create: {
-              id: e.id,
-              matricula: e.matricula,
-              cpf: e.cpf ? normalizeCpf(e.cpf) : null,
-              nome: e.nome,
-              dataNascimento: normalizeBirthDate(e.data_nascimento) ?? e.data_nascimento,
-              ano,
-              turmaSerie: e.nome_turma_serie,
-              escolaId: escola.id,
-              nomeEscola: e.nomeEscola,
-              nomeFiliacao1: e.nome_filiacao_1,
-              nomeFiliacao2: e.nome_filiacao_2,
-              nomeResponsavel: e.nome_responsavel,
-              documentoResponsavel: e.documento_Responsavel,
-              codigoNis: e.codigo_Nis,
-            },
-          });
-          total += 1;
+          await upsertEstudante(ano, escola.id, e);
+          registros += 1;
         }
         if (!resposta.temProximaPagina) break;
         pagina += 1;
       }
+      index += 1;
     }
 
-    await logSync("ESTUDANTES", "SUCESSO", total, null, Date.now() - start);
-    return { count: total };
+    const done = index >= escolas.length;
+    await logSync(
+      "ESTUDANTES",
+      done ? "SUCESSO" : "PROCESSANDO",
+      registros,
+      done ? null : `Lote parcial: escolas ${startIndex + 1}-${index} de ${escolas.length}`,
+      Date.now() - start,
+    );
+
+    return { done, nextIndex: index, totalEscolas: escolas.length, registrosNestaExecucao: registros };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
-    await logSync("ESTUDANTES", "ERRO", total, message, Date.now() - start);
+    await logSync("ESTUDANTES", "ERRO", registros, message, Date.now() - start);
     throw error;
   }
 }

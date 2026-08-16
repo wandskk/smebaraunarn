@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/require-session";
-import { syncCargos, syncEscolas, syncEstudantes, syncServidores } from "@/lib/sync/sigeduc-sync";
+import {
+  type ChunkResult,
+  syncCargos,
+  syncEscolas,
+  syncEstudantesChunk,
+  syncServidoresChunk,
+} from "@/lib/sync/sigeduc-sync";
 
 export async function syncEscolasAction() {
   await requireSession(["ADMIN", "SECRETARIA"]);
@@ -16,15 +22,21 @@ export async function syncCargosAction() {
   revalidatePath("/admin/sincronizacao");
 }
 
-export async function syncServidoresAction() {
+/**
+ * Sincroniza um lote de escolas por chamada, para não estourar o timeout da
+ * função serverless em redes com muitos servidores. O cliente chama de novo
+ * com `startIndex = nextIndex` até `done === true`.
+ */
+export async function syncServidoresChunkAction(startIndex: number): Promise<ChunkResult> {
   await requireSession(["ADMIN", "SECRETARIA"]);
-  await syncServidores().catch(() => null);
-  revalidatePath("/admin/sincronizacao");
+  const result = await syncServidoresChunk(startIndex);
+  if (result.done) revalidatePath("/admin/sincronizacao");
+  return result;
 }
 
-export async function syncEstudantesAction(formData: FormData) {
+export async function syncEstudantesChunkAction(ano: number, startIndex: number): Promise<ChunkResult> {
   await requireSession(["ADMIN", "SECRETARIA"]);
-  const ano = Number(formData.get("ano")) || new Date().getFullYear();
-  await syncEstudantes(ano).catch(() => null);
-  revalidatePath("/admin/sincronizacao");
+  const result = await syncEstudantesChunk(ano, startIndex);
+  if (result.done) revalidatePath("/admin/sincronizacao");
+  return result;
 }

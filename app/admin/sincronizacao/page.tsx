@@ -1,11 +1,13 @@
 import { RefreshCw } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import {
-  syncCargosAction,
-  syncEscolasAction,
-  syncEstudantesAction,
-  syncServidoresAction,
-} from "./actions";
+import { syncCargosAction, syncEscolasAction, syncEstudantesChunkAction, syncServidoresChunkAction } from "./actions";
+import { ChunkedSyncButton } from "./chunked-sync-button";
+
+const STATUS_STYLE: Record<string, string> = {
+  SUCESSO: "bg-emerald-50 text-emerald-700",
+  ERRO: "bg-red-50 text-red-700",
+  PROCESSANDO: "bg-amber-50 text-amber-700",
+};
 
 export default async function SincronizacaoPage() {
   const logs = await prisma.logSincronizacao.findMany({
@@ -14,13 +16,15 @@ export default async function SincronizacaoPage() {
   });
 
   const anoAtual = new Date().getFullYear();
+  const syncEstudantesAction = syncEstudantesChunkAction.bind(null, anoAtual);
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Sincronização SIGEduc</h1>
       <p className="mt-1 text-sm text-slate-500">
         Importa dados diretamente da API Educ 21. Execute nesta ordem: Escolas → Cargos →
-        Servidores → Estudantes.
+        Servidores → Estudantes. Servidores e Estudantes são sincronizados em lotes por escola,
+        para não estourar o tempo limite da função — acompanhe o progresso no próprio botão.
       </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -30,13 +34,16 @@ export default async function SincronizacaoPage() {
         <form action={syncCargosAction}>
           <SyncCard title="2. Cargos" desc="Consulta /consulta-cargo" />
         </form>
-        <form action={syncServidoresAction}>
-          <SyncCard title="3. Servidores" desc="Consulta /consulta-servidor por escola" />
-        </form>
-        <form action={syncEstudantesAction}>
-          <input type="hidden" name="ano" value={anoAtual} />
-          <SyncCard title={`4. Estudantes (${anoAtual})`} desc="Consulta /consulta-estudante/enturmado" />
-        </form>
+        <ChunkedSyncButton
+          title="3. Servidores"
+          desc="Consulta /consulta-servidor por escola"
+          runChunk={syncServidoresChunkAction}
+        />
+        <ChunkedSyncButton
+          title={`4. Estudantes (${anoAtual})`}
+          desc="Consulta /consulta-estudante/enturmado"
+          runChunk={syncEstudantesAction}
+        />
       </div>
 
       <div className="mt-10">
@@ -59,11 +66,7 @@ export default async function SincronizacaoPage() {
                   <td className="px-4 py-3 font-medium text-slate-900">{log.modulo}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={
-                        log.status === "SUCESSO"
-                          ? "rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700"
-                          : "rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
-                      }
+                      className={`rounded-full px-2 py-0.5 text-xs ${STATUS_STYLE[log.status] ?? "bg-slate-100 text-slate-600"}`}
                     >
                       {log.status}
                     </span>
