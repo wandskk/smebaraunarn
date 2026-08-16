@@ -6,12 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /** Remove tudo que não for dígito. */
-export function onlyDigits(value: string): string {
-  return value.replace(/\D/g, "");
+export function onlyDigits(value: string | null | undefined): string {
+  return (value ?? "").replace(/\D/g, "");
 }
 
 /** Normaliza um CPF para 11 dígitos, aceitando com ou sem pontuação. */
-export function normalizeCpf(value: string): string {
+export function normalizeCpf(value: string | null | undefined): string {
   return onlyDigits(value).padStart(11, "0").slice(-11);
 }
 
@@ -21,8 +21,9 @@ export function formatCpf(value: string): string {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
-export function isValidCpfFormat(value: string): boolean {
-  return normalizeCpf(value).length === 11;
+/** Exige exatamente 11 dígitos — usado para validar entrada do usuário. */
+export function isValidCpfFormat(value: string | null | undefined): boolean {
+  return onlyDigits(value).length === 11;
 }
 
 /**
@@ -30,7 +31,8 @@ export function isValidCpfFormat(value: string): boolean {
  * aceitos (DDMMAAAA, DD/MM/YYYY, YYYY-MM-DD) para o formato canônico YYYY-MM-DD.
  * Retorna null se a data for inválida.
  */
-export function normalizeBirthDate(value: string): string | null {
+export function normalizeBirthDate(value: string | null | undefined): string | null {
+  if (!value) return null;
   const trimmed = value.trim();
 
   // YYYY-MM-DD

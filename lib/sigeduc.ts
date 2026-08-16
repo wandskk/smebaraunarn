@@ -84,23 +84,23 @@ export interface CargoResponse {
 
 export interface ServidorResponse {
   nome: string;
-  cpf: string;
-  matricula: string;
-  data_nascimento: string;
-  cargo: string;
-  funo: string;
-  disciplina: string;
-  escola: string;
-  codigo_inep_escola: string;
-  pendencia_pedagogica: string;
-  tipo_vinculo: string;
-  status: string;
-  email: string;
-  telefone: string;
-  carga_trabalho: number;
-  turma: string;
-  serie: string;
-  turno: string;
+  cpf: string | null;
+  matricula: string | null;
+  data_nascimento: string | null;
+  cargo: string | null;
+  funo: string | null;
+  disciplina: string | null;
+  escola: string | null;
+  codigo_inep_escola: string | null;
+  pendencia_pedagogica: string | null;
+  tipo_vinculo: string | null;
+  status: string | null;
+  email: string | null;
+  telefone: string | null;
+  carga_trabalho: number | null;
+  turma: string | null;
+  serie: string | null;
+  turno: string | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -115,16 +115,16 @@ export interface EstudanteResponse {
   id: number;
   nome: string;
   matricula: string;
-  cpf: string;
-  data_nascimento: string;
+  cpf: string | null;
+  data_nascimento: string | null;
   ano: number;
-  nome_turma_serie: string;
-  nomeEscola: string;
-  nome_filiacao_1: string;
-  nome_filiacao_2: string;
-  nome_responsavel: string;
-  documento_Responsavel: string;
-  codigo_Nis: string;
+  nome_turma_serie: string | null;
+  nomeEscola: string | null;
+  nome_filiacao_1: string | null;
+  nome_filiacao_2: string | null;
+  nome_responsavel: string | null;
+  documento_Responsavel: string | null;
+  codigo_Nis: string | null;
 }
 
 export interface NotaBimestral {

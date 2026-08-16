@@ -78,8 +78,8 @@ export async function syncServidores() {
       while (true) {
         const resposta = await consultarServidores({ idsEscolas: [escola.id] }, pagina, 1000);
         for (const s of resposta.dados) {
+          if (!s.cpf) continue;
           const cpf = normalizeCpf(s.cpf);
-          if (!cpf) continue;
           await prisma.servidor.upsert({
             where: { cpf },
             update: {
