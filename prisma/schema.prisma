@@ -1,0 +1,257 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  SECRETARIA
+  DIRETOR
+  PROFESSOR
+  SERVIDOR_GERAL
+  ALUNO
+}
+
+enum CategoriaPost {
+  NOTICIA
+  AVISO
+  DESTAQUE
+  DOCUMENTO
+}
+
+enum TipoAvaliacao {
+  FLUENCIA_LEITORA
+  SPADEB
+  SIMULADO
+  PROVA_MUNICIPAL
+}
+
+enum NivelFluencia {
+  NAO_LEITOR
+  LEITOR_DE_SILABAS
+  LEITOR_DE_PALAVRAS
+  LEITOR_DE_FRASES
+  LEITOR_SEM_FLUENCIA
+  LEITOR_FLUENTE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  cpf           String    @unique
+  nome          String
+  email         String?
+  passwordHash  String
+  role          Role      @default(ALUNO)
+  escolaId      Int?
+  servidorId    Int?
+  estudanteId   Int?
+  ativo         Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  posts         Post[]
+}
+
+model Escola {
+  id          Int          @id // ID do SIGEduc
+  nome        String
+  codigoInep  String?
+  endereco    String?
+  telefone    String?
+  servidores  Servidor[]
+  estudantes  Estudante[]
+  avaliacoesResultados AvaliacaoResultadoAluno[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Cargo {
+  id          Int        @id // ID do SIGEduc
+  categoria   String?
+  denominacao String
+  nivelCargo  String?
+}
+
+model Servidor {
+  id                  Int       @id @default(autoincrement())
+  cpf                 String    @unique
+  matricula           String?
+  nome                String
+  dataNascimento      String?
+  sexo                String?
+  cargo               String?
+  funcao              String?
+  disciplina          String?
+  cargaTrabalho       Int?
+  tipoVinculo         String?
+  status              String?   @default("Ativo")
+  pendenciaPedagogica String?
+  email               String?
+  telefone            String?
+  escolaId            Int?
+  escola              Escola?   @relation(fields: [escolaId], references: [id])
+  escolaNome          String?
+  turma               String?
+  serie               String?
+  turno               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Estudante {
+  id                        Int         @id // ID do SIGEduc
+  matricula                 String      @unique
+  cpf                       String?
+  nome                      String
+  dataNascimento            String?
+  ano                       Int
+  turmaSerie                String?
+  escolaId                  Int
+  escola                    Escola      @relation(fields: [escolaId], references: [id])
+  nomeEscola                String?
+  nomeFiliacao1             String?
+  nomeFiliacao2             String?
+  nomeResponsavel           String?
+  documentoResponsavel      String?
+  codigoNis                 String?
+  notas                     NotaEstudante[]
+  frequencias               FrequenciaEstudante[]
+  avaliacoesResultados      AvaliacaoResultadoAluno[]
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
+}
+
+model NotaEstudante {
+  id                 String     @id @default(cuid())
+  estudanteMatricula String
+  estudante          Estudante  @relation(fields: [estudanteMatricula], references: [matricula], onDelete: Cascade)
+  ano                Int
+  escola             String?
+  etapaEnsino        String?
+  serie              String?
+  turma              String?
+  disciplina         String
+  unidade            Int
+  nota               Float
+  descricao          String?
+  createdAt          DateTime   @default(now())
+
+  @@index([estudanteMatricula, ano])
+}
+
+model FrequenciaEstudante {
+  id                 String     @id @default(cuid())
+  estudanteMatricula String
+  estudante          Estudante  @relation(fields: [estudanteMatricula], references: [matricula], onDelete: Cascade)
+  data               String
+  disciplina         String?
+  turma              String?
+  etapaEnsino        String?
+  falta              Int        @default(0)
+  quantidadeAula     Int        @default(1)
+  abonada            Boolean    @default(false)
+  motivoAbono        String?
+  createdAt          DateTime   @default(now())
+
+  @@index([estudanteMatricula, data])
+}
+
+model Post {
+  id             String         @id @default(cuid())
+  titulo         String
+  slug           String         @unique
+  resumo         String?
+  conteudo       String         @db.Text
+  imagemCapa     String?
+  galeriaImagens String[]
+  categoria      CategoriaPost  @default(NOTICIA)
+  destaque       Boolean        @default(false)
+  importante     Boolean        @default(false)
+  publicado      Boolean        @default(true)
+  dataPublicacao DateTime       @default(now())
+  autorId        String?
+  autor          User?          @relation(fields: [autorId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model DocumentoPublico {
+  id          String   @id @default(cuid())
+  titulo      String
+  categoria   String
+  descricao   String?
+  arquivoUrl  String
+  tamanho     String?
+  acessos     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model IndicadoresLanding {
+  id              String   @id @default("default")
+  totalEscolas    Int      @default(20)
+  totalAlunos     Int      @default(3800)
+  totalDocumentos Int      @default(150)
+  totalAcessos    Int      @default(12500)
+  updatedAt       DateTime @updatedAt
+}
+
+model Avaliacao {
+  id          String         @id @default(cuid())
+  codigo      String         @unique
+  nome        String
+  descricao   String?
+  tipo        TipoAvaliacao  @default(FLUENCIA_LEITORA)
+  ano         Int
+  etapaEnsino String?
+  ativo       Boolean        @default(true)
+  questoes    AvaliacaoQuestao[]
+  resultados  AvaliacaoResultadoAluno[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model AvaliacaoQuestao {
+  id              String    @id @default(cuid())
+  avaliacaoId     String
+  avaliacao       Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  numero          Int
+  enunciado       String?
+  descritor       String?
+  gabaritoCorreto String?
+  peso            Float     @default(1.0)
+}
+
+model AvaliacaoResultadoAluno {
+  id               String         @id @default(cuid())
+  avaliacaoId      String
+  avaliacao        Avaliacao      @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  estudanteId      Int
+  estudante        Estudante      @relation(fields: [estudanteId], references: [id], onDelete: Cascade)
+  escolaId         Int
+  escola           Escola         @relation(fields: [escolaId], references: [id])
+  turma            String
+  pontuacao        Float?
+  nivelDesempenho  NivelFluencia?
+  palavrasPorMin   Int?
+  respostasJson    Json?
+  observacoes      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([avaliacaoId, estudanteId])
+}
+
+model LogSincronizacao {
+  id          String   @id @default(cuid())
+  modulo      String
+  status      String
+  registros   Int      @default(0)
+  mensagem    String?
+  duracaoMs   Int?
+  createdAt   DateTime @default(now())
+}
