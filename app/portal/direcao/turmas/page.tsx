@@ -28,7 +28,8 @@ export default async function DirecaoTurmasPage() {
             >
               <Users className="h-6 w-6 shrink-0 text-brand-600" />
               <div>
-                <div className="font-semibold text-slate-900">{t.turma}</div>
+                <div className="font-semibold text-slate-900">{t.serie ?? t.turma}</div>
+                <div className="text-xs text-slate-400">{t.turma}</div>
                 <div className="text-sm text-slate-500">{t.totalAlunos} aluno(s)</div>
               </div>
             </Link>

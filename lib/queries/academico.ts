@@ -3,7 +3,44 @@ import { prisma } from "@/lib/prisma";
 
 export interface TurmaResumo {
   turma: string;
+  serie: string | null;
   totalAlunos: number;
+}
+
+/**
+ * A origem não dá um nome legível de turma pro aluno — só o código interno
+ * (ex.: "EFAFM6A"). Notas e atribuições de professor carregam um campo
+ * "série" (ex.: "6º Ano"), mas ele é o mesmo pras 4 turmas A/B/C/D de uma
+ * série — não dá pra usar sozinho como nome, só como complemento do
+ * código. FrequenciaEstudante não tem esse campo. Busca a série em
+ * NotaEstudante primeiro (é onde mais turmas têm registro), caindo para
+ * ServidorTurma quando a turma ainda não tem nota lançada.
+ */
+async function getSeriePorTurma(turmas: string[]): Promise<Map<string, string>> {
+  const series = new Map<string, string>();
+  if (turmas.length === 0) return series;
+
+  const [notas, servidorTurmas] = await Promise.all([
+    prisma.notaEstudante.findMany({
+      where: { turma: { in: turmas } },
+      distinct: ["turma"],
+      select: { turma: true, serie: true },
+    }),
+    prisma.servidorTurma.findMany({
+      where: { turma: { in: turmas } },
+      distinct: ["turma"],
+      select: { turma: true, serie: true },
+    }),
+  ]);
+
+  // Ordem de prioridade: quem vier depois só preenche o que ainda falta.
+  for (const fonte of [notas, servidorTurmas]) {
+    for (const item of fonte) {
+      if (item.turma && item.serie && !series.has(item.turma)) series.set(item.turma, item.serie);
+    }
+  }
+
+  return series;
 }
 
 /** Lista as turmas de uma escola (a partir dos alunos enturmados), com contagem. */
@@ -15,13 +52,21 @@ export async function getTurmasDaEscola(escolaId: number): Promise<TurmaResumo[]
     orderBy: { turmaSerie: "asc" },
   });
 
+  const turmas = grupos.filter((g) => g.turmaSerie).map((g) => g.turmaSerie as string);
+  const series = await getSeriePorTurma(turmas);
+
   return grupos
     .filter((g) => g.turmaSerie)
-    .map((g) => ({ turma: g.turmaSerie as string, totalAlunos: g._count._all }));
+    .map((g) => ({
+      turma: g.turmaSerie as string,
+      serie: series.get(g.turmaSerie as string) ?? null,
+      totalAlunos: g._count._all,
+    }));
 }
 
 export interface TurmaDetalhe {
   turma: string;
+  serie: string | null;
   alunos: Awaited<ReturnType<typeof prisma.estudante.findMany>>;
   notasPorDisciplina: { disciplina: string; media: number; quantidade: number }[];
   frequencia: { totalAulas: number; totalFaltas: number; percentual: number | null };
@@ -29,7 +74,7 @@ export interface TurmaDetalhe {
 
 /** Alunos, médias por disciplina e frequência agregada de uma turma específica. */
 export async function getTurmaDetalhe(escolaId: number, turma: string, ano: number): Promise<TurmaDetalhe> {
-  const [alunos, notasAgregadas, frequenciaAgregada] = await Promise.all([
+  const [alunos, notasAgregadas, frequenciaAgregada, series] = await Promise.all([
     prisma.estudante.findMany({ where: { escolaId, turmaSerie: turma }, orderBy: { nome: "asc" } }),
     prisma.notaEstudante.groupBy({
       by: ["disciplina"],
@@ -42,6 +87,7 @@ export async function getTurmaDetalhe(escolaId: number, turma: string, ano: numb
       where: { turma, estudante: { escolaId } },
       _sum: { falta: true, quantidadeAula: true },
     }),
+    getSeriePorTurma([turma]),
   ]);
 
   const totalAulas = frequenciaAgregada._sum.quantidadeAula ?? 0;
@@ -49,6 +95,7 @@ export async function getTurmaDetalhe(escolaId: number, turma: string, ano: numb
 
   return {
     turma,
+    serie: series.get(turma) ?? null,
     alunos,
     notasPorDisciplina: notasAgregadas.map((n) => ({
       disciplina: n.disciplina,

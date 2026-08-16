@@ -21,8 +21,11 @@ export default async function AdminTurmaDetalhePage({ params }: PageProps) {
       <Link href={`/admin/escolas/${escolaId}`} className="text-sm text-brand-700 hover:underline">
         ← {escola.nome}
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">{turma}</h1>
-      <p className="mt-1 text-sm text-slate-500">{detalhe.alunos.length} aluno(s) enturmado(s).</p>
+      <h1 className="mt-2 text-xl font-semibold text-slate-900">{detalhe.serie ?? turma}</h1>
+      <p className="mt-1 text-sm text-slate-500">
+        {detalhe.serie && <span className="text-slate-400">{turma} · </span>}
+        {detalhe.alunos.length} aluno(s) enturmado(s).
+      </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
