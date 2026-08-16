@@ -9,7 +9,7 @@ import {
   consultarNotas,
   consultarServidores,
 } from "@/lib/sigeduc";
-import { normalizeBirthDate, normalizeCpf } from "@/lib/utils";
+import { normalizeBirthDate, normalizeCpf, normalizeCpfLoose } from "@/lib/utils";
 
 /** Margem de segurança para não estourar o timeout da função serverless. */
 const DEFAULT_BUDGET_MS = 45_000;
@@ -193,7 +193,7 @@ async function upsertEstudante(
     nomeFiliacao1: e.nome_filiacao_1,
     nomeFiliacao2: e.nome_filiacao_2,
     nomeResponsavel: e.nome_responsavel,
-    documentoResponsavel: e.documento_Responsavel,
+    documentoResponsavel: normalizeCpfLoose(e.documento_Responsavel),
     codigoNis: e.codigo_Nis,
   };
   await prisma.estudante.upsert({

@@ -27,6 +27,21 @@ export function isValidCpfFormat(value: string | null | undefined): boolean {
 }
 
 /**
+ * Normaliza um CPF só quando o valor bruto tem 10 ou 11 dígitos: 10 é o caso
+ * comum de fonte que armazena CPF como número e perde o zero à esquerda; 11
+ * é o formato completo. Valores mais curtos (ex.: "0", fragmentos, outros
+ * documentos) não são CPFs confiáveis — completá-los com padStart inventaria
+ * dígitos e pode colidir com um CPF real (ex.: "0" viraria "00000000000").
+ * Usado para documentoResponsavel, que na origem (SIGEduc) não tem a mesma
+ * qualidade de dado garantida que o CPF do próprio estudante/servidor.
+ */
+export function normalizeCpfLoose(value: string | null | undefined): string | null {
+  const digits = onlyDigits(value);
+  if (digits.length < 10 || digits.length > 11) return null;
+  return digits.padStart(11, "0");
+}
+
+/**
  * Normaliza uma data de nascimento informada em qualquer um dos formatos
  * aceitos (DDMMAAAA, DD/MM/YYYY, YYYY-MM-DD) para o formato canônico YYYY-MM-DD.
  * Retorna null se a data for inválida.

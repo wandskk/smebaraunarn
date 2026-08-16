@@ -118,8 +118,15 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     redirect(roleHomePath(role));
   }
 
-  // 3. Estudante / responsável
-  const estudante = await prisma.estudante.findFirst({ where: { cpf } });
+  // 3. Estudante (CPF próprio) ou, na falta dele — comum em anos iniciais,
+  // onde o aluno ainda não tem CPF emitido —, o CPF do responsável cadastrado
+  // na origem (documentoResponsavel). Se o mesmo responsável tiver mais de um
+  // filho na rede sem CPF próprio, só o primeiro (por id) fica acessível por
+  // este fluxo automático; para os demais, crie o acesso manualmente em
+  // /admin/usuarios vinculando ao estudante certo com outro CPF de contato.
+  const estudante =
+    (await prisma.estudante.findFirst({ where: { cpf }, orderBy: { id: "asc" } })) ??
+    (await prisma.estudante.findFirst({ where: { documentoResponsavel: cpf }, orderBy: { id: "asc" } }));
   if (estudante) {
     const dataNascimentoAluno = normalizeBirthDate(estudante.dataNascimento ?? "");
     if (!dataNascimentoAluno || dataNascimentoAluno !== senhaComoData) {
