@@ -33,7 +33,7 @@ export function PageSizeSelect({
           params.set(paramName, e.target.value);
           params.delete("page");
           startTransition(() => {
-            router.replace(`${pathname}?${params.toString()}`);
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
           });
         }}
         className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
