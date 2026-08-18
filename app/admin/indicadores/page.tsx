@@ -6,6 +6,7 @@ import {
   Percent,
   School,
   Settings,
+  ShieldCheck,
   TrendingDown,
   Users2,
 } from "lucide-react";
@@ -78,6 +79,13 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
               </button>
             </form>
           )}
+          <Link
+            href="/admin/indicadores/qualidade"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Qualidade dos dados
+          </Link>
           <Link
             href="/admin/indicadores/portal-publico"
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"

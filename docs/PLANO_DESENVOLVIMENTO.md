@@ -229,4 +229,18 @@ sem tocar no motor de cálculo.
       (responde exatamente a pergunta do documento de visão: "em qual etapa ela começa a crescer?").
       Somas por escola e por série batem exatamente com a Etapa 4 (2.149 elegíveis, 1.775 fora do
       escopo). Testado no navegador logado contra o banco real.
-- [ ] E9 em diante — qualidade dos dados, comparativos (ver §4).
+- [x] E9 — `/admin/indicadores/qualidade`: saúde da sincronização por módulo (situação
+      em-dia/atrasado/sem-sincronização a partir do último log com `SUCESSO`, contagem de erros nos
+      últimos 7 dias, histórico das últimas 30 execuções) e uma checagem de integridade automática
+      sobre o achado registrado em §8 item 6 — códigos de turma reutilizados entre escolas, agora
+      sinalizando "Divergente" quando a série resolvida difere entre as escolas colidentes.
+      Novo módulo puro `lib/analytics/qualidade-dados.ts` (11 testes: classificação de situação por
+      limiar de horas e detecção de divergência de série). Achado real ao testar no navegador contra
+      o banco de produção: a automação confirmou os **34 códigos de turma reutilizados** já
+      levantados manualmente em §8 item 6 — todos "Consistente" (nenhuma divergência de série hoje),
+      validando o número anterior e a lógica. Achado adicional novo: o módulo **Estudantes** aparece
+      "Atrasado" — a sincronização de hoje ficou só em execuções `PROCESSANDO` (3 lotes parciais,
+      última às 03:22) sem nunca fechar em `SUCESSO`, então a última sincronização completa é de
+      ontem (17/08, 08:50) — já passou do limiar de 30h. Vale investigar se o cron está sendo
+      interrompido antes de concluir todos os lotes.
+- [ ] E10 em diante — comparativos (ver §4).
