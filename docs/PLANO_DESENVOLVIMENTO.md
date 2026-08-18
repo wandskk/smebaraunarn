@@ -164,7 +164,7 @@ sem tocar no motor de cálculo.
 ## 9. Registro de progresso
 
 - [x] E0 — Documento-base criado + infraestrutura de testes (`npm test`).
-- [ ] E1 — `lib/analytics/frequencia.ts`
-- [ ] E2 — `lib/analytics/distorcao.ts`
+- [x] E1 — `lib/analytics/frequencia.ts` (19 testes).
+- [x] E2 — `lib/analytics/distorcao.ts` (13 testes, regra INEP versionada — ver §8.1).
 - [ ] E3 — `lib/analytics/explicabilidade.ts`
 - [ ] E4 em diante — a iniciar após validação deste roteiro com o usuário.
