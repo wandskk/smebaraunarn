@@ -220,5 +220,13 @@ sem tocar no motor de cálculo.
       (EJA) tem média 7,7 mas mediana 9,8 — distribuição bem assimétrica que a média sozinha escondia,
       validando na prática por que o documento de visão pede distribuição em vez de média isolada.
       Testado no navegador logado contra o banco real.
-- [ ] E8 em diante — fluxo-trajetória (distorção idade-série na tela), qualidade dos dados,
-      comparativos (ver §4).
+- [x] E8 — `/admin/indicadores/fluxo-trajetoria`: distorção idade-série por série (barra de
+      progressão) e por escola (tabela com defasagem severa e "fora do escopo" transparente),
+      reaproveitando o motor puro sem nenhuma alteração. Achado real: a rede tem só 7 escolas
+      "Ensino Fundamental" com estudantes elegíveis — todas as creches (Educação Infantil) e o CEJAB
+      (EJA) corretamente aparecem com 0 elegíveis, 100% fora do escopo. Distorção cresce de 2,1%
+      no 1º Ano até um pico de 16,1% no 7º Ano, depois cai — achado pedagogicamente relevante
+      (responde exatamente a pergunta do documento de visão: "em qual etapa ela começa a crescer?").
+      Somas por escola e por série batem exatamente com a Etapa 4 (2.149 elegíveis, 1.775 fora do
+      escopo). Testado no navegador logado contra o banco real.
+- [ ] E9 em diante — qualidade dos dados, comparativos (ver §4).

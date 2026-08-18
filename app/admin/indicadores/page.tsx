@@ -132,7 +132,8 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
           value={formatNumber(indicadores.estudantesEmDistorcaoIdadeSerie)}
           icon={TrendingDown}
           tone={indicadores.estudantesEmDistorcaoIdadeSerie > 0 ? "atencao" : "default"}
-          helpText="Não inclui quem já está na trilha Trajetória de Sucesso — é um piso, não o total da rede."
+          href="/admin/indicadores/fluxo-trajetoria"
+          helpText="Não é o total da rede (ver nota abaixo) — ver por escola/série →"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.distorcaoIdadeSerie, contexto)}
         />
       </div>
