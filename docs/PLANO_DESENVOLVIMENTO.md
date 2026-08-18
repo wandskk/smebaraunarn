@@ -166,5 +166,5 @@ sem tocar no motor de cálculo.
 - [x] E0 — Documento-base criado + infraestrutura de testes (`npm test`).
 - [x] E1 — `lib/analytics/frequencia.ts` (19 testes).
 - [x] E2 — `lib/analytics/distorcao.ts` (13 testes, regra INEP versionada — ver §8.1).
-- [ ] E3 — `lib/analytics/explicabilidade.ts`
+- [x] E3 — `lib/analytics/explicabilidade.ts` (11 testes; inclui dicionário inicial de indicadores).
 - [ ] E4 em diante — a iniciar após validação deste roteiro com o usuário.
