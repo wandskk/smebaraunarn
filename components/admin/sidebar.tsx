@@ -25,7 +25,7 @@ const NAV = [
   { href: "/admin/escolas", label: "Escolas", icon: School },
   { href: "/admin/usuarios", label: "Usuários e Acessos", icon: Users },
   { href: "/admin/sincronizacao", label: "Sincronização SIGEduc", icon: RefreshCw },
-  { href: "/admin/indicadores", label: "Indicadores do Portal", icon: GaugeCircle },
+  { href: "/admin/indicadores", label: "Central de Indicadores", icon: GaugeCircle },
 ];
 
 export function AdminSidebar() {

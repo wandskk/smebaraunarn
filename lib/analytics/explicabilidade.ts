@@ -88,14 +88,25 @@ export function descreverContexto(ficha: FichaIndicador, contexto: ContextoExibi
   return linhas.join("\n");
 }
 
+export type ChaveIndicador =
+  | "frequenciaMedia"
+  | "estudantesAbaixoFaixaFrequencia"
+  | "faltasConsecutivas"
+  | "distorcaoIdadeSerie"
+  | "desempenhoMedio"
+  | "escolasAtivas";
+
 /**
  * Dicionário de indicadores (ver centro_indicadores_educacionais.md §35).
  * Começa com os indicadores cujo motor de cálculo já existe
  * (lib/analytics/frequencia.ts, lib/analytics/distorcao.ts). Novas entradas
  * devem ser adicionadas junto com o motor de cálculo correspondente, nunca
  * antes — a ficha descreve código que existe, não uma promessa futura.
+ * Chave tipada como união literal (não `string`) para que o acesso por
+ * ponto em qualquer indicador conhecido não precise de checagem de
+ * undefined em cada callsite.
  */
-export const DICIONARIO_INDICADORES: Readonly<Record<string, FichaIndicador>> = {
+export const DICIONARIO_INDICADORES: Readonly<Record<ChaveIndicador, FichaIndicador>> = {
   frequenciaMedia: {
     nome: "Frequência média",
     objetivo: "Acompanhar a presença escolar de um estudante, turma, escola ou da rede.",
@@ -105,6 +116,18 @@ export const DICIONARIO_INDICADORES: Readonly<Record<string, FichaIndicador>> = 
     granularidade: "Rede / Escola / Etapa / Série / Turma / Estudante.",
     limitacoes: [
       "Depende da regularidade do lançamento de frequência pela escola de origem no SIGEduc.",
+    ],
+  },
+  estudantesAbaixoFaixaFrequencia: {
+    nome: "Estudantes abaixo da faixa adequada de frequência",
+    objetivo: "Dimensionar quantos estudantes precisam de atenção quanto à frequência, não só a média da rede.",
+    fonte: "Sincronização SIGEduc (frequência por disciplina/aula, agregada por estudante no período).",
+    formula:
+      "Contagem de estudantes cujo percentual de frequência individual no período fica abaixo do limite mínimo da faixa 'adequada'.",
+    periodicidade: "Diária, conforme sincronização automática (Vercel Cron).",
+    granularidade: "Rede / Escola / Turma.",
+    limitacoes: [
+      "Faixas de frequência (adequada/atenção/crítica) ainda não confirmadas oficialmente pela Secretaria — ver docs/PLANO_DESENVOLVIMENTO.md §8, item 2.",
     ],
   },
   faltasConsecutivas: {

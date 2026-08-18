@@ -1,11 +1,8 @@
 import { BookOpen, FileStack, School, Users } from "lucide-react";
 import type { getIndicadores } from "@/lib/queries/site";
+import { formatNumber } from "@/lib/utils";
 
 type Indicadores = Awaited<ReturnType<typeof getIndicadores>>;
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("pt-BR").format(value);
-}
 
 export function Indicators({ indicadores }: { indicadores: Indicadores }) {
   const items = [

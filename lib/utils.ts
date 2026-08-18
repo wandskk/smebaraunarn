@@ -5,6 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function formatNumber(value: number) {
+  return new Intl.NumberFormat("pt-BR").format(value);
+}
+
 /** Remove tudo que não for dígito. */
 export function onlyDigits(value: string | null | undefined): string {
   return (value ?? "").replace(/\D/g, "");

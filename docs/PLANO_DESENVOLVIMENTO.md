@@ -198,4 +198,12 @@ sem tocar no motor de cálculo.
       serializada desnecessária, fórmula de percentual duplicada em `academico.ts`, e trocou o
       contrato de exceção por retorno `null` no motor de distorção (ver §8.2). Achado documentado
       sem correção imediata: colisão de código de turma entre escolas (§8, item 6).
-- [ ] E5 em diante — telas de `/admin/indicadores` consumindo E1-E4.
+- [x] E5 — `/admin/indicadores` expandido em painel executivo (KPI cards com tooltip de
+      explicabilidade, tons de alerta por faixa, seletor de ano letivo). O editor dos números da
+      landing page pública foi movido para `/admin/indicadores/portal-publico` (continua existindo,
+      é um dado diferente). Testado de ponta a ponta no navegador, logado como admin, contra o
+      banco de produção real — números batem com a validação da Etapa 4. Bloco "Atenção agora" do
+      documento de visão foi propositalmente adiado: depende de comparação histórica por
+      escola/turma, que ainda não existe (ver E6+).
+- [ ] E6 em diante — frequência por escola/turma/estudante, aprendizagem, fluxo-trajetória,
+      qualidade dos dados, comparativos (ver §4).

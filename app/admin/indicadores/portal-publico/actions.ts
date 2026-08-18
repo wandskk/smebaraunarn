@@ -39,7 +39,7 @@ export async function updateIndicadoresAction(
     create: { id: "default", ...parsed.data },
   });
 
-  revalidatePath("/admin/indicadores");
+  revalidatePath("/admin/indicadores/portal-publico");
   revalidatePath("/");
   return { error: null };
 }

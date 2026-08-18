@@ -83,7 +83,10 @@ describe("DICIONARIO_INDICADORES", () => {
 
   test("contém os indicadores cujo motor de cálculo já existe", () => {
     assert.ok(DICIONARIO_INDICADORES.frequenciaMedia);
+    assert.ok(DICIONARIO_INDICADORES.estudantesAbaixoFaixaFrequencia);
     assert.ok(DICIONARIO_INDICADORES.faltasConsecutivas);
     assert.ok(DICIONARIO_INDICADORES.distorcaoIdadeSerie);
+    assert.ok(DICIONARIO_INDICADORES.desempenhoMedio);
+    assert.ok(DICIONARIO_INDICADORES.escolasAtivas);
   });
 });
