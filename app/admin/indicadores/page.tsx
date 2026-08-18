@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Award,
+  GitCompare,
   GraduationCap,
   Percent,
   School,
@@ -80,6 +81,13 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
             </form>
           )}
           <Link
+            href="/admin/indicadores/comparativos"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+          >
+            <GitCompare className="h-4 w-4" />
+            Comparativos
+          </Link>
+          <Link
             href="/admin/indicadores/qualidade"
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
           >
@@ -154,12 +162,12 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
 
       <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
         O bloco &quot;Atenção agora&quot; (destaque automático de escolas/turmas com queda recente, direto neste
-        painel) ainda não existe. A comparação de frequência por escola já está disponível em{" "}
-        <Link href="/admin/indicadores/frequencia" className="text-brand-700 underline">
-          Frequência por Escola
+        painel) ainda não existe. Frequência, desempenho e distorção por escola no mesmo recorte já estão
+        disponíveis lado a lado em{" "}
+        <Link href="/admin/indicadores/comparativos" className="text-brand-700 underline">
+          Comparativos
         </Link>{" "}
-        — o destaque automático fica para quando desempenho e distorção também tiverem o mesmo recorte por
-        escola/turma (ver docs/PLANO_DESENVOLVIMENTO.md, próximas etapas).
+        — o destaque automático nesta página fica para uma próxima etapa (ver docs/PLANO_DESENVOLVIMENTO.md).
       </div>
     </div>
   );

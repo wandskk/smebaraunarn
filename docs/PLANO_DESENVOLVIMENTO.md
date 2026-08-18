@@ -243,4 +243,18 @@ sem tocar no motor de cálculo.
       última às 03:22) sem nunca fechar em `SUCESSO`, então a última sincronização completa é de
       ontem (17/08, 08:50) — já passou do limiar de 30h. Vale investigar se o cron está sendo
       interrompido antes de concluir todos os lotes.
-- [ ] E10 em diante — comparativos (ver §4).
+- [x] E10 — `/admin/indicadores/comparativos`: uma linha por escola comparando frequência,
+      desempenho e distorção idade-série com a referência de rede no mesmo recorte (mesmo ano
+      letivo, mesma janela de frequência de 30 dias). A referência de rede de cada indicador é uma
+      média ponderada pelo "tamanho" da escola no indicador (aulas dadas, notas lançadas, estudantes
+      elegíveis) — não a média simples das escolas, que daria peso igual a uma escola de 20 alunos e
+      a uma de 400. Novo módulo puro `lib/analytics/comparativos.ts` (`calcularMediaPonderada`,
+      `calcularDiferencaParaRede`; 10 testes) e `lib/queries/comparativos.ts`, que reaproveita as
+      três consultas por escola já existentes (E6/E7/E8) sem duplicar lógica de cálculo. Concluída
+      junto com um ajuste pendente que já estava em andamento (não commitado) em
+      `lib/queries/frequencia.ts`: `FrequenciaEscola` passou a expor os totais brutos de aula/falta
+      por escola, exatamente para permitir essa agregação de rede correta por soma em vez de média
+      de percentuais já arredondados. Validado com `typecheck`/`lint`/`test` limpos e checagem visual
+      no navegador (login admin, dados reais) antes do push.
+- [ ] E11 em diante — ver §5 (Fase 2, exige decisão + migração de schema) ou reavaliar com a
+      Secretaria se ainda falta algo na Fase 1 antes de avançar.

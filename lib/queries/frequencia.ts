@@ -29,6 +29,17 @@ export interface FrequenciaEscola {
   percentualAnterior: number | null;
   variacao: VariacaoFrequencia | null;
   faixa: FaixaFrequencia | null;
+  /**
+   * Totais brutos (aulas/faltas) por trás dos percentuais acima — expostos
+   * para permitir agregações corretas por quem consome esta lista (ex.:
+   * lib/queries/comparativos.ts soma esses totais entre escolas para obter o
+   * percentual real da rede, em vez de fazer média dos percentuais já
+   * arredondados por escola).
+   */
+  aulasAtual: number;
+  faltasAtual: number;
+  aulasAnterior: number;
+  faltasAnterior: number;
 }
 
 async function somarFrequenciaPorEstudante(anoLetivo: number, inicio: string, fim: string) {
@@ -100,6 +111,10 @@ export async function getFrequenciaPorEscola(filtro: FiltroFrequenciaPorEscola):
           ? calcularVariacaoFrequencia(percentualAtual, percentualAnterior)
           : null,
       faixa: percentualAtual !== null ? classificarFaixaFrequencia(percentualAtual, faixasFrequencia) : null,
+      aulasAtual: dados.atual.aulas,
+      faltasAtual: dados.atual.faltas,
+      aulasAnterior: dados.anterior.aulas,
+      faltasAnterior: dados.anterior.faltas,
     });
   }
 
