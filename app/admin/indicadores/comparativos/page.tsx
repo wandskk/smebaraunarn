@@ -3,7 +3,7 @@ import { ArrowLeft, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
-import { calcularJanelaComparativaPadrao } from "@/lib/queries/frequencia";
+import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 
 interface PageProps {
@@ -59,7 +59,7 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
   const anosDisponiveis = anosRows.map((r) => r.ano);
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
 
-  const janela = calcularJanelaComparativaPadrao(new Date());
+  const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
   const { escolas, rede } = await getComparativosPorEscola({ anoLetivo, ...janela });
 
   return (
@@ -105,14 +105,18 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {escolas.map((escola) => (
-              <tr key={escola.escolaId}>
+              <tr key={escola.escolaId ?? escola.nomeEscola}>
                 <td className="px-4 py-3">
-                  <Link
-                    href={`/admin/escolas/${escola.escolaId}`}
-                    className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
-                  >
-                    {escola.nomeEscola}
-                  </Link>
+                  {escola.escolaId !== null ? (
+                    <Link
+                      href={`/admin/escolas/${escola.escolaId}`}
+                      className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+                    >
+                      {escola.nomeEscola}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-slate-900">{escola.nomeEscola}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-semibold text-slate-900">{formatarPercentual(escola.frequenciaPercentual)}</div>

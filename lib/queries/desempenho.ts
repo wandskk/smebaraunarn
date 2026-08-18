@@ -21,7 +21,8 @@ export interface FiltroDesempenhoPorEscola {
 }
 
 export interface DesempenhoEscola {
-  escolaId: number;
+  /** Null quando o nome de escola do registro de nota não bate com nenhuma Escola sincronizada. */
+  escolaId: number | null;
   nomeEscola: string;
   totalNotasLancadas: number;
   media: number | null;
@@ -39,37 +40,38 @@ export interface DesempenhoEscola {
  * individuais em memória para calcular mediana/percentis porque o SQL do
  * Prisma não expõe percentil nativamente; no volume atual da rede
  * (~29 mil notas/ano) isso é barato — se crescer muito, revisar.
+ *
+ * A escola de cada nota vem do próprio registro (`NotaEstudante.escola`),
+ * não de `Estudante.escolaId` — este último guarda só a matrícula vigente
+ * do aluno, então usá-lo aqui atribuiria notas de anos anteriores à escola
+ * atual do aluno sempre que ele tiver trocado de escola desde então.
  */
 export async function getDesempenhoPorEscola(filtro: FiltroDesempenhoPorEscola): Promise<DesempenhoEscola[]> {
   const notaMinimaEsperada = filtro.notaMinimaEsperada ?? NOTA_MINIMA_ESPERADA_PADRAO;
 
-  const [estudantes, escolas, notas] = await Promise.all([
-    prisma.estudante.findMany({ where: { ano: filtro.anoLetivo }, select: { matricula: true, escolaId: true } }),
-    prisma.escola.findMany({ select: { id: true, nome: true } }),
+  const [notas, escolas] = await Promise.all([
     prisma.notaEstudante.findMany({
       where: { ano: filtro.anoLetivo },
-      select: { nota: true, estudanteMatricula: true },
+      select: { nota: true, escola: true },
     }),
+    prisma.escola.findMany({ select: { id: true, nome: true } }),
   ]);
+  const idPorNomeEscola = new Map(escolas.map((e) => [e.nome, e.id]));
 
-  const escolaPorMatricula = new Map(estudantes.map((e) => [e.matricula, e.escolaId]));
-  const nomePorEscola = new Map(escolas.map((e) => [e.id, e.nome]));
-
-  const notasPorEscola = new Map<number, number[]>();
-  for (const nota of notas) {
-    const escolaId = escolaPorMatricula.get(nota.estudanteMatricula);
-    if (escolaId === undefined) continue;
-    const lista = notasPorEscola.get(escolaId) ?? [];
-    lista.push(nota.nota);
-    notasPorEscola.set(escolaId, lista);
+  const notasPorEscola = new Map<string, number[]>();
+  for (const registro of notas) {
+    const nomeEscola = registro.escola ?? "Escola não identificada";
+    const lista = notasPorEscola.get(nomeEscola) ?? [];
+    lista.push(registro.nota);
+    notasPorEscola.set(nomeEscola, lista);
   }
 
   const resultado: DesempenhoEscola[] = [];
-  for (const [escolaId, valores] of notasPorEscola) {
+  for (const [nomeEscola, valores] of notasPorEscola) {
     const soma = valores.reduce((acc, v) => acc + v, 0);
     resultado.push({
-      escolaId,
-      nomeEscola: nomePorEscola.get(escolaId) ?? `Escola #${escolaId}`,
+      escolaId: idPorNomeEscola.get(nomeEscola) ?? null,
+      nomeEscola,
       totalNotasLancadas: valores.length,
       media: valores.length > 0 ? soma / valores.length : null,
       mediana: calcularMediana(valores),

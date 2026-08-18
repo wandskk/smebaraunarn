@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
-import { getFrequenciaPorEscola, calcularJanelaComparativaPadrao } from "@/lib/queries/frequencia";
+import { getFrequenciaPorEscola, calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
 import type { VariacaoFrequencia } from "@/lib/analytics/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 
@@ -42,7 +42,7 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
   const anosDisponiveis = anosRows.map((r) => r.ano);
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
 
-  const janela = calcularJanelaComparativaPadrao(new Date());
+  const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
   const escolas = await getFrequenciaPorEscola({ anoLetivo, ...janela });
   const semHistoricoParaTendencia = escolas.length > 0 && escolas.every((e) => e.variacao === null);
 

@@ -17,7 +17,8 @@ export interface FiltroDistorcao {
 }
 
 export interface DistorcaoEscola {
-  escolaId: number;
+  /** Null quando a escola do registro daquele ano não bate com nenhuma Escola sincronizada. */
+  escolaId: number | null;
   nomeEscola: string;
   /** Estudantes com série regular mapeada e data de nascimento válida — só eles entram no percentual. */
   totalElegiveis: number;
@@ -45,6 +46,63 @@ function calcularDataReferenciaPadrao(anoLetivo: number): string {
 }
 
 /**
+ * Resolve, para cada matrícula do ano letivo pedido, a escola e a série em
+ * que ela de fato estava naquele ano — preferindo os próprios registros de
+ * nota daquele ano (que carregam escola/série no momento em que a nota foi
+ * lançada) e caindo para o snapshot atual do aluno (`Estudante`) só quando
+ * não há nota lançada naquele ano E o aluno ainda está matriculado nesse
+ * mesmo ano (`Estudante.ano === anoLetivo`) — ou seja, "ainda não lançaram
+ * nota este ano", não "lançaram nota, mas em outra escola".
+ *
+ * Isso importa porque `Estudante.escolaId`/`turmaSerie` guardam só a
+ * matrícula MAIS RECENTE do aluno (ver nota em upsertEstudante em
+ * lib/sync/sigeduc-sync.ts) — usá-los direto para um ano anterior atribuiria
+ * a distorção de anos passados à escola/turma atual de quem já mudou de
+ * escola desde então.
+ */
+export async function resolverMatriculaPorAno(
+  anoLetivo: number,
+): Promise<Map<string, { dataNascimento: string | null; escolaId: number | null; serieTexto: string | null }>> {
+  const [estudantesDoAno, notasDoAno, escolas] = await Promise.all([
+    prisma.estudante.findMany({
+      select: { matricula: true, dataNascimento: true, ano: true, turmaSerie: true, escolaId: true },
+    }),
+    prisma.notaEstudante.findMany({
+      where: { ano: anoLetivo },
+      distinct: ["estudanteMatricula"],
+      select: { estudanteMatricula: true, escola: true, serie: true },
+    }),
+    prisma.escola.findMany({ select: { id: true, nome: true } }),
+  ]);
+
+  const idPorNomeEscola = new Map(escolas.map((e) => [e.nome, e.id]));
+  const notaPorMatricula = new Map(notasDoAno.map((n) => [n.estudanteMatricula, n]));
+  const turmasAtuaisUnicas = Array.from(
+    new Set(estudantesDoAno.map((e) => e.turmaSerie).filter((t): t is string => Boolean(t))),
+  );
+  const seriesPorTurmaAtual = await getSeriePorTurma(turmasAtuaisUnicas);
+
+  const resolvido = new Map<string, { dataNascimento: string | null; escolaId: number | null; serieTexto: string | null }>();
+  for (const estudante of estudantesDoAno) {
+    const notaDoAno = notaPorMatricula.get(estudante.matricula);
+    if (notaDoAno) {
+      resolvido.set(estudante.matricula, {
+        dataNascimento: estudante.dataNascimento,
+        escolaId: notaDoAno.escola ? (idPorNomeEscola.get(notaDoAno.escola) ?? null) : null,
+        serieTexto: notaDoAno.serie,
+      });
+    } else if (estudante.ano === anoLetivo) {
+      resolvido.set(estudante.matricula, {
+        dataNascimento: estudante.dataNascimento,
+        escolaId: estudante.escolaId,
+        serieTexto: estudante.turmaSerie ? (seriesPorTurmaAtual.get(estudante.turmaSerie) ?? null) : null,
+      });
+    }
+  }
+  return resolvido;
+}
+
+/**
  * Distorção idade-série quebrada por escola e por série — responde "onde
  * está a maior concentração?" e "em qual etapa ela começa a crescer?" (ver
  * centro_indicadores_educacionais.md §7). Reaproveita o mesmo motor puro e a
@@ -56,17 +114,12 @@ export async function getDistorcaoPorEscolaESerie(filtro: FiltroDistorcao): Prom
   const dataReferencia = filtro.dataReferencia ?? calcularDataReferenciaPadrao(filtro.anoLetivo);
   const limiarDistorcaoAnos = filtro.limiarDistorcaoAnos ?? LIMIAR_DISTORCAO_ANOS;
 
-  const [estudantes, escolas] = await Promise.all([
-    prisma.estudante.findMany({
-      where: { ano: filtro.anoLetivo },
-      select: { dataNascimento: true, turmaSerie: true, escolaId: true },
-    }),
+  const [matriculaPorAno, escolas] = await Promise.all([
+    resolverMatriculaPorAno(filtro.anoLetivo),
     prisma.escola.findMany({ select: { id: true, nome: true } }),
   ]);
 
   const nomePorEscola = new Map(escolas.map((e) => [e.id, e.nome]));
-  const turmasUnicas = Array.from(new Set(estudantes.map((e) => e.turmaSerie).filter((t): t is string => Boolean(t))));
-  const seriesPorTurma = await getSeriePorTurma(turmasUnicas);
 
   interface Acumulado {
     totalElegiveis: number;
@@ -76,18 +129,18 @@ export async function getDistorcaoPorEscolaESerie(filtro: FiltroDistorcao): Prom
   }
   const vazio = (): Acumulado => ({ totalElegiveis: 0, totalForaDoEscopo: 0, emDistorcao: 0, intensidadeSevera: 0 });
 
-  const porEscola = new Map<number, Acumulado>();
+  const porEscola = new Map<number | null, Acumulado>();
   const porSerie = new Map<SerieEnsino, Omit<Acumulado, "totalForaDoEscopo" | "intensidadeSevera">>();
 
-  for (const estudante of estudantes) {
-    const acumuladoEscola = porEscola.get(estudante.escolaId) ?? vazio();
-    porEscola.set(estudante.escolaId, acumuladoEscola);
+  for (const dados of matriculaPorAno.values()) {
+    const escolaId = dados.escolaId;
+    const acumuladoEscola = porEscola.get(escolaId) ?? vazio();
+    porEscola.set(escolaId, acumuladoEscola);
 
-    const serieTexto = estudante.turmaSerie ? (seriesPorTurma.get(estudante.turmaSerie) ?? null) : null;
-    const serie = normalizarSerie(serieTexto);
+    const serie = normalizarSerie(dados.serieTexto);
 
-    const resultado = serie && estudante.dataNascimento
-      ? calcularDistorcaoIdadeSerie(estudante.dataNascimento, serie, dataReferencia, limiarDistorcaoAnos)
+    const resultado = serie && dados.dataNascimento
+      ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, dataReferencia, limiarDistorcaoAnos)
       : null;
 
     if (resultado === null || !serie) {
@@ -112,7 +165,7 @@ export async function getDistorcaoPorEscolaESerie(filtro: FiltroDistorcao): Prom
 
   const resultadoPorEscola: DistorcaoEscola[] = Array.from(porEscola.entries()).map(([escolaId, dados]) => ({
     escolaId,
-    nomeEscola: nomePorEscola.get(escolaId) ?? `Escola #${escolaId}`,
+    nomeEscola: escolaId === null ? "Escola não identificada" : (nomePorEscola.get(escolaId) ?? `Escola #${escolaId}`),
     totalElegiveis: dados.totalElegiveis,
     totalForaDoEscopo: dados.totalForaDoEscopo,
     emDistorcao: dados.emDistorcao,

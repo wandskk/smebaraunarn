@@ -8,6 +8,7 @@ import {
   type FaixasFrequencia,
   type VariacaoFrequencia,
 } from "@/lib/analytics/frequencia";
+import { resolverMatriculaPorAno } from "@/lib/queries/distorcao";
 
 export interface JanelaComparativa {
   atualInicio: string;
@@ -22,7 +23,8 @@ export interface FiltroFrequenciaPorEscola extends JanelaComparativa {
 }
 
 export interface FrequenciaEscola {
-  escolaId: number;
+  /** Null quando a escola do aluno naquele ano não bate com nenhuma Escola sincronizada. */
+  escolaId: number | null;
   nomeEscola: string;
   totalEstudantes: number;
   percentualAtual: number | null;
@@ -42,10 +44,15 @@ export interface FrequenciaEscola {
   faltasAnterior: number;
 }
 
-async function somarFrequenciaPorEstudante(anoLetivo: number, inicio: string, fim: string) {
+/**
+ * Soma só por janela de data — não filtra por `Estudante.ano` porque quem
+ * decide "esse aluno conta no ano letivo X" é o chamador (via o mapa de
+ * matrícula→escola resolvido em `resolverMatriculaPorAno`), não esta soma.
+ */
+async function somarFrequenciaPorEstudante(inicio: string, fim: string) {
   const registros = await prisma.frequenciaEstudante.groupBy({
     by: ["estudanteMatricula"],
-    where: { estudante: { ano: anoLetivo }, data: { gte: inicio, lte: fim } },
+    where: { data: { gte: inicio, lte: fim } },
     _sum: { falta: true, quantidadeAula: true },
   });
 
@@ -63,36 +70,36 @@ async function somarFrequenciaPorEstudante(anoLetivo: number, inicio: string, fi
 export async function getFrequenciaPorEscola(filtro: FiltroFrequenciaPorEscola): Promise<FrequenciaEscola[]> {
   const faixasFrequencia = filtro.faixasFrequencia ?? FAIXAS_PADRAO_FREQUENCIA;
 
-  const [estudantes, escolas, somaAtual, somaAnterior] = await Promise.all([
-    prisma.estudante.findMany({ where: { ano: filtro.anoLetivo }, select: { matricula: true, escolaId: true } }),
+  const [matriculaPorAno, escolas, somaAtual, somaAnterior] = await Promise.all([
+    resolverMatriculaPorAno(filtro.anoLetivo),
     prisma.escola.findMany({ select: { id: true, nome: true } }),
-    somarFrequenciaPorEstudante(filtro.anoLetivo, filtro.atualInicio, filtro.atualFim),
-    somarFrequenciaPorEstudante(filtro.anoLetivo, filtro.anteriorInicio, filtro.anteriorFim),
+    somarFrequenciaPorEstudante(filtro.atualInicio, filtro.atualFim),
+    somarFrequenciaPorEstudante(filtro.anteriorInicio, filtro.anteriorFim),
   ]);
 
   const nomePorEscola = new Map(escolas.map((e) => [e.id, e.nome]));
 
-  const totaisPorEscola = new Map<number, { totalEstudantes: number; atual: { aulas: number; faltas: number }; anterior: { aulas: number; faltas: number } }>();
-  for (const estudante of estudantes) {
-    const acumulado = totaisPorEscola.get(estudante.escolaId) ?? {
+  const totaisPorEscola = new Map<number | null, { totalEstudantes: number; atual: { aulas: number; faltas: number }; anterior: { aulas: number; faltas: number } }>();
+  for (const [matricula, dados] of matriculaPorAno) {
+    const acumulado = totaisPorEscola.get(dados.escolaId) ?? {
       totalEstudantes: 0,
       atual: { aulas: 0, faltas: 0 },
       anterior: { aulas: 0, faltas: 0 },
     };
     acumulado.totalEstudantes += 1;
 
-    const atual = somaAtual.get(estudante.matricula);
+    const atual = somaAtual.get(matricula);
     if (atual) {
       acumulado.atual.aulas += atual.aulas;
       acumulado.atual.faltas += atual.faltas;
     }
-    const anterior = somaAnterior.get(estudante.matricula);
+    const anterior = somaAnterior.get(matricula);
     if (anterior) {
       acumulado.anterior.aulas += anterior.aulas;
       acumulado.anterior.faltas += anterior.faltas;
     }
 
-    totaisPorEscola.set(estudante.escolaId, acumulado);
+    totaisPorEscola.set(dados.escolaId, acumulado);
   }
 
   const resultado: FrequenciaEscola[] = [];
@@ -102,7 +109,7 @@ export async function getFrequenciaPorEscola(filtro: FiltroFrequenciaPorEscola):
 
     resultado.push({
       escolaId,
-      nomeEscola: nomePorEscola.get(escolaId) ?? `Escola #${escolaId}`,
+      nomeEscola: escolaId === null ? "Escola não identificada" : (nomePorEscola.get(escolaId) ?? `Escola #${escolaId}`),
       totalEstudantes: dados.totalEstudantes,
       percentualAtual,
       percentualAnterior,
@@ -128,6 +135,19 @@ export async function getFrequenciaPorEscola(filtro: FiltroFrequenciaPorEscola):
  * docs/PLANO_DESENVOLVIMENTO.md §8, item 2 (periodicidade oficial ainda não
  * confirmada pela Secretaria).
  */
+/**
+ * Data de referência para a janela de tendência: "hoje" só faz sentido
+ * quando `anoLetivo` é o ano corrente. Para um ano letivo anterior, ancorar
+ * em "hoje" comparava frequência de anos passados com uma janela de 30 dias
+ * no calendário de hoje — quase sempre vazia. Usa 15/12 do próprio ano
+ * letivo como "fim do ano" de referência nesse caso (antes do recesso de
+ * fim de ano, quando a maior parte da frequência do ano já foi lançada).
+ */
+export function resolverDataReferenciaJanela(anoLetivo: number, hoje: Date = new Date()): Date {
+  if (anoLetivo === hoje.getFullYear()) return hoje;
+  return new Date(`${anoLetivo}-12-15`);
+}
+
 export function calcularJanelaComparativaPadrao(hoje: Date, diasPorJanela = 30): JanelaComparativa {
   const paraIso = (data: Date) => data.toISOString().slice(0, 10);
   const subDias = (data: Date, dias: number) => new Date(data.getTime() - dias * 24 * 60 * 60 * 1000);

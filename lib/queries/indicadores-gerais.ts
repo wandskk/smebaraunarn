@@ -7,7 +7,7 @@ import {
 } from "@/lib/analytics/frequencia";
 import { calcularDistorcaoIdadeSerie, LIMIAR_DISTORCAO_ANOS } from "@/lib/analytics/distorcao";
 import { normalizarSerie } from "@/lib/analytics/mapeamento-serie";
-import { getSeriePorTurma } from "@/lib/queries/academico";
+import { resolverMatriculaPorAno } from "@/lib/queries/distorcao";
 
 export interface ParametrosIndicadoresGerais {
   anoLetivo: number;
@@ -57,17 +57,18 @@ export async function getIndicadoresGeraisRede(
   const faixasFrequencia = parametros.faixasFrequencia ?? FAIXAS_PADRAO_FREQUENCIA;
   const limiarDistorcaoAnos = parametros.limiarDistorcaoAnos ?? LIMIAR_DISTORCAO_ANOS;
 
-  // As três consultas abaixo dependem só de `anoLetivo`, então rodam em
-  // paralelo; `getSeriePorTurma` só pode começar depois que sabemos quais
-  // turmas existem, por isso fica fora deste Promise.all.
   const [estudantesDoAno, frequenciaPorEstudante, desempenhoAgregado] = await Promise.all([
     prisma.estudante.findMany({
       where: { ano: anoLetivo },
       select: { matricula: true, dataNascimento: true, turmaSerie: true, escolaId: true },
     }),
+    // Filtra por data (ano civil), não por `estudante: { ano: anoLetivo } }`:
+    // esse join soma TODA a frequência já sincronizada de quem tem essa
+    // matrícula vigente hoje, sem limite de data — para um aluno com vários
+    // anos de histórico, isso somaria anos diferentes juntos.
     prisma.frequenciaEstudante.groupBy({
       by: ["estudanteMatricula"],
-      where: { estudante: { ano: anoLetivo } },
+      where: { data: { gte: `${anoLetivo}-01-01`, lte: `${anoLetivo}-12-31` } },
       _sum: { falta: true, quantidadeAula: true },
     }),
     prisma.notaEstudante.aggregate({
@@ -82,19 +83,6 @@ export async function getIndicadoresGeraisRede(
     new Set(estudantesDoAno.map((e) => e.turmaSerie).filter((t): t is string => Boolean(t))),
   );
   const totalTurmas = turmasUnicas.length;
-
-  /**
-   * getSeriePorTurma resolve a série a partir do código de turma sozinho,
-   * sem escopar por escola (NotaEstudante/ServidorTurma não têm escolaId).
-   * Confirmado em produção (2026-08-18): 34 códigos de turma são
-   * reutilizados por mais de uma escola na rede, mas para todos os casos
-   * com dado de nota a série textual resolvida foi idêntica entre as
-   * escolas — a convenção de nomenclatura da rede (dígito da série
-   * embutido no código) se mantém consistente. Ainda assim, é uma
-   * dependência frágil: ver docs/PLANO_DESENVOLVIMENTO.md §8 (decisões
-   * pendentes) para o acompanhamento deste ponto.
-   */
-  const seriesPorTurma = await getSeriePorTurma(turmasUnicas);
 
   let totalAulasRede = 0;
   let totalFaltasRede = 0;
@@ -112,14 +100,19 @@ export async function getIndicadoresGeraisRede(
   }
   const frequenciaMediaRede = calcularPercentualFrequencia(totalAulasRede, totalFaltasRede);
 
+  // Distorção usa uma resolução de série própria (mesma de
+  // lib/queries/distorcao.ts): prefere a série do próprio registro de nota
+  // daquele ano em vez de `Estudante.turmaSerie` (que só guarda a matrícula
+  // mais recente do aluno) — necessário para o ano letivo poder ser
+  // histórico, não só o corrente.
+  const matriculaPorAno = await resolverMatriculaPorAno(anoLetivo);
   let estudantesEmDistorcaoIdadeSerie = 0;
   let estudantesForaDoEscopoOuSemDadosParaDistorcao = 0;
-  for (const estudante of estudantesDoAno) {
-    const serieTexto = estudante.turmaSerie ? (seriesPorTurma.get(estudante.turmaSerie) ?? null) : null;
-    const serie = normalizarSerie(serieTexto);
+  for (const dados of matriculaPorAno.values()) {
+    const serie = normalizarSerie(dados.serieTexto);
 
-    const resultado = serie && estudante.dataNascimento
-      ? calcularDistorcaoIdadeSerie(estudante.dataNascimento, serie, dataReferenciaDistorcao, limiarDistorcaoAnos)
+    const resultado = serie && dados.dataNascimento
+      ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, dataReferenciaDistorcao, limiarDistorcaoAnos)
       : null;
 
     if (resultado === null) {

@@ -169,6 +169,12 @@ model FrequenciaEstudante {
   disciplina         String?
   turma              String?
   etapaEnsino        String?
+  // Escola no momento do registro (API manda em `unidade`) — sem isso não dá pra atribuir
+  // frequência histórica à escola certa quando o aluno já trocou de escola. Nulo em
+  // registros sincronizados antes desta coluna existir.
+  escola             String?
+  // Série no momento do registro (API manda em `serie`) — mesmo motivo da coluna `escola` acima.
+  serie              String?
   falta              Int        @default(0)
   quantidadeAula     Int        @default(1)
   abonada            Boolean    @default(false)

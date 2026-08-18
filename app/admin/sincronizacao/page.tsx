@@ -1,10 +1,9 @@
 import { RefreshCw } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { syncCargosAction, syncEscolasAction, syncEstudantesChunkAction, syncNotasChunkAction } from "./actions";
-import { ChunkedSyncButton } from "./chunked-sync-button";
-import { PagedSyncButton } from "./paged-sync-button";
 import { ServidorSyncButton } from "./servidor-sync-button";
 import { FrequenciaSyncPanel } from "./frequencia-sync-panel";
+import { AnoSyncPanel } from "./ano-sync-panel";
 
 const STATUS_STYLE: Record<string, string> = {
   SUCESSO: "bg-emerald-50 text-emerald-700",
@@ -19,8 +18,6 @@ export default async function SincronizacaoPage() {
   });
 
   const anoAtual = new Date().getFullYear();
-  const syncEstudantesAction = syncEstudantesChunkAction.bind(null, anoAtual);
-  const syncNotasAction = syncNotasChunkAction.bind(null, anoAtual);
 
   return (
     <div>
@@ -37,6 +34,13 @@ export default async function SincronizacaoPage() {
         últimos 3 dias, não o ano inteiro). Os disparos automáticos aparecem no histórico como
         qualquer outra sincronização.
       </p>
+      <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        Carga histórica: Estudantes e Notas aceitam escolher o ano; Frequência aceita qualquer
+        período. Para um ano anterior, sincronize Estudantes daquele ano antes de Notas/Frequência
+        do mesmo ano — Notas e Frequência só gravam alunos que já existem na tabela de Estudantes,
+        e o sync histórico nunca sobrescreve a matrícula/turma vigente de um aluno já sincronizado
+        num ano mais recente.
+      </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <form action={syncEscolasAction}>
@@ -46,15 +50,19 @@ export default async function SincronizacaoPage() {
           <SyncCard title="2. Cargos" desc="Consulta /consulta-cargo" />
         </form>
         <ServidorSyncButton />
-        <ChunkedSyncButton
-          title={`4. Estudantes (${anoAtual})`}
-          desc="Consulta /consulta-estudante/enturmado"
-          runChunk={syncEstudantesAction}
+        <AnoSyncPanel
+          numero="4"
+          titulo="Estudantes"
+          desc="Consulta /consulta-estudante/enturmado — escolha o ano (histórico não sobrescreve a matrícula vigente do aluno)."
+          anoAtual={anoAtual}
+          runChunk={syncEstudantesChunkAction}
         />
-        <PagedSyncButton
-          title={`5. Notas (${anoAtual})`}
-          desc="Consulta /consulta-nota"
-          runChunk={syncNotasAction}
+        <AnoSyncPanel
+          numero="5"
+          titulo="Notas"
+          desc="Consulta /consulta-nota — escolha o ano."
+          anoAtual={anoAtual}
+          runChunk={syncNotasChunkAction}
         />
         <FrequenciaSyncPanel />
       </div>

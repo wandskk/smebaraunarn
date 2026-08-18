@@ -12,7 +12,8 @@ export interface FiltroComparativos extends JanelaComparativa {
 }
 
 export interface ComparativoEscola {
-  escolaId: number;
+  /** Null quando a escola não bate com nenhuma Escola sincronizada (registro de nota/distorção sem correspondência). */
+  escolaId: number | null;
   nomeEscola: string;
   frequenciaPercentual: number | null;
   frequenciaDiferencaRede: number | null;
@@ -69,7 +70,7 @@ export async function getComparativosPorEscola(filtro: FiltroComparativos): Prom
   const desempenhoPorEscola = new Map(desempenhos.map((d) => [d.escolaId, d]));
   const distorcaoPorEscola = new Map(distorcoes.porEscola.map((d) => [d.escolaId, d]));
 
-  const nomePorEscola = new Map<number, string>();
+  const nomePorEscola = new Map<number | null, string>();
   for (const f of frequencias) nomePorEscola.set(f.escolaId, f.nomeEscola);
   for (const d of desempenhos) nomePorEscola.set(d.escolaId, d.nomeEscola);
   for (const d of distorcoes.porEscola) nomePorEscola.set(d.escolaId, d.nomeEscola);
@@ -103,7 +104,7 @@ export async function getComparativosPorEscola(filtro: FiltroComparativos): Prom
 
     return {
       escolaId,
-      nomeEscola: nomePorEscola.get(escolaId) ?? `Escola #${escolaId}`,
+      nomeEscola: nomePorEscola.get(escolaId) ?? (escolaId === null ? "Escola não identificada" : `Escola #${escolaId}`),
       frequenciaPercentual: frequencia?.percentualAtual ?? null,
       frequenciaDiferencaRede: calcularDiferencaParaRede(frequencia?.percentualAtual, frequenciaPercentualRede),
       frequenciaVariacao: frequencia?.variacao ?? null,

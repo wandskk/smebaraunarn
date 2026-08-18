@@ -8,6 +8,8 @@ import {
   consultarFrequencia,
   consultarNotas,
   consultarServidores,
+  type ConsultaFrequenciaAluno,
+  type ConsultaNotaAluno,
 } from "@/lib/sigeduc";
 import { classifyServidorRole } from "@/lib/roles";
 import { normalizeBirthDate, normalizeCpf, normalizeCpfLoose } from "@/lib/utils";
@@ -211,30 +213,50 @@ export async function syncServidoresChunk(
   }
 }
 
+/**
+ * Estudante guarda só o snapshot de matrícula MAIS RECENTE (um registro por
+ * id do SIGEduc, sem histórico por ano). Uma sincronização histórica (ano
+ * anterior ao já armazenado) não pode sobrescrever esse snapshot — senão uma
+ * carga de anos anteriores rodada depois do sync do ano corrente "voltaria
+ * no tempo" a turma/escola atual do aluno. Por isso comparamos com o `ano`
+ * já salvo e, se o que está chegando for mais antigo, atualizamos só campos
+ * de identidade (nome/cpf/nascimento/filiação) e preservamos
+ * ano/turma/escola vigentes. Isso também é o que permite rodar a sincronização
+ * histórica em qualquer ordem de anos com segurança.
+ */
 async function upsertEstudante(
   ano: number,
   escolaId: number,
   e: Awaited<ReturnType<typeof consultarEstudantesEnturmados>>["dados"][number],
 ) {
-  const data = {
+  const identidade = {
     matricula: e.matricula,
     cpf: e.cpf ? normalizeCpf(e.cpf) : null,
     nome: e.nome,
     dataNascimento: normalizeBirthDate(e.data_nascimento) ?? e.data_nascimento,
-    ano,
-    turmaSerie: e.nome_turma_serie,
-    escolaId,
-    nomeEscola: e.nomeEscola,
     nomeFiliacao1: e.nome_filiacao_1,
     nomeFiliacao2: e.nome_filiacao_2,
     nomeResponsavel: e.nome_responsavel,
     documentoResponsavel: normalizeCpfLoose(e.documento_Responsavel),
     codigoNis: e.codigo_Nis,
   };
+  const matriculaAtual = {
+    ano,
+    turmaSerie: e.nome_turma_serie,
+    escolaId,
+    nomeEscola: e.nomeEscola,
+  };
+
+  const existente = await prisma.estudante.findUnique({
+    where: { id: e.id },
+    select: { ano: true },
+  });
+  const sobrescreverMatricula = !existente || ano >= existente.ano;
+
   await prisma.estudante.upsert({
     where: { id: e.id },
-    update: data,
-    create: { id: e.id, ...data },
+    update: sobrescreverMatricula ? { ...identidade, ...matriculaAtual } : identidade,
+    create: { id: e.id, ...identidade, ...matriculaAtual },
   });
 }
 
@@ -294,6 +316,52 @@ export async function syncEstudantesChunk(
 }
 
 /**
+ * Aplica uma página já buscada da API (`consulta-nota`) ao banco: filtra
+ * pra quem já existe em Estudante, apaga as notas daquele ano só dessas
+ * matrículas e recria. Delete+insert vai na mesma transação — se o insert
+ * falhar (ex.: banco sem espaço), o delete desfaz junto, em vez de apagar
+ * dados bons sem conseguir recolocá-los (é o que causava perda de dados
+ * quando o Postgres estourava o limite de tamanho no meio de um lote).
+ *
+ * Extraída de `syncNotasChunk` para poder ser reaproveitada por
+ * scripts/lib/load-cache-to-db.ts, que aplica páginas cacheadas localmente
+ * em vez de buscar da API de novo — ver scripts/cache-historico.ts.
+ */
+export async function aplicarPaginaNotas(
+  ano: number,
+  estudantesValidos: Set<string>,
+  dados: ConsultaNotaAluno[],
+): Promise<number> {
+  const alunosValidos = dados.filter((aluno) => estudantesValidos.has(aluno.matricula));
+  const matriculas = alunosValidos.map((aluno) => aluno.matricula);
+  if (matriculas.length === 0) return 0;
+
+  const rows = alunosValidos.flatMap((aluno) =>
+    aluno.turmas_componentes.flatMap((tc) =>
+      tc.notas.map((n) => ({
+        estudanteMatricula: aluno.matricula,
+        ano,
+        escola: tc.escola,
+        etapaEnsino: tc.etapa_ensino,
+        serie: tc.serie,
+        turma: tc.turma,
+        disciplina: tc.disciplina,
+        unidade: n.unidade,
+        nota: n.nota,
+        descricao: n.descricao,
+      })),
+    ),
+  );
+  if (rows.length === 0) return 0;
+
+  await prisma.$transaction([
+    prisma.notaEstudante.deleteMany({ where: { estudanteMatricula: { in: matriculas }, ano } }),
+    prisma.notaEstudante.createMany({ data: rows, skipDuplicates: true }),
+  ]);
+  return rows.length;
+}
+
+/**
  * `consulta-nota` é paginada por aluno (não por nota), então cada página
  * inteira pertence a um conjunto fechado de matrículas — é seguro apagar e
  * recriar as notas desse ano só para essas matrículas a cada página,
@@ -322,36 +390,7 @@ export async function syncNotasChunk(
       const resposta = await consultarNotas(ano, pagina, 300);
       totalPaginas = resposta.totalPaginas;
 
-      const alunosValidos = resposta.dados.filter((aluno) => estudantesValidos.has(aluno.matricula));
-      const matriculas = alunosValidos.map((aluno) => aluno.matricula);
-
-      if (matriculas.length > 0) {
-        await prisma.notaEstudante.deleteMany({
-          where: { estudanteMatricula: { in: matriculas }, ano },
-        });
-
-        const rows = alunosValidos.flatMap((aluno) =>
-          aluno.turmas_componentes.flatMap((tc) =>
-            tc.notas.map((n) => ({
-              estudanteMatricula: aluno.matricula,
-              ano,
-              escola: tc.escola,
-              etapaEnsino: tc.etapa_ensino,
-              serie: tc.serie,
-              turma: tc.turma,
-              disciplina: tc.disciplina,
-              unidade: n.unidade,
-              nota: n.nota,
-              descricao: n.descricao,
-            })),
-          ),
-        );
-
-        if (rows.length > 0) {
-          await prisma.notaEstudante.createMany({ data: rows, skipDuplicates: true });
-          registros += rows.length;
-        }
-      }
+      registros += await aplicarPaginaNotas(ano, estudantesValidos, resposta.dados);
 
       pagina += 1;
       if (!resposta.temProximaPagina) {
@@ -374,6 +413,50 @@ export async function syncNotasChunk(
     await logSync("NOTAS", "ERRO", registros, message, Date.now() - start);
     throw error;
   }
+}
+
+/**
+ * Mesma ideia de `aplicarPaginaNotas`, para `consulta-frequencia`: delete+
+ * insert na mesma transação, pra um insert que falha por falta de espaço
+ * não deixar a janela [dataInicio, dataFim] apagada sem repor.
+ */
+export async function aplicarPaginaFrequencia(
+  dataInicio: string,
+  dataFim: string,
+  estudantesValidos: Set<string>,
+  dados: ConsultaFrequenciaAluno[],
+): Promise<number> {
+  const alunosValidos = dados.filter((aluno) => estudantesValidos.has(aluno.matricula));
+  const matriculas = alunosValidos.map((aluno) => aluno.matricula);
+  if (matriculas.length === 0) return 0;
+
+  const rows = alunosValidos.flatMap((aluno) =>
+    aluno.frequencias.map((f) => ({
+      estudanteMatricula: aluno.matricula,
+      data: f.data,
+      disciplina: f.disciplina,
+      turma: f.turma,
+      etapaEnsino: f.etapa_ensino,
+      // `unidade` aqui é o nome da escola (ver nota em FrequenciaRegistro) —
+      // guardamos junto de `serie` para poder atribuir frequência histórica
+      // à escola/série corretas mesmo depois que o aluno mudar de escola.
+      escola: f.unidade,
+      serie: f.serie,
+      falta: f.falta,
+      quantidadeAula: f.quantidade_aula,
+      abonada: f.abonada,
+      motivoAbono: f.motivo_abono || null,
+    })),
+  );
+  if (rows.length === 0) return 0;
+
+  await prisma.$transaction([
+    prisma.frequenciaEstudante.deleteMany({
+      where: { estudanteMatricula: { in: matriculas }, data: { gte: dataInicio, lte: dataFim } },
+    }),
+    prisma.frequenciaEstudante.createMany({ data: rows, skipDuplicates: true }),
+  ]);
+  return rows.length;
 }
 
 /**
@@ -405,36 +488,7 @@ export async function syncFrequenciaChunk(
       const resposta = await consultarFrequencia(dataInicio, dataFim, pagina, 300);
       totalPaginas = resposta.totalPaginas;
 
-      const alunosValidos = resposta.dados.filter((aluno) => estudantesValidos.has(aluno.matricula));
-      const matriculas = alunosValidos.map((aluno) => aluno.matricula);
-
-      if (matriculas.length > 0) {
-        await prisma.frequenciaEstudante.deleteMany({
-          where: {
-            estudanteMatricula: { in: matriculas },
-            data: { gte: dataInicio, lte: dataFim },
-          },
-        });
-
-        const rows = alunosValidos.flatMap((aluno) =>
-          aluno.frequencias.map((f) => ({
-            estudanteMatricula: aluno.matricula,
-            data: f.data,
-            disciplina: f.disciplina,
-            turma: f.turma,
-            etapaEnsino: f.etapa_ensino,
-            falta: f.falta,
-            quantidadeAula: f.quantidade_aula,
-            abonada: f.abonada,
-            motivoAbono: f.motivo_abono || null,
-          })),
-        );
-
-        if (rows.length > 0) {
-          await prisma.frequenciaEstudante.createMany({ data: rows, skipDuplicates: true });
-          registros += rows.length;
-        }
-      }
+      registros += await aplicarPaginaFrequencia(dataInicio, dataFim, estudantesValidos, resposta.dados);
 
       pagina += 1;
       if (!resposta.temProximaPagina) {

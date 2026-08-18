@@ -52,14 +52,18 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {escolas.map((escola) => (
-              <tr key={escola.escolaId}>
+              <tr key={escola.escolaId ?? escola.nomeEscola}>
                 <td className="px-4 py-3">
-                  <Link
-                    href={`/admin/escolas/${escola.escolaId}`}
-                    className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
-                  >
-                    {escola.nomeEscola}
-                  </Link>
+                  {escola.escolaId !== null ? (
+                    <Link
+                      href={`/admin/escolas/${escola.escolaId}`}
+                      className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+                    >
+                      {escola.nomeEscola}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-slate-900">{escola.nomeEscola}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{formatNumber(escola.totalNotasLancadas)}</td>
                 <td className="px-4 py-3 font-semibold text-slate-900">{formatarNota(escola.media)}</td>
