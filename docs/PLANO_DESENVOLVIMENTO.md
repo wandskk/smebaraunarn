@@ -205,5 +205,12 @@ sem tocar no motor de cálculo.
       banco de produção real — números batem com a validação da Etapa 4. Bloco "Atenção agora" do
       documento de visão foi propositalmente adiado: depende de comparação histórica por
       escola/turma, que ainda não existe (ver E6+).
-- [ ] E6 em diante — frequência por escola/turma/estudante, aprendizagem, fluxo-trajetória,
-      qualidade dos dados, comparativos (ver §4).
+- [x] E6 — `/admin/indicadores/frequencia`: frequência por escola, ordenada da pior para a melhor,
+      com faixa (badge) e tendência (janela padrão de 30 dias vs. 30 dias anteriores — `data` de
+      `FrequenciaEstudante` confirmada em formato ISO consistente, seguro para filtro por intervalo).
+      Achado real: a sincronização de frequência só tem histórico desde 2026-08-03 (~15 dias) — a
+      janela "anterior" fica sem dado para todas as escolas por enquanto, comportamento esperado e
+      já tratado na tela (aviso explícito em vez de célula vazia sem explicação). Testado no
+      navegador contra o banco real, números batem com a Etapa 4 (soma de estudantes por escola =
+      3.924).
+- [ ] E7 em diante — aprendizagem, fluxo-trajetória, qualidade dos dados, comparativos (ver §4).

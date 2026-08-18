@@ -9,6 +9,17 @@ export function formatNumber(value: number) {
   return new Intl.NumberFormat("pt-BR").format(value);
 }
 
+/**
+ * Resolve o ano letivo pedido via query string contra a lista de anos com
+ * dado real, caindo para o mais recente disponível se o parâmetro faltar ou
+ * for um ano sem dado — usado nos filtros globais do Centro de Indicadores.
+ */
+export function resolverAnoLetivo(searchParams: { ano?: string }, anosDisponiveis: number[]): number {
+  const solicitado = searchParams.ano ? Number(searchParams.ano) : NaN;
+  if (Number.isInteger(solicitado) && anosDisponiveis.includes(solicitado)) return solicitado;
+  return anosDisponiveis[0] ?? new Date().getFullYear();
+}
+
 /** Remove tudo que não for dígito. */
 export function onlyDigits(value: string | null | undefined): string {
   return (value ?? "").replace(/\D/g, "");

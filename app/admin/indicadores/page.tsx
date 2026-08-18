@@ -10,7 +10,7 @@ import {
   Users2,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getIndicadoresGeraisRede } from "@/lib/queries/indicadores-gerais";
 import { classificarFaixaFrequencia } from "@/lib/analytics/frequencia";
 import { DICIONARIO_INDICADORES, descreverContexto } from "@/lib/analytics/explicabilidade";
@@ -18,12 +18,6 @@ import { KpiCard, type KpiCardTone } from "@/components/admin/kpi-card";
 
 interface PageProps {
   searchParams: { ano?: string };
-}
-
-function resolverAnoLetivo(searchParams: { ano?: string }, anosDisponiveis: number[]): number {
-  const solicitado = searchParams.ano ? Number(searchParams.ano) : NaN;
-  if (Number.isInteger(solicitado) && anosDisponiveis.includes(solicitado)) return solicitado;
-  return anosDisponiveis[0] ?? new Date().getFullYear();
 }
 
 function formatarPercentual(valor: number | null): string {
@@ -114,6 +108,8 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
           value={formatarPercentual(indicadores.frequenciaMediaRede)}
           icon={Percent}
           tone={toneFrequencia}
+          href="/admin/indicadores/frequencia"
+          helpText="Ver por escola →"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.frequenciaMedia, contexto)}
         />
         <KpiCard
@@ -146,9 +142,13 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
       </p>
 
       <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
-        O bloco &quot;Atenção agora&quot; (destaque automático de escolas/turmas com queda recente) depende de
-        comparação histórica por escola, ainda não implementada — ver docs/PLANO_DESENVOLVIMENTO.md, próximas
-        etapas.
+        O bloco &quot;Atenção agora&quot; (destaque automático de escolas/turmas com queda recente, direto neste
+        painel) ainda não existe. A comparação de frequência por escola já está disponível em{" "}
+        <Link href="/admin/indicadores/frequencia" className="text-brand-700 underline">
+          Frequência por Escola
+        </Link>{" "}
+        — o destaque automático fica para quando desempenho e distorção também tiverem o mesmo recorte por
+        escola/turma (ver docs/PLANO_DESENVOLVIMENTO.md, próximas etapas).
       </div>
     </div>
   );
