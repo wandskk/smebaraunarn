@@ -25,22 +25,25 @@ interface DataComposta {
   dia: number;
 }
 
-function interpretarDataIso(data: string): DataComposta {
+function interpretarDataIso(data: string): DataComposta | null {
   const partes = data.split("-").map(Number);
   const [ano, mes, dia] = partes;
-  if (!ano || !mes || !dia || partes.length !== 3) {
-    throw new Error(`Data inválida: "${data}". Use o formato YYYY-MM-DD.`);
-  }
+  if (!ano || !mes || !dia || partes.length !== 3) return null;
   return { ano, mes, dia };
 }
 
 /**
  * Idade completa (em anos) na data de referência, calculada por calendário
  * (considera se o aniversário do ano já ocorreu até a data de referência).
+ * Retorna null se alguma das datas não estiver no formato YYYY-MM-DD — dado
+ * de nascimento corrompido é um caso real observado em produção (ver
+ * docs/PLANO_DESENVOLVIMENTO.md), não uma exceção de programação, então o
+ * contrato é "sem resultado", não "lançar erro".
  */
-export function calcularIdadeEmAnos(dataNascimento: string, dataReferencia: string): number {
+export function calcularIdadeEmAnos(dataNascimento: string, dataReferencia: string): number | null {
   const nascimento = interpretarDataIso(dataNascimento);
   const referencia = interpretarDataIso(dataReferencia);
+  if (!nascimento || !referencia) return null;
 
   let idade = referencia.ano - nascimento.ano;
   const aniversarioJaOcorreu =
@@ -97,13 +100,16 @@ export interface ResultadoDistorcao {
   emDistorcao: boolean;
 }
 
+/** Retorna null quando a data de nascimento ou a data de referência não pôde ser interpretada — ver calcularIdadeEmAnos. */
 export function calcularDistorcaoIdadeSerie(
   dataNascimento: string,
   serie: SerieEnsino,
   dataReferencia: string,
   limiarAnos: number = LIMIAR_DISTORCAO_ANOS,
-): ResultadoDistorcao {
+): ResultadoDistorcao | null {
   const idadeNaReferencia = calcularIdadeEmAnos(dataNascimento, dataReferencia);
+  if (idadeNaReferencia === null) return null;
+
   const idadeEsperada = IDADE_ESPERADA_POR_SERIE[serie];
   const defasagemAnos = idadeNaReferencia - idadeEsperada;
 

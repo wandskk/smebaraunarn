@@ -128,6 +128,16 @@ export function classificarGravidadeFaltasConsecutivas(
   return "nenhuma";
 }
 
+/**
+ * Percentual de presença a partir do total de aulas e faltas no período.
+ * Retorna null quando não há aulas registradas (não é possível calcular),
+ * em vez de dividir por zero.
+ */
+export function calcularPercentualFrequencia(totalAulas: number, totalFaltas: number): number | null {
+  if (totalAulas <= 0) return null;
+  return ((totalAulas - totalFaltas) / totalAulas) * 100;
+}
+
 export type FaixaFrequencia = "adequada" | "atencao" | "critica";
 
 export interface FaixasFrequencia {

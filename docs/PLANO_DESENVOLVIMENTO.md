@@ -150,7 +150,11 @@ sem tocar no motor de cálculo.
 (Adaptado da seção 7 do `implementation_plan.md` original — ainda em aberto)
 
 1. Confirmar fórmula oficial de distorção idade-série a adotar (INEP usa defasagem ≥ 2 anos;
-   confirmar se o município segue o mesmo critério ou tem regra própria).
+   confirmar se o município segue o mesmo critério ou tem regra própria). A rede já mantém uma
+   trilha própria de correção de fluxo ("Trajetória de Sucesso I/II"), que fica fora do cálculo por
+   desenho — logo, o número de estudantes em distorção nas turmas regulares é um piso, não o total
+   real da rede (quem já está na trilha não é recontado). Confirmar se isso é aceitável ou se a
+   Secretaria quer um número combinado.
 2. Definir faixas de frequência (adequada/atenção/crítica) — hoje não há uma faixa oficial
    registrada em nenhum lugar do sistema.
 3. Confirmar quais avaliações municipais (SPAEDB, CAED, SIMAIS, Fluência Leitora) têm formato de
@@ -158,6 +162,24 @@ sem tocar no motor de cálculo.
    `lib/sync/avaliacao-<fonte>-sync.ts`.
 4. Definir quem terá acesso a `DATABASE_URL` de produção para aplicar migrações das etapas de Fase 2.
 5. Confirmar perfis de acesso a listas nominais de estudantes (LGPD) antes de implementar F4/F7.
+6. **Risco técnico confirmado em produção (2026-08-18):** `getSeriePorTurma`
+   (`lib/queries/academico.ts`) resolve a série de uma turma pelo código sozinho, sem escopar por
+   escola — porque `NotaEstudante` e `ServidorTurma` não têm uma coluna `escolaId`. Verificamos que
+   **34 códigos de turma são reutilizados por mais de uma escola** na rede atual. Para todos os
+   casos com dado de nota, a série textual resolvida foi idêntica entre as escolas colidentes (a
+   convenção de nomenclatura da rede é consistente hoje), então não há erro ativo — mas é uma
+   dependência frágil: se a convenção divergir no futuro, o indicador de distorção pode
+   silenciosamente usar a série errada para uma turma. Correção adequada exigiria join por escola
+   (ex.: gravar `escolaId` em `NotaEstudante`/`ServidorTurma` na sincronização) — fica como
+   candidato para o painel de qualidade de dados (E9) ou Fase 2, não é uma correção pontual segura
+   de se fazer sem testar contra o schema real.
+
+## 8.2 Decisões de arquitetura já tomadas nesta etapa
+
+- Funções puras de `lib/analytics/` que podem falhar por dado de entrada malformado (datas
+  corrompidas, por exemplo) **retornam `null`, nunca lançam exceção** — um dado ruim vindo da fonte
+  é um caso esperado a ser tratado pelo chamador, não um erro de programação. Ver
+  `calcularIdadeEmAnos`/`calcularDistorcaoIdadeSerie` em `lib/analytics/distorcao.ts`.
 
 ---
 
@@ -167,4 +189,13 @@ sem tocar no motor de cálculo.
 - [x] E1 — `lib/analytics/frequencia.ts` (19 testes).
 - [x] E2 — `lib/analytics/distorcao.ts` (13 testes, regra INEP versionada — ver §8.1).
 - [x] E3 — `lib/analytics/explicabilidade.ts` (11 testes; inclui dicionário inicial de indicadores).
-- [ ] E4 em diante — a iniciar após validação deste roteiro com o usuário.
+- [x] E4 — `lib/queries/indicadores-gerais.ts`, validado contra o banco real de produção (conexão
+      liberada pelo usuário em 2026-08-18): 3.924 estudantes, 28 escolas ativas, 135 turmas, 83,4%
+      de frequência média, nota média 6,99, 158 estudantes em distorção idade-série (piso — ver §8,
+      item 1), 1.775 fora do escopo do cálculo de distorção (Educação Infantil/EJA/Especial/
+      Multianual/Trajetória de Sucesso, confere com a contagem manual dos dados reais). Revisão
+      adversarial (8 vertentes) encontrou e já corrigiu: query redundante de frequência, execução
+      serializada desnecessária, fórmula de percentual duplicada em `academico.ts`, e trocou o
+      contrato de exceção por retorno `null` no motor de distorção (ver §8.2). Achado documentado
+      sem correção imediata: colisão de código de turma entre escolas (§8, item 6).
+- [ ] E5 em diante — telas de `/admin/indicadores` consumindo E1-E4.

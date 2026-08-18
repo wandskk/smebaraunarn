@@ -6,6 +6,7 @@ import {
   faltasConsecutivasAtuais,
   classificarGravidadeFaltasConsecutivas,
   classificarFaixaFrequencia,
+  calcularPercentualFrequencia,
   FAIXAS_PADRAO_FREQUENCIA,
   LIMIARES_PADRAO_FALTAS_CONSECUTIVAS,
   type RegistroDiario,
@@ -161,5 +162,21 @@ describe("classificarFaixaFrequencia", () => {
 
   test("as faixas padrão exportadas batem com as usadas por default", () => {
     assert.deepEqual(FAIXAS_PADRAO_FREQUENCIA, { minimoAdequada: 85, minimoAtencao: 75 });
+  });
+});
+
+describe("calcularPercentualFrequencia", () => {
+  test("calcula o percentual de presença", () => {
+    assert.equal(calcularPercentualFrequencia(100, 10), 90);
+    assert.equal(calcularPercentualFrequencia(4, 0), 100);
+    assert.equal(calcularPercentualFrequencia(4, 4), 0);
+  });
+
+  test("retorna null quando não há aulas registradas", () => {
+    assert.equal(calcularPercentualFrequencia(0, 0), null);
+  });
+
+  test("retorna null para total de aulas negativo (dado corrompido)", () => {
+    assert.equal(calcularPercentualFrequencia(-1, 0), null);
   });
 });

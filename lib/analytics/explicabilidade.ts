@@ -126,8 +126,31 @@ export const DICIONARIO_INDICADORES: Readonly<Record<string, FichaIndicador>> = 
     granularidade: "Rede / Escola / Etapa / Série / Estudante.",
     limitacoes: [
       "Limiar de 2 anos e data de referência ainda não confirmados formalmente pela Secretaria para o município (ver docs/PLANO_DESENVOLVIMENTO.md §8.1).",
-      "Não se aplica à Educação Infantil, por definição do indicador.",
+      "Não se aplica à Educação Infantil, EJA, Educação Especial, turmas multianuais nem à trilha 'Trajetória de Sucesso', por não terem uma única idade esperada bem definida.",
+      "Como a rede já direciona parte dos estudantes em defasagem para a trilha 'Trajetória de Sucesso' (fora do escopo deste cálculo), o número contado nas turmas regulares é um piso, não o total real de estudantes em distorção na rede.",
     ],
     responsavelValidacao: "Secretaria Municipal de Educação (a confirmar).",
+  },
+  desempenhoMedio: {
+    nome: "Desempenho médio",
+    objetivo: "Acompanhar o nível geral de aprendizagem de uma turma, escola ou da rede.",
+    fonte: "Sincronização SIGEduc (notas por disciplina/unidade).",
+    formula: "Média aritmética simples de todas as notas lançadas no período selecionado.",
+    periodicidade: "Conforme lançamento de notas pela escola de origem no SIGEduc.",
+    granularidade: "Rede / Escola / Turma / Disciplina / Estudante.",
+    limitacoes: [
+      "Média simples entre lançamentos — turmas/estudantes com mais notas lançadas pesam mais no valor agregado. Distribuição (mediana, percentis) fica para uma etapa futura (ver docs/PLANO_DESENVOLVIMENTO.md, Etapa E7).",
+    ],
+  },
+  escolasAtivas: {
+    nome: "Escolas ativas",
+    objetivo: "Contar quantas escolas da rede têm operação corrente (matrículas no ano letivo).",
+    fonte: "Cadastro de estudantes (matrícula por escola), via SIGEduc.",
+    formula: "Quantidade de escolas distintas com ao menos 1 estudante matriculado no ano letivo selecionado.",
+    periodicidade: "Recalculado a cada sincronização.",
+    granularidade: "Rede.",
+    limitacoes: [
+      "Definição operacional: o cadastro de Escola não tem um campo de 'ativa/inativa' próprio; 'ativa' aqui significa apenas 'com estudante matriculado no ano'.",
+    ],
   },
 };

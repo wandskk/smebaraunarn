@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
 
 export interface TurmaResumo {
   turma: string;
@@ -16,7 +17,7 @@ export interface TurmaResumo {
  * NotaEstudante primeiro (é onde mais turmas têm registro), caindo para
  * ServidorTurma quando a turma ainda não tem nota lançada.
  */
-async function getSeriePorTurma(turmas: string[]): Promise<Map<string, string>> {
+export async function getSeriePorTurma(turmas: string[]): Promise<Map<string, string>> {
   const series = new Map<string, string>();
   if (turmas.length === 0) return series;
 
@@ -120,7 +121,7 @@ export async function getTurmaDetalhe(escolaId: number, turma: string, ano: numb
     frequencia: {
       totalAulas,
       totalFaltas,
-      percentual: totalAulas > 0 ? ((totalAulas - totalFaltas) / totalAulas) * 100 : null,
+      percentual: calcularPercentualFrequencia(totalAulas, totalFaltas),
     },
   };
 }
