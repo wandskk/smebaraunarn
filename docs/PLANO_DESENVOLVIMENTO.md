@@ -213,4 +213,12 @@ sem tocar no motor de cálculo.
       já tratado na tela (aviso explícito em vez de célula vazia sem explicação). Testado no
       navegador contra o banco real, números batem com a Etapa 4 (soma de estudantes por escola =
       3.924).
-- [ ] E7 em diante — aprendizagem, fluxo-trajetória, qualidade dos dados, comparativos (ver §4).
+- [x] E7 — `/admin/indicadores/aprendizagem`: distribuição de notas por escola (média, mediana,
+      P25/P75, amplitude, % abaixo da nota mínima esperada — provisória em 6,0), não só a média
+      isolada. Novo módulo `lib/analytics/estatistica.ts` (percentil por interpolação linear,
+      mediana, amplitude, proporção abaixo de um limite), 16 testes. Achado real ao testar: o CEJAB
+      (EJA) tem média 7,7 mas mediana 9,8 — distribuição bem assimétrica que a média sozinha escondia,
+      validando na prática por que o documento de visão pede distribuição em vez de média isolada.
+      Testado no navegador logado contra o banco real.
+- [ ] E8 em diante — fluxo-trajetória (distorção idade-série na tela), qualidade dos dados,
+      comparativos (ver §4).

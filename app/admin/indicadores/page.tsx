@@ -123,6 +123,8 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
           label="Desempenho médio"
           value={indicadores.desempenhoMedioRede === null ? "-" : indicadores.desempenhoMedioRede.toFixed(1)}
           icon={Award}
+          href="/admin/indicadores/aprendizagem"
+          helpText="Ver por escola →"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.desempenhoMedio, contexto)}
         />
         <KpiCard
