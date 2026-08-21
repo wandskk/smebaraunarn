@@ -9,3 +9,62 @@ html {
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
+
+/**
+ * Design tokens da área administrativa (design system SME Baraúna).
+ *
+ * Escopo: usados apenas pelos componentes novos em components/ui e pelas
+ * páginas admin/login/conta migradas fase a fase — não pela landing page
+ * pública, que continua usando as classes Tailwind padrão (slate, etc.)
+ * diretamente. Ver docs do redesign para o racional de cada valor.
+ *
+ * Formato H S% L% (sem hsl(...)) para permitir opacidade via
+ * hsl(var(--x) / <alpha-value>) no tailwind.config.ts.
+ */
+:root {
+  --background: 210 40% 98%;
+  --surface: 0 0% 100%;
+  --surface-muted: 210 30% 96%;
+  --foreground: 222 47% 11%;
+  --foreground-muted: 215 16% 47%;
+  --border: 214 32% 91%;
+
+  --primary: 223 92% 53%;
+  --primary-foreground: 0 0% 100%;
+  --primary-subtle: 212 100% 97%;
+  --primary-subtle-foreground: 226 76% 37%;
+
+  --success: 158 64% 32%;
+  --success-foreground: 0 0% 100%;
+  --success-subtle: 152 68% 95%;
+  --success-subtle-foreground: 155 66% 24%;
+
+  --warning: 32 95% 44%;
+  --warning-foreground: 0 0% 100%;
+  --warning-subtle: 48 96% 95%;
+  --warning-subtle-foreground: 26 90% 31%;
+
+  --danger: 0 72% 51%;
+  --danger-foreground: 0 0% 100%;
+  --danger-subtle: 0 93% 96%;
+  --danger-subtle-foreground: 0 70% 35%;
+
+  --info: 243 75% 59%;
+  --info-foreground: 0 0% 100%;
+  --info-subtle: 226 100% 97%;
+  --info-subtle-foreground: 244 55% 41%;
+
+  /* Aprendizagem / avaliação, na Central de Indicadores e páginas relacionadas. */
+  --education: 262 83% 58%;
+  --education-foreground: 0 0% 100%;
+  --education-subtle: 261 100% 97%;
+  --education-subtle-foreground: 263 68% 42%;
+
+  /* Frequência, na Central de Indicadores e páginas relacionadas. */
+  --attendance: 192 91% 36%;
+  --attendance-foreground: 0 0% 100%;
+  --attendance-subtle: 187 100% 96%;
+  --attendance-subtle-foreground: 192 82% 27%;
+
+  --ring: 223 92% 53%;
+}

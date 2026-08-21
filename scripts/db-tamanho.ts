@@ -13,6 +13,7 @@ async function main() {
     `SELECT pg_size_pretty(pg_database_size(current_database())) AS tamanho,
             pg_database_size(current_database()) AS bytes`,
   );
+  if (!dbSize) throw new Error("pg_database_size não retornou nenhuma linha.");
   console.log(`=== Tamanho total do banco: ${dbSize.tamanho} (${dbSize.bytes} bytes) ===\n`);
 
   const tabelas = await prisma.$queryRawUnsafe<
