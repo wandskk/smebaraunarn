@@ -1,6 +1,11 @@
 import Link from "next/link";
-import { ClipboardList, FileText, GraduationCap, Users } from "lucide-react";
+import { ClipboardList, FileText, GraduationCap, RefreshCw, Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { formatNumber } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard } from "@/components/ui/metric-card";
+import { Card } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 
 export default async function AdminDashboardPage() {
   const [totalPosts, totalServidores, totalEstudantes, totalAvaliacoes] = await Promise.all([
@@ -19,27 +24,36 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Visão Geral</h1>
-      <p className="mt-1 text-sm text-slate-500">Resumo do portal e da base de dados sincronizada.</p>
+      <PageHeader title="Visão Geral" description="Resumo do portal e da base de dados sincronizada." />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
-          <Link
+          <MetricCard
             key={card.label}
+            label={card.label}
+            value={formatNumber(card.value)}
+            icon={card.icon}
             href={card.href}
-            className="rounded-xl border border-slate-200 bg-white p-5 transition hover:shadow-sm"
-          >
-            <card.icon className="mb-3 h-5 w-5 text-brand-600" />
-            <div className="text-2xl font-bold text-slate-900">{card.value}</div>
-            <div className="text-xs text-slate-500">{card.label}</div>
-          </Link>
+          />
         ))}
       </div>
 
-      <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
-        Utilize <Link href="/admin/sincronizacao" className="text-brand-700 underline">Sincronização SIGEduc</Link>{" "}
-        para importar escolas, servidores e estudantes a partir da API Educ 21.
-      </div>
+      <Card className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-subtle-foreground">
+            <RefreshCw className="h-5 w-5" />
+          </span>
+          <div>
+            <div className="text-sm font-semibold text-foreground">Sincronização SIGEduc</div>
+            <p className="mt-0.5 text-sm text-foreground-muted">
+              Utilize a sincronização para importar escolas, servidores e estudantes a partir da API Educ 21.
+            </p>
+          </div>
+        </div>
+        <Link href="/admin/sincronizacao" className={buttonVariants({ variant: "secondary" })}>
+          Ir para Sincronização
+        </Link>
+      </Card>
     </div>
   );
 }
