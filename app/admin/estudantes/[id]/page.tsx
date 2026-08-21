@@ -14,7 +14,7 @@ export default async function AdminAlunoDetalhePage({ params }: PageProps) {
 
   return (
     <div>
-      <Link href="/admin/estudantes" className="text-sm text-brand-700 hover:underline">
+      <Link href="/admin/estudantes" className="text-sm text-primary hover:underline">
         ← Estudantes
       </Link>
       <div className="mt-2">

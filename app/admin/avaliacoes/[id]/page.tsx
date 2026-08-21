@@ -4,6 +4,9 @@ import { QuestaoForm } from "./questao-form";
 import { ResultadoForm } from "./resultado-form";
 import { DeleteRowButton } from "./row-actions";
 import { deleteQuestaoAction, deleteResultadoAction, deleteAvaliacaoAction } from "../actions";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 interface PageProps {
   params: { id: string };
@@ -30,90 +33,84 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-10">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">{avaliacao.nome}</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {avaliacao.codigo} · {avaliacao.ano} · {avaliacao.etapaEnsino ?? "Etapa não informada"}
-          </p>
-        </div>
-        <form action={deleteAvaliacaoAction.bind(null, avaliacao.id)}>
-          <button type="submit" className="text-sm text-red-600 hover:underline">
-            Excluir avaliação
-          </button>
-        </form>
-      </div>
+      <PageHeader
+        title={avaliacao.nome}
+        description={`${avaliacao.codigo} · ${avaliacao.ano} · ${avaliacao.etapaEnsino ?? "Etapa não informada"}`}
+        actions={
+          <form action={deleteAvaliacaoAction.bind(null, avaliacao.id)}>
+            <button type="submit" className="text-sm text-danger hover:underline">
+              Excluir avaliação
+            </button>
+          </form>
+        }
+      />
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Questões ({avaliacao.questoes.length})</h2>
-        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+        <SectionCard title={`Questões (${avaliacao.questoes.length})`}>
           <QuestaoForm avaliacaoId={avaliacao.id} />
-        </div>
+        </SectionCard>
         {avaliacao.questoes.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <div className="mt-4">
+            <DataTable>
+              <TableHeader>
                 <tr>
-                  <th className="px-4 py-3">Nº</th>
-                  <th className="px-4 py-3">Descritor</th>
-                  <th className="px-4 py-3">Gabarito</th>
-                  <th className="px-4 py-3">Peso</th>
-                  <th className="px-4 py-3 text-right">Ações</th>
+                  <TableHeadCell>Nº</TableHeadCell>
+                  <TableHeadCell>Descritor</TableHeadCell>
+                  <TableHeadCell>Gabarito</TableHeadCell>
+                  <TableHeadCell>Peso</TableHeadCell>
+                  <TableHeadCell className="text-right">Ações</TableHeadCell>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+              </TableHeader>
+              <TableBody>
                 {avaliacao.questoes.map((q) => (
-                  <tr key={q.id}>
-                    <td className="px-4 py-3">{q.numero}</td>
-                    <td className="px-4 py-3 text-slate-500">{q.descritor ?? "-"}</td>
-                    <td className="px-4 py-3 text-slate-500">{q.gabaritoCorreto ?? "-"}</td>
-                    <td className="px-4 py-3 text-slate-500">{q.peso}</td>
-                    <td className="px-4 py-3 text-right">
+                  <TableRow key={q.id}>
+                    <TableCell className="text-foreground">{q.numero}</TableCell>
+                    <TableCell className="text-foreground-muted">{q.descritor ?? "-"}</TableCell>
+                    <TableCell className="text-foreground-muted">{q.gabaritoCorreto ?? "-"}</TableCell>
+                    <TableCell className="text-foreground-muted">{q.peso}</TableCell>
+                    <TableCell className="text-right">
                       <DeleteRowButton onDelete={deleteQuestaoAction.bind(null, avaliacao.id, q.id)} />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </DataTable>
           </div>
         )}
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">
-          Resultados ({avaliacao.resultados.length})
-        </h2>
-        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+        <SectionCard title={`Resultados (${avaliacao.resultados.length})`}>
           <ResultadoForm avaliacaoId={avaliacao.id} />
-        </div>
+        </SectionCard>
         {avaliacao.resultados.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <div className="mt-4">
+            <DataTable>
+              <TableHeader>
                 <tr>
-                  <th className="px-4 py-3">Aluno</th>
-                  <th className="px-4 py-3">Turma</th>
-                  <th className="px-4 py-3">Pontuação</th>
-                  <th className="px-4 py-3">Nível</th>
-                  <th className="px-4 py-3 text-right">Ações</th>
+                  <TableHeadCell>Aluno</TableHeadCell>
+                  <TableHeadCell>Turma</TableHeadCell>
+                  <TableHeadCell>Pontuação</TableHeadCell>
+                  <TableHeadCell>Nível</TableHeadCell>
+                  <TableHeadCell className="text-right">Ações</TableHeadCell>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+              </TableHeader>
+              <TableBody>
                 {avaliacao.resultados.map((r) => (
-                  <tr key={r.id}>
-                    <td className="px-4 py-3 font-medium text-slate-900">{r.estudante.nome}</td>
-                    <td className="px-4 py-3 text-slate-500">{r.turma}</td>
-                    <td className="px-4 py-3 text-slate-500">{r.pontuacao ?? "-"}</td>
-                    <td className="px-4 py-3 text-slate-500">
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium text-foreground">{r.estudante.nome}</TableCell>
+                    <TableCell className="text-foreground-muted">{r.turma}</TableCell>
+                    <TableCell className="text-foreground-muted">{r.pontuacao ?? "-"}</TableCell>
+                    <TableCell className="text-foreground-muted">
                       {r.nivelDesempenho ? NIVEL_LABEL[r.nivelDesempenho] : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       <DeleteRowButton onDelete={deleteResultadoAction.bind(null, avaliacao.id, r.id)} />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </DataTable>
           </div>
         )}
       </section>

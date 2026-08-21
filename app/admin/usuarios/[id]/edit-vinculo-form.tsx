@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateUserVinculoAction } from "../actions";
 import { VinculoPicker, type VinculoSelection } from "../vinculo-picker";
+import { Button } from "@/components/ui/button";
 
 interface EditVinculoFormProps {
   userId: string;
@@ -38,16 +39,11 @@ export function EditVinculoForm({ userId, vinculoAtual }: EditVinculoFormProps) 
   return (
     <div>
       <VinculoPicker value={vinculo} onChange={setVinculo} />
-      <button
-        type="button"
-        disabled={isPending}
-        onClick={handleSubmit}
-        className="mt-3 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
-      >
+      <Button type="button" disabled={isPending} onClick={handleSubmit} className="mt-3">
         {isPending ? "Salvando..." : "Salvar vínculo"}
-      </button>
-      {erro && <p className="mt-2 text-sm text-red-600">{erro}</p>}
-      {sucesso && <p className="mt-2 text-sm text-emerald-600">Vínculo atualizado.</p>}
+      </Button>
+      {erro && <p className="mt-2 text-sm text-danger">{erro}</p>}
+      {sucesso && <p className="mt-2 text-sm text-success">Vínculo atualizado.</p>}
     </div>
   );
 }

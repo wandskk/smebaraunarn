@@ -1,6 +1,9 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { AlunoDetalheCompleto } from "@/lib/queries/academico";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 interface AlunoDetalheProps {
   dados: AlunoDetalheCompleto;
@@ -22,105 +25,106 @@ export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">{estudante.nome}</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Matrícula {estudante.matricula} · {estudante.turmaSerie ?? "Sem turma"} ·{" "}
-        {estudante.nomeEscola ?? estudante.escola?.nome}
-      </p>
+      <PageHeader
+        title={estudante.nome}
+        description={`Matrícula ${estudante.matricula} · ${estudante.turmaSerie ?? "Sem turma"} · ${
+          estudante.nomeEscola ?? estudante.escola?.nome
+        }`}
+      />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <dt className="text-xs text-slate-500">Responsável</dt>
-          <dd className="text-sm font-medium text-slate-900">{estudante.nomeResponsavel ?? "-"}</dd>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <dt className="text-xs text-slate-500">Data de nascimento</dt>
-          <dd className="text-sm font-medium text-slate-900">{estudante.dataNascimento ?? "-"}</dd>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <dt className="text-xs text-slate-500">Frequência ({frequencias.length} registro(s))</dt>
-          <dd className="text-sm font-medium text-slate-900">
+        <Card>
+          <dt className="text-xs text-foreground-muted">Responsável</dt>
+          <dd className="text-sm font-medium text-foreground">{estudante.nomeResponsavel ?? "-"}</dd>
+        </Card>
+        <Card>
+          <dt className="text-xs text-foreground-muted">Data de nascimento</dt>
+          <dd className="text-sm font-medium text-foreground">{estudante.dataNascimento ?? "-"}</dd>
+        </Card>
+        <Card>
+          <dt className="text-xs text-foreground-muted">Frequência ({frequencias.length} registro(s))</dt>
+          <dd className="text-sm font-medium text-foreground">
             {percentualPresenca !== null ? `${percentualPresenca.toFixed(1)}%` : "-"}
           </dd>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <dt className="text-xs text-slate-500">Faltas / abonadas</dt>
-          <dd className="text-sm font-medium text-slate-900">
+        </Card>
+        <Card>
+          <dt className="text-xs text-foreground-muted">Faltas / abonadas</dt>
+          <dd className="text-sm font-medium text-foreground">
             {totalFaltas} / {totalAbonadas}
           </dd>
-        </div>
+        </Card>
       </div>
 
-      <h2 className="mt-8 text-sm font-semibold text-slate-900">Boletim — {ano}</h2>
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Boletim — {ano}</h2>
       {Object.keys(porDisciplina).length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
           Nenhuma nota lançada para {ano} ainda.
         </p>
       ) : (
-        <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <div className="mt-3">
+          <DataTable>
+            <TableHeader>
               <tr>
-                <th className="px-4 py-3">Disciplina</th>
-                <th className="px-4 py-3">1ª Un.</th>
-                <th className="px-4 py-3">2ª Un.</th>
-                <th className="px-4 py-3">3ª Un.</th>
-                <th className="px-4 py-3">4ª Un.</th>
-                <th className="px-4 py-3">Média</th>
+                <TableHeadCell>Disciplina</TableHeadCell>
+                <TableHeadCell>1ª Un.</TableHeadCell>
+                <TableHeadCell>2ª Un.</TableHeadCell>
+                <TableHeadCell>3ª Un.</TableHeadCell>
+                <TableHeadCell>4ª Un.</TableHeadCell>
+                <TableHeadCell>Média</TableHeadCell>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+            </TableHeader>
+            <TableBody>
               {Object.entries(porDisciplina).map(([disciplina, unidades]) => {
                 const porUnidade = new Map(unidades.map((u) => [u.unidade, u.nota]));
                 const media = unidades.reduce((sum, u) => sum + u.nota, 0) / (unidades.length || 1);
                 return (
-                  <tr key={disciplina}>
-                    <td className="px-4 py-3 font-medium text-slate-900">{disciplina}</td>
+                  <TableRow key={disciplina}>
+                    <TableCell className="font-medium text-foreground">{disciplina}</TableCell>
                     {[1, 2, 3, 4].map((u) => (
-                      <td key={u} className="px-4 py-3 text-slate-600">
+                      <TableCell key={u} className="text-foreground-muted">
                         {porUnidade.get(u) ?? "-"}
-                      </td>
+                      </TableCell>
                     ))}
-                    <td className="px-4 py-3 font-semibold text-slate-900">{media.toFixed(1)}</td>
-                  </tr>
+                    <TableCell className="font-semibold text-foreground">{media.toFixed(1)}</TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </DataTable>
         </div>
       )}
 
-      <h2 className="mt-8 text-sm font-semibold text-slate-900">Frequência recente</h2>
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Frequência recente</h2>
       {frequencias.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
           Nenhum registro de frequência encontrado.
         </p>
       ) : (
-        <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <div className="mt-3">
+          <DataTable>
+            <TableHeader>
               <tr>
-                <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3">Disciplina</th>
-                <th className="px-4 py-3">Situação</th>
-                <th className="px-4 py-3">Abonada</th>
+                <TableHeadCell>Data</TableHeadCell>
+                <TableHeadCell>Disciplina</TableHeadCell>
+                <TableHeadCell>Situação</TableHeadCell>
+                <TableHeadCell>Abonada</TableHeadCell>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+            </TableHeader>
+            <TableBody>
               {frequencias.map((f) => (
-                <tr key={f.id}>
-                  <td className="px-4 py-3 text-slate-900">
+                <TableRow key={f.id}>
+                  <TableCell className="text-foreground">
                     {format(new Date(f.data), "dd/MM/yyyy", { locale: ptBR })}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{f.disciplina ?? "-"}</td>
-                  <td className="px-4 py-3 text-slate-600">{f.falta > 0 ? "Falta" : "Presente"}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  </TableCell>
+                  <TableCell className="text-foreground-muted">{f.disciplina ?? "-"}</TableCell>
+                  <TableCell className="text-foreground-muted">{f.falta > 0 ? "Falta" : "Presente"}</TableCell>
+                  <TableCell className="text-foreground-muted">
                     {f.abonada ? `Sim${f.motivoAbono ? ` (${f.motivoAbono})` : ""}` : "Não"}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </DataTable>
         </div>
       )}
     </div>

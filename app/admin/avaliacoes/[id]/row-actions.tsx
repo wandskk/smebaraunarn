@@ -14,7 +14,7 @@ export function DeleteRowButton({ onDelete }: { onDelete: () => Promise<void> })
           startTransition(() => onDelete());
         }
       }}
-      className="text-red-600 hover:text-red-700 disabled:opacity-50"
+      className="text-danger hover:opacity-80 disabled:opacity-50"
       aria-label="Remover"
     >
       <Trash2 className="h-4 w-4" />

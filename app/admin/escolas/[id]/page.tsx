@@ -6,6 +6,7 @@ import { formatTurmaLabel, getTurmasDaEscola } from "@/lib/queries/academico";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface PageProps {
   params: { id: string };
@@ -29,22 +30,26 @@ export default async function AdminEscolaDetalhePage({ params, searchParams }: P
 
   return (
     <div>
-      <Link href="/admin/escolas" className="text-sm text-brand-700 hover:underline">
-        ← Escolas
-      </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">{escola.nome}</h1>
-      <p className="mt-1 text-sm text-slate-500">Código INEP {escola.codigoInep ?? "-"}</p>
+      <PageHeader
+        breadcrumbs={
+          <Link href="/admin/escolas" className="text-primary hover:underline">
+            ← Escolas
+          </Link>
+        }
+        title={escola.nome}
+        description={`Código INEP ${escola.codigoInep ?? "-"}`}
+      />
 
-      <h2 className="mt-6 text-sm font-semibold text-slate-900">Turmas</h2>
+      <h2 className="mt-6 text-sm font-semibold text-foreground">Turmas</h2>
       {todasTurmas.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
           Nenhuma turma encontrada para esta escola.
         </p>
       ) : (
         <>
           <ListToolbar searchPlaceholder="Buscar por turma..." />
           {turmas.length === 0 ? (
-            <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+            <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
               Nenhuma turma encontrada.
             </p>
           ) : (
@@ -53,13 +58,13 @@ export default async function AdminEscolaDetalhePage({ params, searchParams }: P
                 <Link
                   key={t.turma}
                   href={`/admin/escolas/${escolaId}/turmas/${encodeURIComponent(t.turma)}`}
-                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-300 hover:shadow-sm"
+                  className="flex items-center gap-3 rounded-xl border border-border bg-surface p-5 transition hover:border-primary/40 hover:shadow-card"
                 >
-                  <Users className="h-6 w-6 shrink-0 text-brand-600" />
+                  <Users className="h-6 w-6 shrink-0 text-primary" />
                   <div>
-                    <div className="font-semibold text-slate-900">{formatTurmaLabel(t.serie, t.turma)}</div>
-                    <div className="text-xs text-slate-400">{t.turma}</div>
-                    <div className="text-sm text-slate-500">{t.totalAlunos} aluno(s)</div>
+                    <div className="font-semibold text-foreground">{formatTurmaLabel(t.serie, t.turma)}</div>
+                    <div className="text-xs text-foreground-muted/70">{t.turma}</div>
+                    <div className="text-sm text-foreground-muted">{t.totalAlunos} aluno(s)</div>
                   </div>
                 </Link>
               ))}

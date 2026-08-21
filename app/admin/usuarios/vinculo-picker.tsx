@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { searchVinculosAction, type VinculoOption } from "./actions";
 import type { VinculoTipo } from "@/lib/validations/user";
+import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 export interface VinculoSelection {
   tipo: VinculoTipo;
@@ -47,7 +49,7 @@ export function VinculoPicker({ value, onChange }: VinculoPickerProps) {
           o vínculo via FormData (este componente é controlado só em memória por fora). */}
       <input type="hidden" name="vinculoTipo" value={value.tipo} />
       <input type="hidden" name="vinculoId" value={value.id} />
-      <select
+      <Select
         value={value.tipo}
         onChange={(e) => {
           const tipo = e.target.value as VinculoTipo;
@@ -55,19 +57,18 @@ export function VinculoPicker({ value, onChange }: VinculoPickerProps) {
           setQuery("");
           setOptions([]);
         }}
-        className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
       >
         {Object.entries(TIPO_LABEL).map(([tipo, label]) => (
           <option key={tipo} value={tipo}>
             {label}
           </option>
         ))}
-      </select>
+      </Select>
 
       {value.tipo !== "NENHUM" && (
         <div className="relative">
           {value.id ? (
-            <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <div className="flex items-center justify-between rounded-lg bg-success-subtle px-3 py-2 text-sm text-success-subtle-foreground">
               <span className="truncate">{value.nome}</span>
               <button
                 type="button"
@@ -75,23 +76,22 @@ export function VinculoPicker({ value, onChange }: VinculoPickerProps) {
                   onChange({ ...value, id: "", nome: "", cpfDigits: null });
                   setQuery("");
                 }}
-                className="ml-2 shrink-0 text-xs text-emerald-700 underline"
+                className="ml-2 shrink-0 text-xs underline"
               >
                 trocar
               </button>
             </div>
           ) : (
             <>
-              <input
+              <Input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar por nome, CPF ou matrícula..."
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
-              {isPending && <p className="mt-1 text-xs text-slate-400">Buscando...</p>}
+              {isPending && <p className="mt-1 text-xs text-foreground-muted">Buscando...</p>}
               {options.length > 0 && (
-                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border bg-surface shadow-card">
                   {options.map((o) => (
                     <li key={o.id}>
                       <button
@@ -100,7 +100,7 @@ export function VinculoPicker({ value, onChange }: VinculoPickerProps) {
                           onChange({ tipo: value.tipo, id: o.id, nome: o.nome, cpfDigits: o.cpfDigits });
                           setOptions([]);
                         }}
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                        className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-muted"
                       >
                         {o.label}
                       </button>
