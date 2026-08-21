@@ -37,40 +37,46 @@ body {
    */
   --primary: 221 83% 40%;
   --primary-foreground: 0 0% 100%;
-  --primary-subtle: 216 82% 95%;
-  --primary-subtle-foreground: 221 75% 30%;
+  /*
+   * "-subtle" abaixo: fundos pastel (~88-92% de luminosidade) usados em
+   * ícones de KPI, badges e grupos da sidebar — Fase 7, a pedido do
+   * cliente para um visual mais colorido (cores variadas, mas em tom
+   * pastel, não saturado). Antes eram ~95-97%, quase brancos.
+   */
+  --primary-subtle: 216 70% 89%;
+  --primary-subtle-foreground: 221 75% 28%;
 
   --success: 158 64% 32%;
   --success-foreground: 0 0% 100%;
-  --success-subtle: 152 68% 95%;
-  --success-subtle-foreground: 155 66% 24%;
+  --success-subtle: 152 55% 90%;
+  --success-subtle-foreground: 155 70% 22%;
 
   --warning: 32 95% 44%;
   --warning-foreground: 0 0% 100%;
-  --warning-subtle: 48 96% 95%;
-  --warning-subtle-foreground: 26 90% 31%;
+  --warning-subtle: 40 92% 88%;
+  --warning-subtle-foreground: 26 85% 28%;
 
   --danger: 0 72% 51%;
   --danger-foreground: 0 0% 100%;
-  --danger-subtle: 0 93% 96%;
-  --danger-subtle-foreground: 0 70% 35%;
+  --danger-subtle: 0 85% 91%;
+  --danger-subtle-foreground: 0 70% 33%;
 
   --info: 243 75% 59%;
   --info-foreground: 0 0% 100%;
-  --info-subtle: 226 100% 97%;
-  --info-subtle-foreground: 244 55% 41%;
+  --info-subtle: 230 90% 91%;
+  --info-subtle-foreground: 244 60% 38%;
 
   /* Aprendizagem / avaliação, na Central de Indicadores e páginas relacionadas. */
   --education: 262 83% 58%;
   --education-foreground: 0 0% 100%;
-  --education-subtle: 261 100% 97%;
-  --education-subtle-foreground: 263 68% 42%;
+  --education-subtle: 261 85% 92%;
+  --education-subtle-foreground: 263 70% 38%;
 
   /* Frequência, na Central de Indicadores e páginas relacionadas. */
   --attendance: 192 91% 36%;
   --attendance-foreground: 0 0% 100%;
-  --attendance-subtle: 187 100% 96%;
-  --attendance-subtle-foreground: 192 82% 27%;
+  --attendance-subtle: 190 85% 88%;
+  --attendance-subtle-foreground: 192 85% 24%;
 
   --ring: 221 83% 40%;
 }

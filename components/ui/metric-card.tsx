@@ -4,8 +4,24 @@ import { cn } from "@/lib/utils";
 
 export type MetricCardTone = "default" | "atencao" | "critico";
 
-const TONE_STYLE: Record<MetricCardTone, { icon: string; iconBg: string }> = {
-  default: { icon: "text-primary", iconBg: "bg-primary-subtle" },
+/**
+ * Cor de domínio do indicador (Fase 7 — "linguagem visual própria" pedida
+ * pelo cliente: aprendizagem em violeta, frequência em ciano, etc.). Só se
+ * aplica quando tone="default" — um alerta real (atencao/critico) sempre
+ * tem prioridade visual sobre a cor decorativa de domínio.
+ */
+export type MetricCardAccent = "primary" | "success" | "warning" | "info" | "education" | "attendance";
+
+const ACCENT_STYLE: Record<MetricCardAccent, { icon: string; iconBg: string }> = {
+  primary: { icon: "text-primary", iconBg: "bg-primary-subtle" },
+  success: { icon: "text-success", iconBg: "bg-success-subtle" },
+  warning: { icon: "text-warning", iconBg: "bg-warning-subtle" },
+  info: { icon: "text-info", iconBg: "bg-info-subtle" },
+  education: { icon: "text-education", iconBg: "bg-education-subtle" },
+  attendance: { icon: "text-attendance", iconBg: "bg-attendance-subtle" },
+};
+
+const TONE_OVERRIDE_STYLE: Partial<Record<MetricCardTone, { icon: string; iconBg: string }>> = {
   atencao: { icon: "text-warning", iconBg: "bg-warning-subtle" },
   critico: { icon: "text-danger", iconBg: "bg-danger-subtle" },
 };
@@ -24,6 +40,8 @@ export interface MetricCardProps {
   explicacao?: string;
   href?: string;
   tone?: MetricCardTone;
+  /** Cor de domínio do ícone quando tone="default" (ver MetricCardAccent). */
+  accent?: MetricCardAccent;
 }
 
 /**
@@ -31,8 +49,17 @@ export interface MetricCardProps {
  * API — pensada para substituir esse componente página a página nas fases
  * seguintes do redesign, sem qualquer mudança de dado ou comportamento.
  */
-export function MetricCard({ label, value, icon: Icon, helpText, explicacao, href, tone = "default" }: MetricCardProps) {
-  const { icon: iconStyle, iconBg } = TONE_STYLE[tone];
+export function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  helpText,
+  explicacao,
+  href,
+  tone = "default",
+  accent = "primary",
+}: MetricCardProps) {
+  const { icon: iconStyle, iconBg } = TONE_OVERRIDE_STYLE[tone] ?? ACCENT_STYLE[accent];
 
   const conteudo = (
     <>

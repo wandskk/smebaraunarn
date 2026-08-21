@@ -24,16 +24,29 @@ interface NavItem {
   icon: LucideIcon;
 }
 
+type NavAccent = "primary" | "success" | "education" | "warning" | "neutral";
+
 interface NavGroup {
   label: string;
+  /** Identifica o grupo a olho nu na sidebar — Administração fica neutra de propósito (é back-office). */
+  accent: NavAccent;
   items: NavItem[];
 }
 
+const ACCENT_STYLE: Record<NavAccent, { chipBg: string; icon: string; activeBg: string; activeText: string }> = {
+  primary: { chipBg: "bg-primary-subtle", icon: "text-primary", activeBg: "bg-primary-subtle", activeText: "text-primary-subtle-foreground" },
+  success: { chipBg: "bg-success-subtle", icon: "text-success", activeBg: "bg-success-subtle", activeText: "text-success-subtle-foreground" },
+  education: { chipBg: "bg-education-subtle", icon: "text-education", activeBg: "bg-education-subtle", activeText: "text-education-subtle-foreground" },
+  warning: { chipBg: "bg-warning-subtle", icon: "text-warning", activeBg: "bg-warning-subtle", activeText: "text-warning-subtle-foreground" },
+  neutral: { chipBg: "bg-surface-muted", icon: "text-foreground-muted", activeBg: "bg-surface-muted", activeText: "text-foreground" },
+};
+
 /** Mesmos 10 destinos de sempre, só reorganizados em grupos — nenhuma URL muda. */
 const NAV_GROUPS: NavGroup[] = [
-  { label: "Visão Geral", items: [{ href: "/admin", label: "Painel", icon: LayoutDashboard }] },
+  { label: "Visão Geral", accent: "primary", items: [{ href: "/admin", label: "Painel", icon: LayoutDashboard }] },
   {
     label: "Rede Escolar",
+    accent: "success",
     items: [
       { href: "/admin/escolas", label: "Escolas", icon: School },
       { href: "/admin/estudantes", label: "Estudantes", icon: GraduationCap },
@@ -42,6 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Avaliação & Dados",
+    accent: "education",
     items: [
       { href: "/admin/avaliacoes", label: "Avaliações Municipais", icon: ClipboardList },
       { href: "/admin/indicadores", label: "Central de Indicadores", icon: GaugeCircle },
@@ -49,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Comunicação",
+    accent: "warning",
     items: [
       { href: "/admin/posts", label: "Notícias / CMS", icon: FileText },
       { href: "/admin/documentos", label: "Documentos", icon: Folder },
@@ -56,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Administração",
+    accent: "neutral",
     items: [
       { href: "/admin/usuarios", label: "Usuários e Acessos", icon: Users },
       { href: "/admin/sincronizacao", label: "Sincronização SIGEduc", icon: RefreshCw },
@@ -66,33 +82,36 @@ const NAV_GROUPS: NavGroup[] = [
 function NavGroupList({ pathname }: { pathname: string }) {
   return (
     <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
-      {NAV_GROUPS.map((group) => (
-        <div key={group.label}>
-          <div className="px-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted/70">
-            {group.label}
+      {NAV_GROUPS.map((group) => {
+        const accent = ACCENT_STYLE[group.accent];
+        return (
+          <div key={group.label}>
+            <div className="px-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted/70">
+              {group.label}
+            </div>
+            <div className="mt-1 space-y-0.5">
+              {group.items.map((item) => {
+                const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition",
+                      active ? cn(accent.activeBg, accent.activeText) : "text-foreground-muted hover:bg-surface-muted hover:text-foreground",
+                    )}
+                  >
+                    <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md", accent.chipBg)}>
+                      <item.icon className={cn("h-3.5 w-3.5", accent.icon)} />
+                    </span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <div className="mt-1 space-y-0.5">
-            {group.items.map((item) => {
-              const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-                    active
-                      ? "bg-primary-subtle text-primary-subtle-foreground"
-                      : "text-foreground-muted hover:bg-surface-muted hover:text-foreground",
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
