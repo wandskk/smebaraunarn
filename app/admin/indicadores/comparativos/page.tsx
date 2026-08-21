@@ -5,6 +5,10 @@ import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -32,7 +36,7 @@ function DiferencaRede({
   unidade: "p.p." | "pts";
   maiorEhMelhor: boolean;
 }) {
-  if (diferenca === null) return <span className="text-xs text-slate-400">sem referência de rede</span>;
+  if (diferenca === null) return <span className="text-xs text-foreground-muted/60">sem referência de rede</span>;
 
   const estavel = Math.abs(diferenca) < 0.05;
   const favoravel = estavel ? null : maiorEhMelhor ? diferenca > 0 : diferenca < 0;
@@ -40,14 +44,14 @@ function DiferencaRede({
 
   if (estavel) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+      <span className="inline-flex items-center gap-1 text-xs text-foreground-muted/60">
         <Minus className="h-3.5 w-3.5" /> {texto} da rede
       </span>
     );
   }
 
   return (
-    <span className={`inline-flex items-center gap-1 text-xs ${favoravel ? "text-emerald-700" : "text-red-700"}`}>
+    <span className={`inline-flex items-center gap-1 text-xs ${favoravel ? "text-success" : "text-danger"}`}>
       {diferenca > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
       {texto} da rede
     </span>
@@ -64,93 +68,88 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline">
+      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
         <ArrowLeft className="h-4 w-4" />
         Central de Indicadores
       </Link>
 
-      <h1 className="mt-3 text-xl font-semibold text-slate-900">Comparativos — Escola × Rede</h1>
-      <p className="mt-1 max-w-2xl text-sm text-slate-500">
-        Cada escola comparada com a referência de rede no mesmo recorte, em vez do número isolado. A referência de
-        rede é uma média ponderada pelo tamanho de cada escola no indicador (aulas dadas, notas lançadas ou
-        estudantes elegíveis) — não a média simples das escolas, que daria peso igual a uma escola pequena e a uma
-        grande. Frequência: {janela.atualInicio} a {janela.atualFim}. Ano letivo {anoLetivo}.
-      </p>
+      <PageHeader
+        className="mt-3"
+        title="Comparativos — Escola × Rede"
+        description={
+          <>
+            Cada escola comparada com a referência de rede no mesmo recorte, em vez do número isolado. A referência de
+            rede é uma média ponderada pelo tamanho de cada escola no indicador (aulas dadas, notas lançadas ou
+            estudantes elegíveis) — não a média simples das escolas, que daria peso igual a uma escola pequena e a uma
+            grande. Frequência: {janela.atualInicio} a {janela.atualFim}. Ano letivo {anoLetivo}.
+          </>
+        }
+      />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase text-slate-500">Frequência da rede</div>
-          <div className="mt-1 text-xl font-bold text-slate-900">{formatarPercentual(rede.frequenciaPercentual)}</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase text-slate-500">Desempenho médio da rede</div>
-          <div className="mt-1 text-xl font-bold text-slate-900">{formatarNota(rede.desempenhoMedia)}</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase text-slate-500">Distorção idade-série da rede</div>
-          <div className="mt-1 text-xl font-bold text-slate-900">{formatarPercentual(rede.distorcaoPercentual)}</div>
-        </div>
+        <Card>
+          <div className="text-xs uppercase text-foreground-muted">Frequência da rede</div>
+          <div className="mt-1 text-xl font-semibold text-foreground">{formatarPercentual(rede.frequenciaPercentual)}</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase text-foreground-muted">Desempenho médio da rede</div>
+          <div className="mt-1 text-xl font-semibold text-foreground">{formatarNota(rede.desempenhoMedia)}</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase text-foreground-muted">Distorção idade-série da rede</div>
+          <div className="mt-1 text-xl font-semibold text-foreground">{formatarPercentual(rede.distorcaoPercentual)}</div>
+        </Card>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Escola</th>
-              <th className="px-4 py-3">Frequência</th>
-              <th className="px-4 py-3">Faixa</th>
-              <th className="px-4 py-3">Desempenho</th>
-              <th className="px-4 py-3">Distorção idade-série</th>
+              <TableHeadCell>Escola</TableHeadCell>
+              <TableHeadCell>Frequência</TableHeadCell>
+              <TableHeadCell>Faixa</TableHeadCell>
+              <TableHeadCell>Desempenho</TableHeadCell>
+              <TableHeadCell>Distorção idade-série</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {escolas.map((escola) => (
-              <tr key={escola.escolaId ?? escola.nomeEscola}>
-                <td className="px-4 py-3">
+              <TableRow key={escola.escolaId ?? escola.nomeEscola}>
+                <TableCell>
                   {escola.escolaId !== null ? (
                     <Link
                       href={`/admin/escolas/${escola.escolaId}`}
-                      className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+                      className="font-medium text-foreground hover:text-primary hover:underline"
                     >
                       {escola.nomeEscola}
                     </Link>
                   ) : (
-                    <span className="font-medium text-slate-900">{escola.nomeEscola}</span>
+                    <span className="font-medium text-foreground">{escola.nomeEscola}</span>
                   )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-slate-900">{formatarPercentual(escola.frequenciaPercentual)}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-semibold text-foreground">{formatarPercentual(escola.frequenciaPercentual)}</div>
                   <DiferencaRede diferenca={escola.frequenciaDiferencaRede} unidade="p.p." maiorEhMelhor />
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <FaixaBadge faixa={escola.frequenciaFaixa} />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-slate-900">{formatarNota(escola.desempenhoMedia)}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-semibold text-foreground">{formatarNota(escola.desempenhoMedia)}</div>
                   <DiferencaRede diferenca={escola.desempenhoDiferencaRede} unidade="pts" maiorEhMelhor />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-slate-900">{formatarPercentual(escola.distorcaoPercentual)}</div>
-                  <DiferencaRede
-                    diferenca={escola.distorcaoDiferencaRede}
-                    unidade="p.p."
-                    maiorEhMelhor={false}
-                  />
-                </td>
-              </tr>
+                </TableCell>
+                <TableCell>
+                  <div className="font-semibold text-foreground">{formatarPercentual(escola.distorcaoPercentual)}</div>
+                  <DiferencaRede diferenca={escola.distorcaoDiferencaRede} unidade="p.p." maiorEhMelhor={false} />
+                </TableCell>
+              </TableRow>
             ))}
-            {escolas.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">
-                  Nenhuma escola com dado neste ano letivo.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {escolas.length === 0 && <TableEmptyState colSpan={5} title="Nenhuma escola com dado neste ano letivo." />}
+          </TableBody>
+        </DataTable>
       </div>
 
-      <p className="mt-4 text-xs text-slate-400">
+      <p className="mt-4 text-xs text-foreground-muted/60">
         {formatNumber(escolas.length)} escola(s) com pelo menos um indicador calculado. Uma célula vazia
         (&quot;sem referência de rede&quot;) acontece quando a escola não tem dado suficiente para esse indicador
         específico (ex.: creche sem estudante elegível para distorção idade-série).

@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getDistorcaoPorEscolaESerie } from "@/lib/queries/distorcao";
 import type { SerieEnsino } from "@/lib/analytics/distorcao";
+import { PageHeader } from "@/components/ui/page-header";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -39,85 +42,86 @@ export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline">
+      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-warning-subtle-foreground hover:underline">
         <ArrowLeft className="h-4 w-4" />
         Central de Indicadores
       </Link>
 
-      <h1 className="mt-3 text-xl font-semibold text-slate-900">Fluxo e Trajetória — Distorção Idade-Série</h1>
-      <p className="mt-1 max-w-2xl text-sm text-slate-500">
-        Onde está a maior concentração de distorção e em qual etapa ela começa a crescer? Percentual calculado só
-        sobre estudantes elegíveis (série regular mapeada + data de nascimento válida) — Educação Infantil, EJA,
-        Educação Especial, turmas multianuais e a trilha Trajetória de Sucesso ficam fora, por definição. Ano
-        letivo {anoLetivo}.
-      </p>
+      <PageHeader
+        className="mt-3"
+        title="Fluxo e Trajetória — Distorção Idade-Série"
+        description={
+          <>
+            Onde está a maior concentração de distorção e em qual etapa ela começa a crescer? Percentual calculado só
+            sobre estudantes elegíveis (série regular mapeada + data de nascimento válida) — Educação Infantil, EJA,
+            Educação Especial, turmas multianuais e a trilha Trajetória de Sucesso ficam fora, por definição. Ano
+            letivo {anoLetivo}.
+          </>
+        }
+      />
 
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Por série</h2>
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">Por série</h2>
       <div className="mt-3 space-y-2">
         {porSerie.map((item) => {
           const largura = maiorPercentualSerie > 0 ? ((item.percentualDistorcao ?? 0) / maiorPercentualSerie) * 100 : 0;
           return (
             <div key={item.serie} className="flex items-center gap-3 text-sm">
-              <div className="w-24 shrink-0 text-slate-600">{ROTULO_SERIE[item.serie]}</div>
-              <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-amber-500" style={{ width: `${largura}%` }} />
+              <div className="w-24 shrink-0 text-foreground-muted">{ROTULO_SERIE[item.serie]}</div>
+              <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                <div className="h-full rounded-full bg-warning" style={{ width: `${largura}%` }} />
               </div>
-              <div className="w-32 shrink-0 text-right text-slate-600">
+              <div className="w-32 shrink-0 text-right text-foreground-muted">
                 {formatarPercentual(item.percentualDistorcao)} ({formatNumber(item.emDistorcao)} de{" "}
                 {formatNumber(item.totalElegiveis)})
               </div>
             </div>
           );
         })}
-        {porSerie.length === 0 && <p className="text-sm text-slate-400">Nenhum estudante elegível neste ano letivo.</p>}
+        {porSerie.length === 0 && <p className="text-sm text-foreground-muted/60">Nenhum estudante elegível neste ano letivo.</p>}
       </div>
 
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Por escola</h2>
-      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">Por escola</h2>
+      <div className="mt-3">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Escola</th>
-              <th className="px-4 py-3">Elegíveis</th>
-              <th className="px-4 py-3">Em distorção</th>
-              <th className="px-4 py-3">% distorção</th>
-              <th className="px-4 py-3">Defasagem severa (4+ anos)</th>
-              <th className="px-4 py-3">Fora do escopo</th>
+              <TableHeadCell>Escola</TableHeadCell>
+              <TableHeadCell>Elegíveis</TableHeadCell>
+              <TableHeadCell>Em distorção</TableHeadCell>
+              <TableHeadCell>% distorção</TableHeadCell>
+              <TableHeadCell>Defasagem severa (4+ anos)</TableHeadCell>
+              <TableHeadCell>Fora do escopo</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {porEscola.map((escola) => (
-              <tr key={escola.escolaId ?? escola.nomeEscola}>
-                <td className="px-4 py-3">
+              <TableRow key={escola.escolaId ?? escola.nomeEscola}>
+                <TableCell>
                   {escola.escolaId !== null ? (
                     <Link
                       href={`/admin/escolas/${escola.escolaId}`}
-                      className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+                      className="font-medium text-foreground hover:text-warning-subtle-foreground hover:underline"
                     >
                       {escola.nomeEscola}
                     </Link>
                   ) : (
-                    <span className="font-medium text-slate-900">{escola.nomeEscola}</span>
+                    <span className="font-medium text-foreground">{escola.nomeEscola}</span>
                   )}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{formatNumber(escola.totalElegiveis)}</td>
-                <td className="px-4 py-3 text-slate-600">{formatNumber(escola.emDistorcao)}</td>
-                <td className="px-4 py-3 font-semibold text-slate-900">
+                </TableCell>
+                <TableCell className="text-foreground-muted">{formatNumber(escola.totalElegiveis)}</TableCell>
+                <TableCell className="text-foreground-muted">{formatNumber(escola.emDistorcao)}</TableCell>
+                <TableCell className="font-semibold text-foreground">
                   {formatarPercentual(escola.percentualDistorcao)}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{formatNumber(escola.intensidadeSevera)}</td>
-                <td className="px-4 py-3 text-slate-400">{formatNumber(escola.totalForaDoEscopo)}</td>
-              </tr>
+                </TableCell>
+                <TableCell className="text-foreground-muted">{formatNumber(escola.intensidadeSevera)}</TableCell>
+                <TableCell className="text-foreground-muted/60">{formatNumber(escola.totalForaDoEscopo)}</TableCell>
+              </TableRow>
             ))}
             {porEscola.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
-                  Nenhuma escola com estudantes elegíveis neste ano letivo.
-                </td>
-              </tr>
+              <TableEmptyState colSpan={6} title="Nenhuma escola com estudantes elegíveis neste ano letivo." />
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </DataTable>
       </div>
     </div>
   );

@@ -6,6 +6,10 @@ import {
   getColisoesCodigoTurma,
   type StatusModuloSincronizacao,
 } from "@/lib/queries/qualidade-dados";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 const ROTULO_MODULO: Record<string, string> = {
   ESCOLAS: "Escolas",
@@ -28,33 +32,32 @@ function formatarDuracao(ms: number | null): string {
 function SituacaoBadge({ situacao }: { situacao: StatusModuloSincronizacao["situacao"] }) {
   if (situacao === "em-dia") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-        <CheckCircle2 className="h-3.5 w-3.5" /> Em dia
-      </span>
+      <Badge variant="success" icon={CheckCircle2}>
+        Em dia
+      </Badge>
     );
   }
   if (situacao === "atrasado") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-        <Clock className="h-3.5 w-3.5" /> Atrasado
-      </span>
+      <Badge variant="warning" icon={Clock}>
+        Atrasado
+      </Badge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-      <XCircle className="h-3.5 w-3.5" /> Sem sincronização
-    </span>
+    <Badge variant="danger" icon={XCircle}>
+      Sem sincronização
+    </Badge>
   );
 }
 
+const STATUS_LOG_VARIANT: Record<string, BadgeVariant> = {
+  SUCESSO: "success",
+  ERRO: "danger",
+};
+
 function StatusLogBadge({ status }: { status: string }) {
-  const style =
-    status === "SUCESSO"
-      ? "bg-emerald-50 text-emerald-700"
-      : status === "ERRO"
-        ? "bg-red-50 text-red-700"
-        : "bg-slate-100 text-slate-600";
-  return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${style}`}>{status}</span>;
+  return <Badge variant={STATUS_LOG_VARIANT[status] ?? "neutral"}>{status}</Badge>;
 }
 
 export default async function QualidadeDadosPage() {
@@ -67,38 +70,38 @@ export default async function QualidadeDadosPage() {
 
   return (
     <div>
-      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline">
+      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-info-subtle-foreground hover:underline">
         <ArrowLeft className="h-4 w-4" />
         Central de Indicadores
       </Link>
 
-      <h1 className="mt-3 text-xl font-semibold text-slate-900">Qualidade dos Dados</h1>
-      <p className="mt-1 max-w-2xl text-sm text-slate-500">
-        Os indicadores acima só valem o que a sincronização entrega. Este painel mostra a saúde de cada módulo
-        sincronizado do SIGEduc e checagens de integridade sobre os dados já carregados.
-      </p>
+      <PageHeader
+        className="mt-3"
+        title="Qualidade dos Dados"
+        description="Os indicadores acima só valem o que a sincronização entrega. Este painel mostra a saúde de cada módulo sincronizado do SIGEduc e checagens de integridade sobre os dados já carregados."
+      />
 
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Saúde da sincronização</h2>
-      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">Saúde da sincronização</h2>
+      <div className="mt-3">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Módulo</th>
-              <th className="px-4 py-3">Situação</th>
-              <th className="px-4 py-3">Última execução</th>
-              <th className="px-4 py-3">Registros</th>
-              <th className="px-4 py-3">Duração</th>
-              <th className="px-4 py-3">Erros (7 dias)</th>
+              <TableHeadCell>Módulo</TableHeadCell>
+              <TableHeadCell>Situação</TableHeadCell>
+              <TableHeadCell>Última execução</TableHeadCell>
+              <TableHeadCell>Registros</TableHeadCell>
+              <TableHeadCell>Duração</TableHeadCell>
+              <TableHeadCell>Erros (7 dias)</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {modulos.map((m) => (
-              <tr key={m.modulo}>
-                <td className="px-4 py-3 font-medium text-slate-900">{ROTULO_MODULO[m.modulo] ?? m.modulo}</td>
-                <td className="px-4 py-3">
+              <TableRow key={m.modulo}>
+                <TableCell className="font-medium text-foreground">{ROTULO_MODULO[m.modulo] ?? m.modulo}</TableCell>
+                <TableCell>
                   <SituacaoBadge situacao={m.situacao} />
-                </td>
-                <td className="px-4 py-3 text-slate-600">
+                </TableCell>
+                <TableCell className="text-foreground-muted">
                   {m.ultimoLog ? (
                     <div className="flex items-center gap-2">
                       <StatusLogBadge status={m.ultimoLog.status} />
@@ -107,53 +110,53 @@ export default async function QualidadeDadosPage() {
                   ) : (
                     "nunca sincronizado"
                   )}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{m.ultimoLog ? formatNumber(m.ultimoLog.registros) : "-"}</td>
-                <td className="px-4 py-3 text-slate-600">{formatarDuracao(m.ultimoLog?.duracaoMs ?? null)}</td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell className="text-foreground-muted">{m.ultimoLog ? formatNumber(m.ultimoLog.registros) : "-"}</TableCell>
+                <TableCell className="text-foreground-muted">{formatarDuracao(m.ultimoLog?.duracaoMs ?? null)}</TableCell>
+                <TableCell>
                   {m.errosUltimos7Dias > 0 ? (
-                    <span className="font-semibold text-red-700">{m.errosUltimos7Dias}</span>
+                    <span className="font-semibold text-danger">{m.errosUltimos7Dias}</span>
                   ) : (
-                    <span className="text-slate-400">0</span>
+                    <span className="text-foreground-muted/60">0</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </DataTable>
       </div>
       {modulos.some((m) => m.ultimoLog?.status === "ERRO" && m.ultimoLog?.mensagem) && (
         <div className="mt-3 space-y-1">
           {modulos
             .filter((m) => m.ultimoLog?.status === "ERRO" && m.ultimoLog?.mensagem)
             .map((m) => (
-              <p key={m.modulo} className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">
+              <p key={m.modulo} className="rounded-lg bg-danger-subtle px-3 py-2 text-xs text-danger-subtle-foreground">
                 <strong>{ROTULO_MODULO[m.modulo] ?? m.modulo}:</strong> {m.ultimoLog!.mensagem}
               </p>
             ))}
         </div>
       )}
 
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">
         Integridade — código de turma reutilizado entre escolas
       </h2>
-      <p className="mt-1 max-w-2xl text-sm text-slate-500">
+      <p className="mt-1 max-w-2xl text-sm text-foreground-muted">
         A origem (SIGEduc) não garante que um código de turma seja único na rede. Isso não é um erro por si só —
         vira risco quando escolas diferentes atribuem séries diferentes ao mesmo código, o que poderia levar o
         indicador de distorção idade-série a usar a série errada para uma turma.
       </p>
       {colisoes.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-400">Nenhum código de turma reutilizado entre escolas no momento.</p>
+        <p className="mt-3 text-sm text-foreground-muted/60">Nenhum código de turma reutilizado entre escolas no momento.</p>
       ) : (
         <>
           <div className="mt-3 flex items-center gap-2 text-sm">
             {colisoesDivergentes.length > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 font-medium text-red-800">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-danger-subtle px-3 py-1.5 font-medium text-danger-subtle-foreground">
                 <AlertTriangle className="h-4 w-4" />
                 {colisoesDivergentes.length} código(s) com série divergente entre escolas — revisar
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-success-subtle px-3 py-1.5 font-medium text-success-subtle-foreground">
                 <CheckCircle2 className="h-4 w-4" />
                 {formatNumber(colisoes.length)} código(s) reutilizado(s), mas a série resolvida é consistente entre
                 as escolas
@@ -161,89 +164,75 @@ export default async function QualidadeDadosPage() {
             )}
           </div>
 
-          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <div className="mt-3">
+            <DataTable>
+              <TableHeader>
                 <tr>
-                  <th className="px-4 py-3">Código da turma</th>
-                  <th className="px-4 py-3">Escolas</th>
-                  <th className="px-4 py-3">Status</th>
+                  <TableHeadCell>Código da turma</TableHeadCell>
+                  <TableHeadCell>Escolas</TableHeadCell>
+                  <TableHeadCell>Status</TableHeadCell>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+              </TableHeader>
+              <TableBody>
                 {colisoes.map((c) => (
-                  <tr key={c.turma}>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-700">{c.turma}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                  <TableRow key={c.turma}>
+                    <TableCell className="font-mono text-xs text-foreground">{c.turma}</TableCell>
+                    <TableCell className="text-foreground-muted">
                       <ul className="space-y-0.5">
                         {c.escolas.map((e) => (
                           <li key={e.escolaId}>
                             {e.nomeEscola}{" "}
-                            <span className="text-slate-400">
+                            <span className="text-foreground-muted/60">
                               ({e.series.length > 0 ? e.series.join(", ") : "sem série resolvida"})
                             </span>
                           </li>
                         ))}
                       </ul>
-                    </td>
-                    <td className="px-4 py-3">
-                      {c.divergente ? (
-                        <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                          Divergente
-                        </span>
-                      ) : (
-                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                          Consistente
-                        </span>
-                      )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell>
+                      {c.divergente ? <Badge variant="danger">Divergente</Badge> : <Badge variant="success">Consistente</Badge>}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </DataTable>
           </div>
         </>
       )}
 
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">
         Histórico recente de sincronização
       </h2>
-      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-3">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Data</th>
-              <th className="px-4 py-3">Módulo</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Registros</th>
-              <th className="px-4 py-3">Duração</th>
-              <th className="px-4 py-3">Mensagem</th>
+              <TableHeadCell>Data</TableHeadCell>
+              <TableHeadCell>Módulo</TableHeadCell>
+              <TableHeadCell>Status</TableHeadCell>
+              <TableHeadCell>Registros</TableHeadCell>
+              <TableHeadCell>Duração</TableHeadCell>
+              <TableHeadCell>Mensagem</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {historico.map((h) => (
-              <tr key={h.id}>
-                <td className="px-4 py-3 text-slate-600">{formatarData(h.createdAt)}</td>
-                <td className="px-4 py-3 text-slate-900">{ROTULO_MODULO[h.modulo] ?? h.modulo}</td>
-                <td className="px-4 py-3">
+              <TableRow key={h.id}>
+                <TableCell className="text-foreground-muted">{formatarData(h.createdAt)}</TableCell>
+                <TableCell className="text-foreground">{ROTULO_MODULO[h.modulo] ?? h.modulo}</TableCell>
+                <TableCell>
                   <StatusLogBadge status={h.status} />
-                </td>
-                <td className="px-4 py-3 text-slate-600">{formatNumber(h.registros)}</td>
-                <td className="px-4 py-3 text-slate-600">{formatarDuracao(h.duracaoMs)}</td>
-                <td className="px-4 py-3 max-w-xs truncate text-slate-500" title={h.mensagem ?? undefined}>
+                </TableCell>
+                <TableCell className="text-foreground-muted">{formatNumber(h.registros)}</TableCell>
+                <TableCell className="text-foreground-muted">{formatarDuracao(h.duracaoMs)}</TableCell>
+                <TableCell className="max-w-xs truncate text-foreground-muted" title={h.mensagem ?? undefined}>
                   {h.mensagem ?? "-"}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-            {historico.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
-                  Nenhuma sincronização registrada ainda.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {historico.length === 0 && <TableEmptyState colSpan={6} title="Nenhuma sincronização registrada ainda." />}
+          </TableBody>
+        </DataTable>
       </div>
     </div>
   );

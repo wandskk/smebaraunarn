@@ -16,7 +16,10 @@ import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getIndicadoresGeraisRede } from "@/lib/queries/indicadores-gerais";
 import { classificarFaixaFrequencia } from "@/lib/analytics/frequencia";
 import { DICIONARIO_INDICADORES, descreverContexto } from "@/lib/analytics/explicabilidade";
-import { KpiCard, type KpiCardTone } from "@/components/admin/kpi-card";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard, type MetricCardTone } from "@/components/ui/metric-card";
+import { Select } from "@/components/ui/select";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -44,127 +47,113 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
 
   const faixaFrequenciaRede =
     indicadores.frequenciaMediaRede === null ? null : classificarFaixaFrequencia(indicadores.frequenciaMediaRede);
-  const toneFrequencia: KpiCardTone =
+  const toneFrequencia: MetricCardTone =
     faixaFrequenciaRede === "critica" ? "critico" : faixaFrequenciaRede === "atencao" ? "atencao" : "default";
+  const toneAbaixoFaixa: MetricCardTone = indicadores.estudantesAbaixoFaixaFrequencia > 0 ? "atencao" : "default";
+  const toneDistorcao: MetricCardTone = indicadores.estudantesEmDistorcaoIdadeSerie > 0 ? "atencao" : "default";
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Central de Indicadores</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Panorama da rede a partir dos dados sincronizados do SIGEduc. Última sincronização:{" "}
-            {dataAtualizacao}.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {anosDisponiveis.length > 1 && (
-            <form method="get" className="flex items-center gap-2">
-              <select
-                name="ano"
-                defaultValue={anoLetivo}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              >
-                {anosDisponiveis.map((ano) => (
-                  <option key={ano} value={ano}>
-                    Ano letivo {ano}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-              >
-                Aplicar
-              </button>
-            </form>
-          )}
-          <Link
-            href="/admin/indicadores/comparativos"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-          >
-            <GitCompare className="h-4 w-4" />
-            Comparativos
-          </Link>
-          <Link
-            href="/admin/indicadores/qualidade"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-          >
-            <ShieldCheck className="h-4 w-4" />
-            Qualidade dos dados
-          </Link>
-          <Link
-            href="/admin/indicadores/portal-publico"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-          >
-            <Settings className="h-4 w-4" />
-            Números da página inicial
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Central de Indicadores"
+        description={`Panorama da rede a partir dos dados sincronizados do SIGEduc. Última sincronização: ${dataAtualizacao}.`}
+        actions={
+          <>
+            {anosDisponiveis.length > 1 && (
+              <form method="get" className="flex items-center gap-2">
+                <Select name="ano" defaultValue={anoLetivo} className="w-auto">
+                  {anosDisponiveis.map((ano) => (
+                    <option key={ano} value={ano}>
+                      Ano letivo {ano}
+                    </option>
+                  ))}
+                </Select>
+                <Button type="submit" variant="secondary">
+                  Aplicar
+                </Button>
+              </form>
+            )}
+            <Link href="/admin/indicadores/comparativos" className={buttonVariants({ variant: "secondary" })}>
+              <GitCompare className="h-4 w-4" />
+              Comparativos
+            </Link>
+            <Link href="/admin/indicadores/qualidade" className={buttonVariants({ variant: "secondary" })}>
+              <ShieldCheck className="h-4 w-4" />
+              Qualidade dos dados
+            </Link>
+            <Link href="/admin/indicadores/portal-publico" className={buttonVariants({ variant: "secondary" })}>
+              <Settings className="h-4 w-4" />
+              Números da página inicial
+            </Link>
+          </>
+        }
+      />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
+        <MetricCard
           label="Estudantes matriculados"
           value={formatNumber(indicadores.totalEstudantes)}
           icon={GraduationCap}
           href="/admin/estudantes"
         />
-        <KpiCard
+        <MetricCard
           label="Escolas ativas"
           value={formatNumber(indicadores.escolasAtivas)}
           icon={School}
           href="/admin/escolas"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.escolasAtivas, contexto)}
         />
-        <KpiCard label="Turmas" value={formatNumber(indicadores.totalTurmas)} icon={Users2} />
-        <KpiCard
+        <MetricCard label="Turmas" value={formatNumber(indicadores.totalTurmas)} icon={Users2} />
+        <MetricCard
           label="Frequência média da rede"
           value={formatarPercentual(indicadores.frequenciaMediaRede)}
           icon={Percent}
           tone={toneFrequencia}
+          accent="attendance"
           href="/admin/indicadores/frequencia"
           helpText="Ver por escola →"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.frequenciaMedia, contexto)}
         />
-        <KpiCard
+        <MetricCard
           label="Estudantes abaixo da faixa adequada de frequência"
           value={formatNumber(indicadores.estudantesAbaixoFaixaFrequencia)}
           icon={AlertTriangle}
-          tone={indicadores.estudantesAbaixoFaixaFrequencia > 0 ? "atencao" : "default"}
+          tone={toneAbaixoFaixa}
+          accent="attendance"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.estudantesAbaixoFaixaFrequencia, contexto)}
         />
-        <KpiCard
+        <MetricCard
           label="Desempenho médio"
           value={indicadores.desempenhoMedioRede === null ? "-" : indicadores.desempenhoMedioRede.toFixed(1)}
           icon={Award}
+          accent="education"
           href="/admin/indicadores/aprendizagem"
           helpText="Ver por escola →"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.desempenhoMedio, contexto)}
         />
-        <KpiCard
+        <MetricCard
           label="Estudantes em distorção idade-série"
           value={formatNumber(indicadores.estudantesEmDistorcaoIdadeSerie)}
           icon={TrendingDown}
-          tone={indicadores.estudantesEmDistorcaoIdadeSerie > 0 ? "atencao" : "default"}
+          tone={toneDistorcao}
+          accent="warning"
           href="/admin/indicadores/fluxo-trajetoria"
           helpText="Não é o total da rede (ver nota abaixo) — ver por escola/série →"
           explicacao={descreverContexto(DICIONARIO_INDICADORES.distorcaoIdadeSerie, contexto)}
         />
       </div>
 
-      <p className="mt-4 text-xs text-slate-400">
+      <p className="mt-4 text-xs text-foreground-muted/70">
         {formatNumber(indicadores.estudantesForaDoEscopoOuSemDadosParaDistorcao)} estudante(s) fora do escopo do
         cálculo de distorção idade-série (Educação Infantil, EJA, Educação Especial, turmas multianuais, trilha
         Trajetória de Sucesso, ou com data de nascimento ausente/inválida) — não entram na contagem acima.
       </p>
 
-      <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
+      <div className="mt-8 rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-foreground-muted">
         O bloco &quot;Atenção agora&quot; (destaque automático de escolas/turmas com queda recente, direto neste
         painel) ainda não existe. Frequência, desempenho e distorção por escola no mesmo recorte já estão
         disponíveis lado a lado em{" "}
-        <Link href="/admin/indicadores/comparativos" className="text-brand-700 underline">
+        <Link href="/admin/indicadores/comparativos" className="text-primary underline">
           Comparativos
         </Link>{" "}
         — o destaque automático nesta página fica para uma próxima etapa (ver docs/PLANO_DESENVOLVIMENTO.md).

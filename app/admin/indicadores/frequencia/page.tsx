@@ -5,33 +5,36 @@ import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getFrequenciaPorEscola, calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
 import type { VariacaoFrequencia } from "@/lib/analytics/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { ano?: string };
 }
 
 function TendenciaCell({ variacao }: { variacao: VariacaoFrequencia | null }) {
-  if (!variacao) return <span className="text-xs text-slate-400">sem dado no período anterior</span>;
+  if (!variacao) return <span className="text-xs text-foreground-muted/60">sem dado no período anterior</span>;
 
   const { diferencaPontosPercentuais, tendencia } = variacao;
   const texto = `${diferencaPontosPercentuais > 0 ? "+" : ""}${diferencaPontosPercentuais.toFixed(1)} p.p.`;
 
   if (tendencia === "alta") {
     return (
-      <span className="inline-flex items-center gap-1 text-emerald-700">
+      <span className="inline-flex items-center gap-1 text-success">
         <TrendingUp className="h-3.5 w-3.5" /> {texto}
       </span>
     );
   }
   if (tendencia === "queda") {
     return (
-      <span className="inline-flex items-center gap-1 text-red-700">
+      <span className="inline-flex items-center gap-1 text-danger">
         <TrendingDown className="h-3.5 w-3.5" /> {texto}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-slate-400">
+    <span className="inline-flex items-center gap-1 text-foreground-muted/60">
       <Minus className="h-3.5 w-3.5" /> {texto}
     </span>
   );
@@ -48,69 +51,70 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
 
   return (
     <div>
-      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline">
+      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-attendance-subtle-foreground hover:underline">
         <ArrowLeft className="h-4 w-4" />
         Central de Indicadores
       </Link>
 
-      <h1 className="mt-3 text-xl font-semibold text-slate-900">Frequência por Escola</h1>
-      <p className="mt-1 max-w-2xl text-sm text-slate-500">
-        Onde a frequência está piorando? Compara {janela.atualInicio} a {janela.atualFim} com os 30 dias
-        anteriores a esse período ({janela.anteriorInicio} a {janela.anteriorFim}). Ano letivo {anoLetivo}. Lista
-        ordenada da frequência mais baixa para a mais alta.
-      </p>
+      <PageHeader
+        className="mt-3"
+        title="Frequência por Escola"
+        description={
+          <>
+            Onde a frequência está piorando? Compara {janela.atualInicio} a {janela.atualFim} com os 30 dias
+            anteriores a esse período ({janela.anteriorInicio} a {janela.anteriorFim}). Ano letivo {anoLetivo}. Lista
+            ordenada da frequência mais baixa para a mais alta.
+          </>
+        }
+      />
 
       {semHistoricoParaTendencia && (
-        <p className="mt-3 max-w-2xl rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p className="mt-3 max-w-2xl rounded-lg bg-warning-subtle px-3 py-2 text-sm text-warning-subtle-foreground">
           Nenhuma escola tem tendência calculada ainda: a sincronização de frequência começou há poucos dias, sem
           histórico suficiente para o período de comparação. A tendência aparece automaticamente assim que houver
           dados no período anterior.
         </p>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Escola</th>
-              <th className="px-4 py-3">Estudantes</th>
-              <th className="px-4 py-3">Frequência atual</th>
-              <th className="px-4 py-3">Tendência</th>
-              <th className="px-4 py-3">Faixa</th>
+              <TableHeadCell>Escola</TableHeadCell>
+              <TableHeadCell>Estudantes</TableHeadCell>
+              <TableHeadCell>Frequência atual</TableHeadCell>
+              <TableHeadCell>Tendência</TableHeadCell>
+              <TableHeadCell>Faixa</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {escolas.map((escola) => (
-              <tr key={escola.escolaId}>
-                <td className="px-4 py-3">
+              <TableRow key={escola.escolaId}>
+                <TableCell>
                   <Link
                     href={`/admin/escolas/${escola.escolaId}`}
-                    className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+                    className="font-medium text-foreground hover:text-attendance-subtle-foreground hover:underline"
                   >
                     {escola.nomeEscola}
                   </Link>
-                </td>
-                <td className="px-4 py-3 text-slate-600">{formatNumber(escola.totalEstudantes)}</td>
-                <td className="px-4 py-3 font-semibold text-slate-900">
+                </TableCell>
+                <TableCell className="text-foreground-muted">{formatNumber(escola.totalEstudantes)}</TableCell>
+                <TableCell className="font-semibold text-foreground">
                   {escola.percentualAtual === null ? "-" : `${escola.percentualAtual.toFixed(1)}%`}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <TendenciaCell variacao={escola.variacao} />
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <FaixaBadge faixa={escola.faixa} />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {escolas.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">
-                  Nenhuma escola com frequência registrada neste ano letivo.
-                </td>
-              </tr>
+              <TableEmptyState colSpan={5} title="Nenhuma escola com frequência registrada neste ano letivo." />
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </DataTable>
       </div>
     </div>
   );

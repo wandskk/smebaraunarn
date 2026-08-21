@@ -2,19 +2,18 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 import { updateIndicadoresAction, type FormState } from "./actions";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const initialState: FormState = { error: null };
 
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
-    >
+    <Button type="submit" disabled={pending} size="lg">
       {pending ? "Salvando..." : "Salvar"}
-    </button>
+    </Button>
   );
 }
 
@@ -40,20 +39,13 @@ export function IndicadoresForm({ indicadores }: Props) {
           ["totalAcessos", "Acessos ao Portal"],
         ] as const
       ).map(([name, label]) => (
-        <div key={name}>
-          <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
-          <input
-            name={name}
-            type="number"
-            min={0}
-            defaultValue={indicadores[name]}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-        </div>
+        <FormField key={name} label={label} htmlFor={name}>
+          <Input id={name} name={name} type="number" min={0} defaultValue={indicadores[name]} />
+        </FormField>
       ))}
 
       {state.error && (
-        <div className="col-span-full rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="col-span-full rounded-lg bg-danger-subtle px-3 py-2 text-sm text-danger-subtle-foreground">
           {state.error}
         </div>
       )}
