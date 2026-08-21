@@ -1,43 +1,37 @@
-import Link from "next/link";
-import { GraduationCap, LogOut, UserCog } from "lucide-react";
-import { logoutAction } from "@/app/logout/actions";
+import { GraduationCap, Menu } from "lucide-react";
 import type { SessionPayload } from "@/lib/auth";
+import { UserMenu } from "./user-menu";
 
-export function AdminTopbar({ session }: { session: SessionPayload }) {
+export interface AdminTopbarProps {
+  session: SessionPayload;
+  onOpenMobileNav: () => void;
+}
+
+/**
+ * Simplificado: a identidade principal e a navegação já vivem na sidebar no
+ * desktop — o topbar existe para o botão de menu mobile e o acesso à conta.
+ */
+export function AdminTopbar({ session, onOpenMobileNav }: AdminTopbarProps) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
-      <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-          <GraduationCap className="h-5 w-5" />
-        </span>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold text-slate-900">Painel Administrativo</div>
-          <div className="text-xs text-slate-500">SME Baraúna - RN</div>
+    <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 lg:px-6">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onOpenMobileNav}
+          aria-label="Abrir menu de navegação"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground-muted transition hover:bg-surface-muted lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <GraduationCap className="h-4 w-4" />
+          </span>
+          <span className="text-sm font-semibold text-foreground">SME Baraúna</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="text-right leading-tight">
-          <div className="text-sm font-medium text-slate-900">{session.nome}</div>
-          <div className="text-xs text-slate-500">{session.role}</div>
-        </div>
-        <Link
-          href="/conta"
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-        >
-          <UserCog className="h-4 w-4" />
-          Minha Conta
-        </Link>
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </button>
-        </form>
-      </div>
+      <UserMenu session={session} />
     </header>
   );
 }
