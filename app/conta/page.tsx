@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { formatCpf } from "@/lib/utils";
 import { ChangePasswordForm } from "./change-password-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/card";
 
 export default async function ContaPage() {
   const session = await getSession();
@@ -9,15 +11,11 @@ export default async function ContaPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Minha Conta</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        {session.nome} · CPF {formatCpf(session.cpf)}
-      </p>
+      <PageHeader title="Minha Conta" description={`${session.nome} · CPF ${formatCpf(session.cpf)}`} />
 
-      <div className="mt-6 max-w-sm rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Alterar senha</h2>
+      <SectionCard title="Alterar senha" className="mt-6 max-w-sm">
         <ChangePasswordForm />
-      </div>
+      </SectionCard>
     </div>
   );
 }

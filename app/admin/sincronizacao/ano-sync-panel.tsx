@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CalendarClock, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface Progress {
   atual: number;
@@ -62,46 +64,41 @@ export function AnoSyncPanel({ numero, titulo, desc, anoAtual, anoMinimo = 2020,
   }
 
   return (
-    <div className="flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5">
+    <div className="flex w-full flex-col gap-3 rounded-xl border border-border bg-surface p-5">
       <div className="flex items-center gap-2">
         {running ? (
-          <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
         ) : (
-          <CalendarClock className="h-5 w-5 text-brand-600" />
+          <CalendarClock className="h-5 w-5 text-primary" />
         )}
-        <span className="text-sm font-semibold text-slate-900">{numero}. {titulo}</span>
+        <span className="text-sm font-semibold text-foreground">{numero}. {titulo}</span>
       </div>
-      <span className="text-xs text-slate-500">{desc}</span>
+      <span className="text-xs text-foreground-muted">{desc}</span>
 
       <div className="flex flex-wrap items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs text-slate-500">Ano</label>
-          <input
+          <label className="mb-1 block text-xs text-foreground-muted">Ano</label>
+          <Input
             type="number"
             value={ano}
             min={anoMinimo}
             max={anoAtual}
             onChange={(e) => setAno(Number(e.target.value))}
             disabled={running}
-            className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-24 py-1.5"
           />
         </div>
-        <button
-          type="button"
-          onClick={handleClick}
-          disabled={running}
-          className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
-        >
+        <Button type="button" size="sm" onClick={handleClick} disabled={running}>
           {running ? "Sincronizando..." : "Sincronizar"}
-        </button>
+        </Button>
       </div>
 
       {progress && (
-        <span className="text-xs text-brand-700">
+        <span className="text-xs text-primary-subtle-foreground">
           {progress.atual}/{progress.total} · {progress.registros} registro(s)
         </span>
       )}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-danger">{error}</span>}
     </div>
   );
 }

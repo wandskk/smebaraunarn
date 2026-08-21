@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PostForm } from "@/components/admin/post-form";
 import { updatePostAction } from "../actions";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface PageProps {
   params: { id: string };
@@ -15,8 +16,7 @@ export default async function EditPostPage({ params }: PageProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Editar Publicação</h1>
-      <p className="mt-1 text-sm text-slate-500">/{post.slug}</p>
+      <PageHeader title="Editar Publicação" description={`/${post.slug}`} />
       <div className="mt-6">
         <PostForm action={boundAction} post={post} submitLabel="Salvar Alterações" />
       </div>

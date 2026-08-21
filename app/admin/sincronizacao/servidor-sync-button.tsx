@@ -44,23 +44,23 @@ export function ServidorSyncButton() {
       type="button"
       onClick={handleClick}
       disabled={running}
-      className="flex w-full flex-col items-start gap-2 rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-brand-300 hover:shadow-sm disabled:opacity-70"
+      className="flex w-full flex-col items-start gap-2 rounded-xl border border-border bg-surface p-5 text-left transition hover:border-primary/40 hover:shadow-card disabled:opacity-70"
     >
       {running ? (
-        <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
       ) : (
-        <RefreshCw className="h-5 w-5 text-brand-600" />
+        <RefreshCw className="h-5 w-5 text-primary" />
       )}
-      <span className="text-sm font-semibold text-slate-900">3. Servidores</span>
-      <span className="text-xs text-slate-500">
+      <span className="text-sm font-semibold text-foreground">3. Servidores</span>
+      <span className="text-xs text-foreground-muted">
         Consulta /consulta-servidor (inclui cargos lotados na Secretaria)
       </span>
       {progress && (
-        <span className="text-xs text-brand-700">
+        <span className="text-xs text-primary-subtle-foreground">
           {progress.pagina}/{progress.total} páginas · {progress.registros} registro(s)
         </span>
       )}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-danger">{error}</span>}
     </button>
   );
 }

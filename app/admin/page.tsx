@@ -16,10 +16,10 @@ export default async function AdminDashboardPage() {
   ]);
 
   const cards = [
-    { label: "Publicações no CMS", value: totalPosts, href: "/admin/posts", icon: FileText },
-    { label: "Servidores cadastrados", value: totalServidores, href: "/admin/servidores", icon: Users },
-    { label: "Estudantes enturmados", value: totalEstudantes, href: "/admin/estudantes", icon: GraduationCap },
-    { label: "Avaliações municipais", value: totalAvaliacoes, href: "/admin/avaliacoes", icon: ClipboardList },
+    { label: "Publicações no CMS", value: totalPosts, href: "/admin/posts", icon: FileText, accent: "warning" as const },
+    { label: "Servidores cadastrados", value: totalServidores, href: "/admin/servidores", icon: Users, accent: "success" as const },
+    { label: "Estudantes enturmados", value: totalEstudantes, href: "/admin/estudantes", icon: GraduationCap, accent: "primary" as const },
+    { label: "Avaliações municipais", value: totalAvaliacoes, href: "/admin/avaliacoes", icon: ClipboardList, accent: "education" as const },
   ];
 
   return (
@@ -34,6 +34,7 @@ export default async function AdminDashboardPage() {
             value={formatNumber(card.value)}
             icon={card.icon}
             href={card.href}
+            accent={card.accent}
           />
         ))}
       </div>

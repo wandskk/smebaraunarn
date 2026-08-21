@@ -4,11 +4,15 @@ import { syncCargosAction, syncEscolasAction, syncEstudantesChunkAction, syncNot
 import { ServidorSyncButton } from "./servidor-sync-button";
 import { FrequenciaSyncPanel } from "./frequencia-sync-panel";
 import { AnoSyncPanel } from "./ano-sync-panel";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
-const STATUS_STYLE: Record<string, string> = {
-  SUCESSO: "bg-emerald-50 text-emerald-700",
-  ERRO: "bg-red-50 text-red-700",
-  PROCESSANDO: "bg-amber-50 text-amber-700",
+const STATUS_VARIANT: Record<string, BadgeVariant> = {
+  SUCESSO: "success",
+  ERRO: "danger",
+  PROCESSANDO: "warning",
 };
 
 export default async function SincronizacaoPage() {
@@ -21,20 +25,17 @@ export default async function SincronizacaoPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Sincronização SIGEduc</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Importa dados diretamente da API Educ 21. Execute nesta ordem: Escolas → Cargos →
-        Servidores → Estudantes → Notas → Frequência. Os módulos maiores são sincronizados em
-        lotes, para não estourar o tempo limite da função — acompanhe o progresso no próprio
-        botão.
-      </p>
-      <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
+      <PageHeader
+        title="Sincronização SIGEduc"
+        description="Importa dados diretamente da API Educ 21. Execute nesta ordem: Escolas → Cargos → Servidores → Estudantes → Notas → Frequência. Os módulos maiores são sincronizados em lotes, para não estourar o tempo limite da função — acompanhe o progresso no próprio botão."
+      />
+      <p className="mt-2 rounded-lg bg-primary-subtle px-3 py-2 text-sm text-primary-subtle-foreground">
         Desde que o CRON_SECRET esteja configurado na Vercel, todos os módulos abaixo também
         rodam automaticamente todo dia de madrugada (Frequência sincroniza uma janela dos
         últimos 3 dias, não o ano inteiro). Os disparos automáticos aparecem no histórico como
         qualquer outra sincronização.
       </p>
-      <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+      <p className="mt-2 rounded-lg bg-warning-subtle px-3 py-2 text-sm text-warning-subtle-foreground">
         Carga histórica: Estudantes e Notas aceitam escolher o ano; Frequência aceita qualquer
         período. Para um ano anterior, sincronize Estudantes daquele ano antes de Notas/Frequência
         do mesmo ano — Notas e Frequência só gravam alunos que já existem na tabela de Estudantes,
@@ -68,50 +69,36 @@ export default async function SincronizacaoPage() {
       </div>
 
       <div className="mt-10">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Histórico de Sincronizações</h2>
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Módulo</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Registros</th>
-                <th className="px-4 py-3">Duração</th>
-                <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3">Mensagem</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {logs.map((log) => (
-                <tr key={log.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">{log.modulo}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${STATUS_STYLE[log.status] ?? "bg-slate-100 text-slate-600"}`}
-                    >
-                      {log.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{log.registros}</td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {log.duracaoMs ? `${(log.duracaoMs / 1000).toFixed(1)}s` : "-"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {log.createdAt.toLocaleString("pt-BR")}
-                  </td>
-                  <td className="max-w-xs truncate px-4 py-3 text-slate-500">{log.mensagem ?? "-"}</td>
-                </tr>
-              ))}
-              {logs.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                    Nenhuma sincronização executada ainda.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Histórico de Sincronizações</h2>
+        <DataTable>
+          <TableHeader>
+            <tr>
+              <TableHeadCell>Módulo</TableHeadCell>
+              <TableHeadCell>Status</TableHeadCell>
+              <TableHeadCell>Registros</TableHeadCell>
+              <TableHeadCell>Duração</TableHeadCell>
+              <TableHeadCell>Data</TableHeadCell>
+              <TableHeadCell>Mensagem</TableHeadCell>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            {logs.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell className="font-medium text-foreground">{log.modulo}</TableCell>
+                <TableCell>
+                  <Badge variant={STATUS_VARIANT[log.status] ?? "neutral"}>{log.status}</Badge>
+                </TableCell>
+                <TableCell className="text-foreground-muted">{log.registros}</TableCell>
+                <TableCell className="text-foreground-muted">
+                  {log.duracaoMs ? `${(log.duracaoMs / 1000).toFixed(1)}s` : "-"}
+                </TableCell>
+                <TableCell className="text-foreground-muted">{log.createdAt.toLocaleString("pt-BR")}</TableCell>
+                <TableCell className="max-w-xs truncate text-foreground-muted">{log.mensagem ?? "-"}</TableCell>
+              </TableRow>
+            ))}
+            {logs.length === 0 && <TableEmptyState colSpan={6} title="Nenhuma sincronização executada ainda." />}
+          </TableBody>
+        </DataTable>
       </div>
     </div>
   );
@@ -121,11 +108,11 @@ function SyncCard({ title, desc }: { title: string; desc: string }) {
   return (
     <button
       type="submit"
-      className="flex w-full flex-col items-start gap-2 rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-brand-300 hover:shadow-sm"
+      className="flex w-full flex-col items-start gap-2 rounded-xl border border-border bg-surface p-5 text-left transition hover:border-primary/40 hover:shadow-card"
     >
-      <RefreshCw className="h-5 w-5 text-brand-600" />
-      <span className="text-sm font-semibold text-slate-900">{title}</span>
-      <span className="text-xs text-slate-500">{desc}</span>
+      <RefreshCw className="h-5 w-5 text-primary" />
+      <span className="text-sm font-semibold text-foreground">{title}</span>
+      <span className="text-xs text-foreground-muted">{desc}</span>
     </button>
   );
 }
