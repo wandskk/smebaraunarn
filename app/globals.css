@@ -29,10 +29,16 @@ body {
   --foreground-muted: 215 16% 47%;
   --border: 214 32% 91%;
 
-  --primary: 223 92% 53%;
+  /*
+   * Deliberadamente mais escuro/profundo e menos saturado que o antigo
+   * brand-600 (#1a58f5, HSL ~223 92% 53%) — para o redesign se distinguir a
+   * olho nu do azul "SaaS genérico" anterior, mantendo a família de matiz
+   * (ainda é claramente um azul, só que mais "educacional/profundo").
+   */
+  --primary: 221 83% 40%;
   --primary-foreground: 0 0% 100%;
-  --primary-subtle: 212 100% 97%;
-  --primary-subtle-foreground: 226 76% 37%;
+  --primary-subtle: 216 82% 95%;
+  --primary-subtle-foreground: 221 75% 30%;
 
   --success: 158 64% 32%;
   --success-foreground: 0 0% 100%;
@@ -66,5 +72,5 @@ body {
   --attendance-subtle: 187 100% 96%;
   --attendance-subtle-foreground: 192 82% 27%;
 
-  --ring: 223 92% 53%;
+  --ring: 221 83% 40%;
 }
