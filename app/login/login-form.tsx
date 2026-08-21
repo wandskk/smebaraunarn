@@ -4,19 +4,18 @@ import { useFormState, useFormStatus } from "react-dom";
 import { useState } from "react";
 import { Lock, User } from "lucide-react";
 import { loginAction, type LoginState } from "./actions";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const initialState: LoginState = { error: null };
 
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-    >
+    <Button type="submit" size="lg" disabled={pending} className="w-full">
       {pending ? "Entrando..." : "Entrar"}
-    </button>
+    </Button>
   );
 }
 
@@ -39,13 +38,10 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <div>
-        <label htmlFor="cpf" className="mb-1 block text-sm font-medium text-slate-700">
-          CPF
-        </label>
+      <FormField label="CPF" htmlFor="cpf">
         <div className="relative">
-          <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
+          <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
+          <Input
             id="cpf"
             name="cpf"
             type="text"
@@ -54,33 +50,24 @@ export function LoginForm() {
             value={cpf}
             onChange={handleCpfChange}
             placeholder="000.000.000-00"
-            className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            className="pl-10"
           />
         </div>
-      </div>
+      </FormField>
 
-      <div>
-        <label htmlFor="senha" className="mb-1 block text-sm font-medium text-slate-700">
-          Senha (data de nascimento)
-        </label>
+      <FormField
+        label="Senha (data de nascimento)"
+        htmlFor="senha"
+        hint="No primeiro acesso, use sua data de nascimento completa como senha."
+      >
         <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            id="senha"
-            name="senha"
-            type="password"
-            required
-            placeholder="DD/MM/AAAA"
-            className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
+          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
+          <Input id="senha" name="senha" type="password" required placeholder="DD/MM/AAAA" className="pl-10" />
         </div>
-        <p className="mt-1 text-xs text-slate-500">
-          No primeiro acesso, use sua data de nascimento completa como senha.
-        </p>
-      </div>
+      </FormField>
 
       {state.error && (
-        <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</div>
+        <div className="rounded-lg bg-danger-subtle px-3 py-2 text-sm text-danger-subtle-foreground">{state.error}</div>
       )}
 
       <SubmitButton />

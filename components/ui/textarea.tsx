@@ -9,7 +9,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ classN
   <textarea
     ref={ref}
     className={cn(
-      "w-full rounded-lg border bg-surface px-3 py-2 text-sm text-foreground transition placeholder:text-foreground-muted/60",
+      "w-full rounded-lg border bg-surface pl-3 pr-3 py-2 text-sm text-foreground transition placeholder:text-foreground-muted/60",
       "focus:outline-none focus:ring-2 focus:ring-offset-0",
       "disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-foreground-muted",
       error
