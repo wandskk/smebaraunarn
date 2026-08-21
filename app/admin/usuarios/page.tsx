@@ -7,6 +7,10 @@ import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { UserForm } from "./user-form";
 import { ToggleAtivoButton } from "./toggle-ativo-button";
 import { ResetPasswordButton } from "./reset-password-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -27,65 +31,57 @@ export default async function AdminUsuariosPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Usuários e Acessos</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Contas provisionadas automaticamente no primeiro login (CPF + data de nascimento) e acessos
-        manuais criados pela administração. {total} usuário(s).
-      </p>
+      <PageHeader
+        title="Usuários e Acessos"
+        description={`Contas provisionadas automaticamente no primeiro login (CPF + data de nascimento) e acessos manuais criados pela administração. ${total} usuário(s).`}
+      />
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Criar acesso manual</h2>
+      <SectionCard title="Criar acesso manual" className="mt-6">
         <UserForm />
-      </div>
+      </SectionCard>
 
       <ListToolbar searchPlaceholder="Buscar por nome ou CPF..." />
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">CPF</th>
-              <th className="px-4 py-3">Papel</th>
-              <th className="px-4 py-3">Criado em</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Vínculo</th>
-              <th className="px-4 py-3">Senha</th>
-              <th className="px-4 py-3"></th>
+              <TableHeadCell>Nome</TableHeadCell>
+              <TableHeadCell>CPF</TableHeadCell>
+              <TableHeadCell>Papel</TableHeadCell>
+              <TableHeadCell>Criado em</TableHeadCell>
+              <TableHeadCell>Status</TableHeadCell>
+              <TableHeadCell>Vínculo</TableHeadCell>
+              <TableHeadCell>Senha</TableHeadCell>
+              <TableHeadCell></TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {usuarios.map((u) => (
-              <tr key={u.id}>
-                <td className="px-4 py-3 font-medium text-slate-900">{u.nome}</td>
-                <td className="px-4 py-3 text-slate-500">{formatCpf(u.cpf)}</td>
-                <td className="px-4 py-3 text-slate-500">{u.role}</td>
-                <td className="px-4 py-3 text-slate-500">{u.createdAt.toLocaleDateString("pt-BR")}</td>
-                <td className="px-4 py-3">
+              <TableRow key={u.id}>
+                <TableCell className="font-medium text-foreground">{u.nome}</TableCell>
+                <TableCell className="text-foreground-muted">{formatCpf(u.cpf)}</TableCell>
+                <TableCell className="text-foreground-muted">{u.role}</TableCell>
+                <TableCell className="text-foreground-muted">{u.createdAt.toLocaleDateString("pt-BR")}</TableCell>
+                <TableCell>
                   <ToggleAtivoButton userId={u.id} ativo={u.ativo} />
-                </td>
-                <td className="px-4 py-3 text-slate-500">
+                </TableCell>
+                <TableCell className="text-foreground-muted">
                   {u.servidorId ? "Servidor" : u.estudanteId ? "Estudante" : "—"}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <ResetPasswordButton userId={u.id} temOrigem={Boolean(u.servidorId || u.estudanteId)} />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Link href={`/admin/usuarios/${u.id}`} className="text-brand-700 hover:underline">
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link href={`/admin/usuarios/${u.id}`} className="text-primary hover:underline">
                     Editar
                   </Link>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-            {usuarios.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum usuário encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {usuarios.length === 0 && <TableEmptyState colSpan={8} title="Nenhum usuário encontrado." />}
+          </TableBody>
+        </DataTable>
       </div>
 
       <Pagination

@@ -42,12 +42,12 @@ export function ResetPasswordButton({ userId, temOrigem }: { userId: string; tem
         type="button"
         disabled={isPending}
         onClick={handleClick}
-        className="flex items-center gap-1 text-brand-700 hover:underline disabled:opacity-50"
+        className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
       >
         <KeyRound className="h-3.5 w-3.5" />
         Redefinir senha
       </button>
-      {erro && <p className="mt-1 text-xs text-red-600">{erro}</p>}
+      {erro && <p className="mt-1 text-xs text-danger">{erro}</p>}
     </div>
   );
 }

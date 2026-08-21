@@ -4,6 +4,10 @@ import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { DocumentoForm } from "./documento-form";
 import { DeleteDocumentoButton } from "./delete-documento-button";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -22,48 +26,41 @@ export default async function AdminDocumentosPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Documentos Públicos</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Portarias, resoluções, editais e calendário escolar exibidos no portal. {total} documento(s).
-      </p>
+      <PageHeader
+        title="Documentos Públicos"
+        description={`Portarias, resoluções, editais e calendário escolar exibidos no portal. ${total} documento(s).`}
+      />
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Novo documento</h2>
+      <SectionCard title="Novo documento" className="mt-6">
         <DocumentoForm />
-      </div>
+      </SectionCard>
 
       <ListToolbar searchPlaceholder="Buscar por título..." />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Título</th>
-              <th className="px-4 py-3">Categoria</th>
-              <th className="px-4 py-3">Acessos</th>
-              <th className="px-4 py-3 text-right">Ações</th>
+              <TableHeadCell>Título</TableHeadCell>
+              <TableHeadCell>Categoria</TableHeadCell>
+              <TableHeadCell>Acessos</TableHeadCell>
+              <TableHeadCell className="text-right">Ações</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {documentos.map((d) => (
-              <tr key={d.id}>
-                <td className="px-4 py-3 font-medium text-slate-900">{d.titulo}</td>
-                <td className="px-4 py-3 text-slate-500">{d.categoria}</td>
-                <td className="px-4 py-3 text-slate-500">{d.acessos}</td>
-                <td className="px-4 py-3 text-right">
+              <TableRow key={d.id}>
+                <TableCell className="font-medium text-foreground">{d.titulo}</TableCell>
+                <TableCell className="text-foreground-muted">{d.categoria}</TableCell>
+                <TableCell className="text-foreground-muted">{d.acessos}</TableCell>
+                <TableCell className="text-right">
                   <DeleteDocumentoButton id={d.id} />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-            {documentos.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum documento encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {documentos.length === 0 && <TableEmptyState colSpan={4} title="Nenhum documento encontrado." />}
+          </TableBody>
+        </DataTable>
       </div>
 
       <Pagination

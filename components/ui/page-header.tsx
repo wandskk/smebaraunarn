@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: ReactNode;
   /** Linha curta de contexto (ex.: "Ano letivo 2026 · última atualização X"). */
   metadata?: ReactNode;
   actions?: ReactNode;

@@ -5,6 +5,9 @@ import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { EscolaSelect } from "./escola-select";
+import { PageHeader } from "@/components/ui/page-header";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -38,50 +41,43 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Servidores</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Base sincronizada com o SIGEduc. Cargos de direção/coordenação vêm sem escola vinculada na
-        origem (ficam lotados na Secretaria) — atribua manualmente abaixo. {total} servidor(es).
-      </p>
+      <PageHeader
+        title="Servidores"
+        description={`Base sincronizada com o SIGEduc. Cargos de direção/coordenação vêm sem escola vinculada na origem (ficam lotados na Secretaria) — atribua manualmente abaixo. ${total} servidor(es).`}
+      />
 
       <ListToolbar searchPlaceholder="Buscar por nome ou CPF..." />
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">CPF</th>
-              <th className="px-4 py-3">Cargo</th>
-              <th className="px-4 py-3">Papel no portal</th>
-              <th className="px-4 py-3">Escola</th>
-              <th className="px-4 py-3">Status</th>
+              <TableHeadCell>Nome</TableHeadCell>
+              <TableHeadCell>CPF</TableHeadCell>
+              <TableHeadCell>Cargo</TableHeadCell>
+              <TableHeadCell>Papel no portal</TableHeadCell>
+              <TableHeadCell>Escola</TableHeadCell>
+              <TableHeadCell>Status</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {servidores.map((s) => (
-              <tr key={s.id}>
-                <td className="px-4 py-3 font-medium text-slate-900">{s.nome}</td>
-                <td className="px-4 py-3 text-slate-500">{formatCpf(s.cpf)}</td>
-                <td className="px-4 py-3 text-slate-500">{s.cargo ?? "-"}</td>
-                <td className="px-4 py-3 text-slate-500">
+              <TableRow key={s.id}>
+                <TableCell className="font-medium text-foreground">{s.nome}</TableCell>
+                <TableCell className="text-foreground-muted">{formatCpf(s.cpf)}</TableCell>
+                <TableCell className="text-foreground-muted">{s.cargo ?? "-"}</TableCell>
+                <TableCell className="text-foreground-muted">
                   {ROLE_LABEL[classifyServidorRole(s.cargo, s.funcao)]}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <EscolaSelect servidorId={s.id} escolaId={s.escolaId} escolas={escolas} />
-                </td>
-                <td className="px-4 py-3 text-slate-500">{s.status ?? "-"}</td>
-              </tr>
+                </TableCell>
+                <TableCell className="text-foreground-muted">{s.status ?? "-"}</TableCell>
+              </TableRow>
             ))}
-            {servidores.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum servidor encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {servidores.length === 0 && <TableEmptyState colSpan={6} title="Nenhum servidor encontrado." />}
+          </TableBody>
+        </DataTable>
       </div>
 
       <Pagination

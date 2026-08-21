@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -34,49 +37,47 @@ export default async function AdminEscolasPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Escolas</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Base de escolas sincronizada com o SIGEduc. Use{" "}
-        <a href="/admin/sincronizacao" className="text-brand-700 underline">
-          Sincronização
-        </a>{" "}
-        para atualizar. {total} escola(s).
-      </p>
+      <PageHeader
+        title="Escolas"
+        description={
+          <>
+            Base de escolas sincronizada com o SIGEduc. Use{" "}
+            <Link href="/admin/sincronizacao" className="text-primary underline">
+              Sincronização
+            </Link>{" "}
+            para atualizar. {total} escola(s).
+          </>
+        }
+      />
 
       <ListToolbar searchPlaceholder="Buscar por nome ou código INEP..." />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Código INEP</th>
-              <th className="px-4 py-3">Servidores</th>
-              <th className="px-4 py-3">Estudantes</th>
+              <TableHeadCell>Nome</TableHeadCell>
+              <TableHeadCell>Código INEP</TableHeadCell>
+              <TableHeadCell>Servidores</TableHeadCell>
+              <TableHeadCell>Estudantes</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {escolas.map((e) => (
-              <tr key={e.id}>
-                <td className="px-4 py-3 font-medium text-slate-900">
-                  <Link href={`/admin/escolas/${e.id}`} className="hover:text-brand-700 hover:underline">
+              <TableRow key={e.id}>
+                <TableCell className="font-medium text-foreground">
+                  <Link href={`/admin/escolas/${e.id}`} className="hover:text-primary hover:underline">
                     {e.nome}
                   </Link>
-                </td>
-                <td className="px-4 py-3 text-slate-500">{e.codigoInep ?? "-"}</td>
-                <td className="px-4 py-3 text-slate-500">{e._count.servidores}</td>
-                <td className="px-4 py-3 text-slate-500">{e._count.estudantes}</td>
-              </tr>
+                </TableCell>
+                <TableCell className="text-foreground-muted">{e.codigoInep ?? "-"}</TableCell>
+                <TableCell className="text-foreground-muted">{e._count.servidores}</TableCell>
+                <TableCell className="text-foreground-muted">{e._count.estudantes}</TableCell>
+              </TableRow>
             ))}
-            {escolas.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-slate-400">
-                  Nenhuma escola encontrada.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {escolas.length === 0 && <TableEmptyState colSpan={4} title="Nenhuma escola encontrada." />}
+          </TableBody>
+        </DataTable>
       </div>
 
       <Pagination

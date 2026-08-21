@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { buttonVariants } from "@/components/ui/button";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 const TIPO_LABEL: Record<string, string> = {
   FLUENCIA_LEITORA: "Fluência Leitora",
@@ -42,62 +46,51 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Avaliações Municipais</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Fluência Leitora, SPADEB, simulados e provas municipais. {total} avaliação(ões).
-          </p>
-        </div>
-        <Link
-          href="/admin/avaliacoes/new"
-          className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          <Plus className="h-4 w-4" />
-          Nova Avaliação
-        </Link>
-      </div>
+      <PageHeader
+        title="Avaliações Municipais"
+        description={`Fluência Leitora, SPADEB, simulados e provas municipais. ${total} avaliação(ões).`}
+        actions={
+          <Link href="/admin/avaliacoes/new" className={buttonVariants({ variant: "primary" })}>
+            <Plus className="h-4 w-4" />
+            Nova Avaliação
+          </Link>
+        }
+      />
 
       <ListToolbar searchPlaceholder="Buscar por nome ou código..." />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Código</th>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Tipo</th>
-              <th className="px-4 py-3">Ano</th>
-              <th className="px-4 py-3">Resultados</th>
-              <th className="px-4 py-3 text-right">Ações</th>
+              <TableHeadCell>Código</TableHeadCell>
+              <TableHeadCell>Nome</TableHeadCell>
+              <TableHeadCell>Tipo</TableHeadCell>
+              <TableHeadCell>Ano</TableHeadCell>
+              <TableHeadCell>Resultados</TableHeadCell>
+              <TableHeadCell className="text-right">Ações</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {avaliacoes.map((a) => (
-              <tr key={a.id}>
-                <td className="px-4 py-3 font-mono text-xs text-slate-500">{a.codigo}</td>
-                <td className="px-4 py-3 font-medium text-slate-900">{a.nome}</td>
-                <td className="px-4 py-3 text-slate-500">{TIPO_LABEL[a.tipo]}</td>
-                <td className="px-4 py-3 text-slate-500">{a.ano}</td>
-                <td className="px-4 py-3 text-slate-500">
+              <TableRow key={a.id}>
+                <TableCell className="font-mono text-xs text-foreground-muted">{a.codigo}</TableCell>
+                <TableCell className="font-medium text-foreground">{a.nome}</TableCell>
+                <TableCell className="text-foreground-muted">{TIPO_LABEL[a.tipo]}</TableCell>
+                <TableCell className="text-foreground-muted">{a.ano}</TableCell>
+                <TableCell className="text-foreground-muted">
                   {a._count.resultados} resultado(s) · {a._count.questoes} questão(ões)
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Link href={`/admin/avaliacoes/${a.id}`} className="text-brand-700 hover:underline">
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link href={`/admin/avaliacoes/${a.id}`} className="text-primary hover:underline">
                     Gerenciar
                   </Link>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-            {avaliacoes.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                  Nenhuma avaliação encontrada.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {avaliacoes.length === 0 && <TableEmptyState colSpan={6} title="Nenhuma avaliação encontrada." />}
+          </TableBody>
+        </DataTable>
       </div>
 
       <Pagination

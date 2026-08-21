@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { updateServidorEscolaAction } from "./actions";
+import { Select } from "@/components/ui/select";
 
 interface EscolaSelectProps {
   servidorId: number;
@@ -13,14 +14,14 @@ export function EscolaSelect({ servidorId, escolaId, escolas }: EscolaSelectProp
   const [isPending, startTransition] = useTransition();
 
   return (
-    <select
+    <Select
       value={escolaId ?? ""}
       disabled={isPending}
       onChange={(e) => {
         const value = e.target.value ? Number(e.target.value) : null;
         startTransition(() => updateServidorEscolaAction(servidorId, value));
       }}
-      className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 disabled:opacity-50"
+      className="w-auto py-1 text-xs"
     >
       <option value="">Sem escola (Secretaria)</option>
       {escolas.map((e) => (
@@ -28,6 +29,6 @@ export function EscolaSelect({ servidorId, escolaId, escolas }: EscolaSelectProp
           {e.nome}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
