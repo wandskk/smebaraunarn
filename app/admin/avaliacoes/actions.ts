@@ -69,6 +69,14 @@ export async function addQuestaoAction(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
+  // Número duplicado na mesma avaliação quebraria a análise por item
+  // (respostasJson usa o número da questão como chave) — sem índice único no
+  // schema, a validação precisa acontecer aqui.
+  const duplicada = await prisma.avaliacaoQuestao.findFirst({ where: { avaliacaoId, numero: parsed.data.numero } });
+  if (duplicada) {
+    return { error: `Já existe a questão nº ${parsed.data.numero} nesta avaliação.` };
+  }
+
   await prisma.avaliacaoQuestao.create({
     data: {
       avaliacaoId,
@@ -88,6 +96,48 @@ export async function deleteQuestaoAction(avaliacaoId: string, questaoId: string
   await requireSession(["ADMIN", "SECRETARIA"]);
   await prisma.avaliacaoQuestao.delete({ where: { id: questaoId } });
   revalidatePath(`/admin/avaliacoes/${avaliacaoId}`);
+}
+
+export async function updateQuestaoAction(
+  avaliacaoId: string,
+  questaoId: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireSession(["ADMIN", "SECRETARIA"]);
+
+  const parsed = questaoSchema.safeParse({
+    numero: formData.get("numero"),
+    enunciado: formData.get("enunciado"),
+    descritor: formData.get("descritor"),
+    gabaritoCorreto: formData.get("gabaritoCorreto"),
+    peso: formData.get("peso") || 1,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const duplicada = await prisma.avaliacaoQuestao.findFirst({
+    where: { avaliacaoId, numero: parsed.data.numero, id: { not: questaoId } },
+  });
+  if (duplicada) {
+    return { error: `Já existe a questão nº ${parsed.data.numero} nesta avaliação.` };
+  }
+
+  await prisma.avaliacaoQuestao.update({
+    where: { id: questaoId },
+    data: {
+      numero: parsed.data.numero,
+      enunciado: parsed.data.enunciado || null,
+      descritor: parsed.data.descritor || null,
+      gabaritoCorreto: parsed.data.gabaritoCorreto || null,
+      peso: parsed.data.peso,
+    },
+  });
+
+  revalidatePath(`/admin/avaliacoes/${avaliacaoId}`);
+  redirect(`/admin/avaliacoes/${avaliacaoId}?tab=questoes`);
 }
 
 export async function registrarResultadoAction(
@@ -122,6 +172,17 @@ export async function registrarResultadoAction(
     return { error: "Aluno não encontrado pela matrícula ou CPF informado." };
   }
 
+  // Resposta por questão (chave = número da questão, ex.: "1", "2") — só
+  // presente quando a avaliação tem questões cadastradas (ResultadoForm só
+  // renderiza esses campos nesse caso). Habilita a análise por item/descritor
+  // sem precisar de importação; campo vazio não entra no objeto.
+  const respostasJson: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("resposta_") || typeof value !== "string") continue;
+    const numero = key.slice("resposta_".length);
+    if (value.trim() !== "") respostasJson[numero] = value.trim();
+  }
+
   await prisma.avaliacaoResultadoAluno.upsert({
     where: { avaliacaoId_estudanteId: { avaliacaoId, estudanteId: estudante.id } },
     update: {
@@ -130,6 +191,7 @@ export async function registrarResultadoAction(
       nivelDesempenho: parsed.data.nivelDesempenho || null,
       palavrasPorMin: parsed.data.palavrasPorMin ?? null,
       observacoes: parsed.data.observacoes || null,
+      ...(Object.keys(respostasJson).length > 0 ? { respostasJson } : {}),
     },
     create: {
       avaliacaoId,
@@ -140,6 +202,7 @@ export async function registrarResultadoAction(
       nivelDesempenho: parsed.data.nivelDesempenho || null,
       palavrasPorMin: parsed.data.palavrasPorMin ?? null,
       observacoes: parsed.data.observacoes || null,
+      respostasJson: Object.keys(respostasJson).length > 0 ? respostasJson : undefined,
     },
   });
 

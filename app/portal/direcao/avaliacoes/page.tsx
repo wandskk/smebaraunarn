@@ -3,10 +3,17 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ClipboardList } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
-import { getAvaliacoesResumoPorEscola, TIPO_AVALIACAO_LABEL } from "@/lib/queries/avaliacoes";
+import { getAvaliacoesResumoPorEscola, TIPO_AVALIACAO_LABEL, STATUS_AVALIACAO_LABEL } from "@/lib/queries/avaliacoes";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+
+const STATUS_BADGE_VARIANT: Record<string, BadgeVariant> = {
+  preparacao: "neutral",
+  em_aplicacao: "info",
+  coleta_parcial: "warning",
+  consolidada: "success",
+};
 
 export default async function DirecaoAvaliacoesPage() {
   const session = await requireSession(["DIRETOR"]);
@@ -38,7 +45,10 @@ export default async function DirecaoAvaliacoesPage() {
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-info-subtle text-info">
                       <ClipboardList className="h-5 w-5" />
                     </span>
-                    <Badge variant="neutral">{a.ano}</Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="neutral">{a.ano}</Badge>
+                      <Badge variant={STATUS_BADGE_VARIANT[a.status]}>{STATUS_AVALIACAO_LABEL[a.status]}</Badge>
+                    </div>
                   </div>
                   <div className="mt-3 font-semibold text-foreground">{a.nome}</div>
                   <div className="mt-0.5 text-xs text-foreground-muted/70">

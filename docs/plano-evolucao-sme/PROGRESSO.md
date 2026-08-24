@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 08)
+**Última atualização:** 2026-08-24 (ETAPA 09)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -19,13 +19,65 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 06 | Professor P0 | **DONE** | 2026-08-24 |
 | 07 | Aluno P0 | **DONE** | 2026-08-24 |
 | 08 | Servidor Geral P0 | **DONE** | 2026-08-24 |
-| 09 | Avaliações Municipais | PENDING | — |
+| 09 | Avaliações Municipais | **DONE** | 2026-08-24 |
 | 10 | P1: evolução funcional | PENDING | — |
 | 11 | Hardening, regressão e fechamento | PENDING | — |
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 09.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 10.**
+
+## Resumo da ETAPA 09
+
+Primeira etapa transversal do plano — em vez de aprofundar um perfil por
+vez, consolidou o motor de consultas de Avaliações Municipais para ser
+reaproveitado por Admin (rede), Direção (escola, já existente desde a
+ETAPA 05) e Professor (turmas atribuídas, novo).
+
+1. **`lib/queries/avaliacoes.ts` generalizado** com um `AvaliacaoScope`
+   (`rede`/`escola`/`professor`) em vez de reescrever a mesma fórmula de
+   cobertura 3 vezes; `getAvaliacoesResumoPorEscola`/
+   `getAvaliacaoDetalhePorEscola` (Direção, ETAPA 05) viraram wrappers finos
+   sobre o motor novo, sem quebrar comportamento. Efeito colateral corrigido
+   ao generalizar: cobertura agora agrupa por `(escolaId, turma)`, não só
+   `turma` — no escopo rede, o código de turma reutilizado entre escolas
+   (achado P1 desde a ETAPA 00/04) inflaria matriculados incorretamente se
+   agrupasse só por `turma`.
+2. **Admin**: catálogo ganhou colunas de cobertura/status (calculado só
+   para os ids da página, sem escanear toda a tabela de resultados);
+   `/admin/avaliacoes/[id]` reescrita em abas (Visão Geral/Questões/
+   Resultados/Análise) — corrige a página que antes buscava **todos** os
+   resultados sem paginação; nova Visão Geral com escolas sem nenhum
+   resultado; edição de questão (antes só criar/excluir); validação de
+   número de questão duplicado (necessária agora que a Análise depende de
+   número único); captura opcional de resposta por item no lançamento de
+   resultado, alimentando `respostasJson` (nunca usado antes) e a nova
+   Análise por questão/descritor (% de acerto vs. gabarito).
+3. **Diretor**: reaproveita o badge de status derivado e ganha a mesma
+   Análise por item, somente leitura, escopada à própria escola.
+4. **Professor**: perfil que não tinha nenhuma rota de avaliação —
+   `/portal/professor/avaliacoes` (lista) e `/portal/professor/avaliacoes/
+   [id]` (detalhe), escopados no banco às turmas atribuídas
+   (`ProfessorScope.atribuicoes` da ETAPA 06), somente leitura.
+
+**Decisões deliberadas de não construir agora**: importação CSV/XLSX de
+questões/resultados (o checklist da própria etapa já permite adiar — fica
+para a ETAPA 10, com `respostasJson` já pronto para recebê-la);
+comparação de evolução agregada entre edições no nível de rede/escola
+(exigiria desenho de coorte que este plano não valida — arriscaria violar a
+regra de nunca comparar grupos incompatíveis; a evolução pessoal do Aluno,
+ETAPA 07, já cobre o caso seguro); catálogo estruturado de
+descritores/habilidades BNCC (`descritor` segue texto livre, já agrupável).
+Status da avaliação é sempre derivado da cobertura (heurística pura e
+testada), nunca persistido — evita schema por conveniência e score opaco.
+
+Baseline final: `npm test` 202/202 (193 pré-existentes + 9 novos em
+`lib/analytics/avaliacoes.test.ts`), `typecheck`/`lint`/`build` limpos (65
+rotas — 2 novas do Professor). Validação end-to-end logada não foi
+executada — mesma limitação de credenciais das etapas anteriores; fica
+pendente para a ETAPA 11.
+
+Detalhes completos: [`etapas/09-avaliacoes-municipais.md`](etapas/09-avaliacoes-municipais.md).
 
 ## Resumo da ETAPA 08
 

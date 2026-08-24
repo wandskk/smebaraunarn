@@ -2,15 +2,27 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import type { TipoAvaliacao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { TIPO_AVALIACAO_LABEL as TIPO_LABEL } from "@/lib/queries/avaliacoes";
+import {
+  TIPO_AVALIACAO_LABEL as TIPO_LABEL,
+  STATUS_AVALIACAO_LABEL,
+  getCoberturaResumoPorAvaliacoes,
+} from "@/lib/queries/avaliacoes";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
+
+const STATUS_BADGE_VARIANT: Record<string, BadgeVariant> = {
+  preparacao: "neutral",
+  em_aplicacao: "info",
+  coleta_parcial: "warning",
+  consolidada: "success",
+};
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string; tipo?: string; ano?: string };
@@ -49,6 +61,8 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
     }),
     prisma.avaliacao.count({ where }),
   ]);
+
+  const coberturaPorAvaliacao = await getCoberturaResumoPorAvaliacoes(avaliacoes.map((a) => a.id));
 
   return (
     <div>
@@ -98,6 +112,10 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
       </form>
 
       <ListToolbar searchPlaceholder="Buscar por nome ou código..." />
+      <p className="mt-2 text-xs text-foreground-muted/70">
+        Cobertura = resultados registrados / matriculados nas turmas já tocadas pela aplicação (rede inteira). Status
+        é derivado da cobertura, não é um campo cadastrado.
+      </p>
 
       <div className="mt-6">
         <DataTable>
@@ -107,28 +125,47 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
               <TableHeadCell>Nome</TableHeadCell>
               <TableHeadCell>Tipo</TableHeadCell>
               <TableHeadCell>Ano</TableHeadCell>
-              <TableHeadCell>Resultados</TableHeadCell>
+              <TableHeadCell>Cobertura</TableHeadCell>
+              <TableHeadCell>Status</TableHeadCell>
               <TableHeadCell className="text-right">Ações</TableHeadCell>
             </tr>
           </TableHeader>
           <TableBody>
-            {avaliacoes.map((a) => (
-              <TableRow key={a.id}>
-                <TableCell className="font-mono text-xs text-foreground-muted">{a.codigo}</TableCell>
-                <TableCell className="font-medium text-foreground">{a.nome}</TableCell>
-                <TableCell className="text-foreground-muted">{TIPO_LABEL[a.tipo]}</TableCell>
-                <TableCell className="text-foreground-muted">{a.ano}</TableCell>
-                <TableCell className="text-foreground-muted">
-                  {a._count.resultados} resultado(s) · {a._count.questoes} questão(ões)
-                </TableCell>
-                <TableCell className="text-right">
-                  <Link href={`/admin/avaliacoes/${a.id}`} className="text-primary hover:underline">
-                    Gerenciar
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-            {avaliacoes.length === 0 && <TableEmptyState colSpan={6} title="Nenhuma avaliação encontrada." />}
+            {avaliacoes.map((a) => {
+              const cobertura = coberturaPorAvaliacao.get(a.id);
+              const status = a._count.resultados === 0 ? "preparacao" : (cobertura?.status ?? "preparacao");
+              return (
+                <TableRow key={a.id}>
+                  <TableCell className="font-mono text-xs text-foreground-muted">{a.codigo}</TableCell>
+                  <TableCell className="font-medium text-foreground">{a.nome}</TableCell>
+                  <TableCell className="text-foreground-muted">{TIPO_LABEL[a.tipo]}</TableCell>
+                  <TableCell className="text-foreground-muted">{a.ano}</TableCell>
+                  <TableCell className="text-foreground-muted">
+                    {a._count.resultados === 0 ? (
+                      "Sem resultados"
+                    ) : (
+                      <>
+                        {cobertura ? `${cobertura.realizado} / ${cobertura.esperado || "?"}` : `${a._count.resultados} resultado(s)`}
+                        {cobertura?.percentual !== null && cobertura?.percentual !== undefined && (
+                          <> ({cobertura.percentual.toFixed(0)}%)</>
+                        )}
+                      </>
+                    )}
+                    {" · "}
+                    {a._count.questoes} questão(ões)
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_BADGE_VARIANT[status]}>{STATUS_AVALIACAO_LABEL[status as keyof typeof STATUS_AVALIACAO_LABEL]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link href={`/admin/avaliacoes/${a.id}`} className="text-primary hover:underline">
+                      Gerenciar
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {avaliacoes.length === 0 && <TableEmptyState colSpan={7} title="Nenhuma avaliação encontrada." />}
           </TableBody>
         </DataTable>
       </div>

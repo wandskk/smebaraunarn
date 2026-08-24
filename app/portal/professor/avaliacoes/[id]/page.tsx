@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { NivelFluencia } from "@prisma/client";
 import { requireSession } from "@/lib/require-session";
+import { getServidorBySession } from "@/lib/queries/portal";
 import {
-  getAvaliacaoDetalhePorEscola,
+  getAvaliacaoDetalhe,
   getAnaliseItensAvaliacao,
   TIPO_AVALIACAO_LABEL,
   NIVEL_FLUENCIA_LABEL,
@@ -33,26 +34,32 @@ const STATUS_BADGE_VARIANT: Record<string, BadgeVariant> = {
   consolidada: "success",
 };
 
-export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams }: PageProps) {
-  const session = await requireSession(["DIRETOR"]);
+export default async function ProfessorAvaliacaoDetalhePage({ params, searchParams }: PageProps) {
+  const session = await requireSession(["PROFESSOR"]);
+  const servidor = await getServidorBySession(session);
+  if (!servidor) return null;
+
+  const atribuicoes = servidor.turmas.map((t) => ({ escolaId: t.escolaId, turma: t.turma }));
   const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
 
-  const resultado = await getAvaliacaoDetalhePorEscola(params.id, session.escolaId!, {
+  // Escopo restrito às turmas atribuídas ao professor — mesmo se a URL for
+  // acessada diretamente, nunca vaza resultado de turma fora da atribuição
+  // (a consulta já filtra no banco, não só na UI).
+  const resultado = await getAvaliacaoDetalhe(params.id, { kind: "professor", atribuicoes }, {
     turma: searchParams.turma || undefined,
     nivel: (searchParams.nivel as NivelFluencia) || undefined,
     skip,
     take,
   });
-
   if (!resultado) notFound();
   const { avaliacao, itens, total } = resultado;
-  const analise = await getAnaliseItensAvaliacao(params.id, { kind: "escola", escolaId: session.escolaId! });
+  const analise = await getAnaliseItensAvaliacao(params.id, { kind: "professor", atribuicoes });
 
   return (
     <div>
       <PageHeader
         breadcrumbs={
-          <Link href="/portal/direcao/avaliacoes" className="text-primary hover:underline">
+          <Link href="/portal/professor/avaliacoes" className="text-primary hover:underline">
             ← Avaliações Municipais
           </Link>
         }
@@ -61,7 +68,7 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
         actions={<Badge variant={STATUS_BADGE_VARIANT[avaliacao.status]}>{STATUS_AVALIACAO_LABEL[avaliacao.status]}</Badge>}
       />
 
-      <h2 className="mt-8 text-sm font-semibold text-foreground">Cobertura</h2>
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Cobertura (suas turmas)</h2>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
         <MetricCard
           label="Realizado / Esperado"
@@ -82,11 +89,6 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
           accent="attendance"
         />
       </div>
-      <p className="mt-2 text-xs text-foreground-muted/70">
-        Esperado = estudantes matriculados nas turmas que já têm ao menos um resultado registrado nesta avaliação.
-        Turmas da escola sem nenhuma aplicação ainda não entram nesse cálculo — não há, na origem dos dados, uma
-        lista de turmas-alvo por avaliação.
-      </p>
 
       {avaliacao.porTurma.length > 0 && (
         <div className="mt-4">
@@ -102,7 +104,7 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
             </TableHeader>
             <TableBody>
               {avaliacao.porTurma.map((t) => (
-                <TableRow key={t.turma}>
+                <TableRow key={`${t.escolaId}:${t.turma}`}>
                   <TableCell className="font-medium text-foreground">{t.turma}</TableCell>
                   <TableCell className="text-foreground-muted">{t.matriculados}</TableCell>
                   <TableCell className="text-foreground-muted">{t.resultados}</TableCell>
@@ -148,7 +150,7 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
           Filtrar
         </Button>
         {(searchParams.turma || searchParams.nivel) && (
-          <Link href={`/portal/direcao/avaliacoes/${params.id}`} className="text-sm text-primary hover:underline">
+          <Link href={`/portal/professor/avaliacoes/${params.id}`} className="text-sm text-primary hover:underline">
             Limpar filtros
           </Link>
         )}
@@ -185,15 +187,15 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
       <Pagination
         page={page}
         totalPages={totalPagesFor(total, pageSize)}
-        basePath={`/portal/direcao/avaliacoes/${params.id}`}
+        basePath={`/portal/professor/avaliacoes/${params.id}`}
         searchParams={searchParams}
       />
 
       {analise && analise.totalRespondentes > 0 && (
         <>
-          <h2 className="mt-8 text-sm font-semibold text-foreground">Análise por questão (sua escola)</h2>
+          <h2 className="mt-8 text-sm font-semibold text-foreground">Análise por questão (suas turmas)</h2>
           <p className="mt-1 text-xs text-foreground-muted/70">
-            % de acerto sobre os resultados desta escola com resposta por item registrada (
+            % de acerto sobre os resultados das suas turmas com resposta por item registrada (
             {analise.totalRespondentes} resultado(s)).
           </p>
           <div className="mt-3">
@@ -227,8 +229,8 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
 
       <Card className="mt-8">
         <p className="text-xs text-foreground-muted">
-          A edição de resultados e a importação de novas avaliações continuam restritas à Secretaria (Admin) — a
-          Direção acompanha aplicação e cobertura em modo leitura/diagnóstico.
+          A edição de resultados e a importação de novas avaliações continuam restritas à Secretaria (Admin) — o
+          Professor acompanha aplicação e cobertura das suas turmas em modo leitura/diagnóstico.
         </p>
       </Card>
     </div>

@@ -17,7 +17,12 @@ function SubmitButton() {
   );
 }
 
-export function ResultadoForm({ avaliacaoId }: { avaliacaoId: string }) {
+interface QuestaoResumo {
+  numero: number;
+  descritor: string | null;
+}
+
+export function ResultadoForm({ avaliacaoId, questoes = [] }: { avaliacaoId: string; questoes?: QuestaoResumo[] }) {
   const boundAction = registrarResultadoAction.bind(null, avaliacaoId);
   const [state, formAction] = useFormState(boundAction, initialState);
 
@@ -37,6 +42,25 @@ export function ResultadoForm({ avaliacaoId }: { avaliacaoId: string }) {
       </Select>
       <Input name="palavrasPorMin" type="number" placeholder="Palavras por minuto" />
       <Input name="observacoes" placeholder="Observações" />
+
+      {questoes.length > 0 && (
+        <div className="col-span-full">
+          <div className="mb-1 text-xs font-medium text-foreground-muted">
+            Resposta por questão (opcional — habilita a análise por item/descritor)
+          </div>
+          <div className="grid gap-2 sm:grid-cols-6 lg:grid-cols-8">
+            {questoes.map((q) => (
+              <Input
+                key={q.numero}
+                name={`resposta_${q.numero}`}
+                placeholder={`Q${q.numero}${q.descritor ? ` (${q.descritor})` : ""}`}
+                maxLength={5}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="sm:col-span-3">
         <SubmitButton />
       </div>
