@@ -3,19 +3,25 @@ import { AlertTriangle, ClipboardList, FileText, GraduationCap, ShieldCheck, Use
 import { prisma } from "@/lib/prisma";
 import { formatNumber } from "@/lib/utils";
 import { getStatusSincronizacao, ROTULO_MODULO } from "@/lib/queries/qualidade-dados";
+import { getInsightsAtencao } from "@/lib/queries/atencao";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card } from "@/components/ui/card";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
+import { InsightCard } from "@/components/ui/insight-card";
 import { buttonVariants } from "@/components/ui/button";
 
 export default async function AdminDashboardPage() {
-  const [totalPosts, totalServidores, totalEstudantes, totalAvaliacoes, { modulos }] = await Promise.all([
+  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
+  const anoLetivo = anosRows[0]?.ano ?? new Date().getFullYear();
+
+  const [totalPosts, totalServidores, totalEstudantes, totalAvaliacoes, { modulos }, insights] = await Promise.all([
     prisma.post.count(),
     prisma.servidor.count(),
     prisma.estudante.count(),
     prisma.avaliacao.count(),
     getStatusSincronizacao(),
+    getInsightsAtencao(anoLetivo),
   ]);
 
   const modulosComProblema = modulos.filter((m) => m.situacao !== "em-dia");
@@ -31,7 +37,22 @@ export default async function AdminDashboardPage() {
     <div>
       <PageHeader title="Visão Geral" description="Resumo do portal e da base de dados sincronizada." />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Atenção agora</h2>
+      {insights.length === 0 ? (
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-foreground-muted">
+          Nenhum ponto de atenção identificado no momento pelas regras vigentes (frequência em queda, desempenho
+          abaixo da rede, distorção elevada e sincronização atrasada).
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {insights.map((insight) => (
+            <InsightCard key={insight.id} insight={insight} />
+          ))}
+        </div>
+      )}
+
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Números da rede</h2>
+      <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
           <MetricCard
             key={card.label}

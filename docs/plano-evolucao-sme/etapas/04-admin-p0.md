@@ -59,7 +59,7 @@ adiados com justificativa, como já é o padrão nas etapas anteriores).
 ## Checklist
 - [x] Reler `base/Plano_Evolucao_MVP_Admin_SME_Barauna.docx` / extrato.
 - [x] Confirmar código atual de cada rota antes de alterar.
-- [ ] Implementar "Atenção agora" explicável. *(sub-lote futuro)*
+- [x] Implementar "Atenção agora" explicável.
 - [x] Implementar saúde/freshness por módulo no dashboard `/admin`.
 - [x] Implementar período consistente em turma (frequência agora usa o
       mesmo recorte de ano que notas). Estudante já ficou consistente na
@@ -145,6 +145,57 @@ inteligente' do sistema"; Tabela 10: "Adicionar... saúde dos dados").
   de Qualidade dos Dados usa essa versão para a coluna de histórico, que
   precisa aceitar qualquer string sem erro de tipo.
 
+### Sub-lote 3 — "Atenção agora" no dashboard `/admin`
+
+O achado mais citado do DOCX ("o próprio código sinaliza que falta o bloco
+'Atenção agora'" — `app/admin/indicadores/page.tsx` já tinha esse aviso
+explícito desde antes desta etapa). Implementadas as 4 regras dinâmicas
+descritas no DOCX (seção 7.4), sem persistir nada — recalculado a cada
+carregamento, seguindo a recomendação do próprio documento de validar as
+regras antes de criar um modelo `AlertaAnalitico`.
+
+- [`lib/analytics/atencao.ts`](../../../lib/analytics/atencao.ts) (novo,
+  puro, sem I/O — mesmo princípio dos outros módulos de `lib/analytics/`):
+  4 funções geradoras de insight, uma por regra:
+  1. `gerarInsightsFrequencia` — escola fora da faixa "adequada" **e** em
+     queda no período mais recente (usa `frequenciaFaixa` +
+     `frequenciaVariacao.tendencia`, já calculados por
+     `lib/analytics/frequencia.ts`).
+  2. `gerarInsightsDesempenho` — desempenho abaixo da rede **e** proporção
+     elevada (≥40%, severidade crítica a partir de 60%) de notas abaixo do
+     parâmetro esperado.
+  3. `gerarInsightsDistorcao` — distorção idade-série ≥5 p.p. acima da
+     rede (severidade crítica a partir de 10 p.p.).
+  4. `gerarInsightSincronizacao` — qualquer módulo fora de "em-dia" vira um
+     insight agregado único (severidade crítica se algum módulo nunca
+     sincronizou).
+  Mais `combinarInsightsAtencao`, que junta os 4 grupos, prioriza crítico
+  sobre atenção e limita o total exibido (padrão: 5) — sem somar nada num
+  score único (regra 7.6 do master prompt). 16 testes cobrindo cada regra
+  isoladamente, incluindo os casos de não-gerar-insight (dado insuficiente,
+  variação favorável, abaixo do limiar).
+- [`lib/queries/atencao.ts`](../../../lib/queries/atencao.ts) (novo):
+  busca os dados já calculados por `getComparativosPorEscola`
+  (frequência/desempenho/distorção vs. rede, já existente) e
+  `getDesempenhoPorEscola` (proporção abaixo do parâmetro, que
+  `ComparativoEscola` não expõe), soma o status de sincronização, e chama
+  o motor puro acima — nenhuma fórmula nova, só composição do que já
+  existia e já era usado em `/admin/indicadores/comparativos` e
+  `/admin/indicadores/frequencia`.
+- [`components/ui/insight-card.tsx`](../../../components/ui/insight-card.tsx)
+  (novo — é o `InsightCard` citado na Tabela 9 do DOCX): cartão explicável
+  com ícone/cor por severidade, título (fato+valor+referência já
+  formatados), motivo, período e link para a entidade que explica o valor.
+  Ao contrário de `AcademicContextBar`/`MethodologyNote` (adiados na ETAPA
+  02/03 por falta de caso de uso), este já nasce com um consumidor real.
+- [`app/admin/page.tsx`](../../../app/admin/page.tsx): nova seção "Atenção
+  agora" acima dos números da rede, com estado vazio explícito quando
+  nenhuma regra dispara. `anoLetivo` do dashboard passou a ser resolvido
+  (ano mais recente com estudante matriculado) para poder consultar os
+  comparativos — o dashboard ainda não tem seletor de ano (fica para um
+  sub-lote futuro se for pedido; hoje sempre mostra o ano mais recente,
+  coerente com a ideia de "agora").
+
 ## Decisões técnicas
 
 1. **Máscara de CPF só nas listas, não no detalhe.** `/admin/usuarios/[id]`
@@ -167,16 +218,31 @@ inteligente' do sistema"; Tabela 10: "Adicionar... saúde dos dados").
    grep em todos os `requireSession([...])` na ETAPA 01) — aplicar
    `CapabilityGate` em outro lugar agora não teria nenhuma capability real
    por trás para consultar.
-4. **"Atalhos contextuais" ("ver escolas em atenção", "ver avaliação
-   pendente") não entraram no sub-lote 2.** Os exemplos do DOCX para esses
-   atalhos dependem do conceito de "atenção" (escola com queda de
-   frequência, avaliação com cobertura baixa), que ainda não existe em
-   nenhuma tela — é literalmente o próximo achado do checklist ("Atenção
-   agora"). Construir um atalho para um conceito que ainda não existe seria
-   inventar a peça errada primeiro; o atalho "ver sync atrasado" já existe
-   de fato agora, como o link "Ir para Sincronização" ao lado do resumo de
-   saúde (fica mais evidente quando há módulo com problema, pela cor do
-   ícone).
+4. **Limiares de "Atenção agora" são parâmetros, não valores oficiais —
+   mesmo tratamento já dado a `FAIXAS_PADRAO_FREQUENCIA` e
+   `NOTA_MINIMA_ESPERADA_PADRAO`.** `limiarDiferencaRede`,
+   `limiarPercentualAbaixo` (desempenho) e `limiarDiferencaRede`
+   (distorção) em `lib/analytics/atencao.ts` têm valores-padrão razoáveis
+   (documentados no código), mas não foram validados pela Secretaria — são
+   argumentos com default, não constantes fixas sem alternativa, seguindo
+   o mesmo padrão já usado nos módulos de frequência/desempenho/distorção
+   existentes.
+5. **"Atalhos contextuais" viram os próprios deep-links do `InsightCard`,
+   não uma lista separada.** O DOCX sugere atalhos como "ver escolas em
+   atenção" — com "Atenção agora" implementado (sub-lote 3), cada cartão
+   já é o atalho: aponta direto para a escola que gerou o insight. Um
+   atalho agregado adicional ("ver todas as N escolas em atenção") só faria
+   sentido com uma lista maior que 5 itens, o que o `limite` padrão de
+   `combinarInsightsAtencao` já evita mostrar de uma vez — não construído
+   por falta de necessidade real ainda. "Ver sync atrasado" continua
+   coberto pelo link "Ir para Sincronização" do bloco de Saúde da base.
+6. **Avaliações não entraram em nenhuma regra de "Atenção agora".** O DOCX
+   cita "avaliação pendente" como fonte de atenção, mas cobertura de
+   avaliação (esperado vs. realizado) ainda não existe em nenhuma query —
+   é o objeto da ETAPA 09 (Avaliações Municipais). Adicionar uma 5ª regra
+   aqui exigiria calcular cobertura pela primeira vez fora do contexto que
+   já vai fazer isso de forma completa; ficou fora por decisão consciente,
+   não esquecimento.
 
 ## Testes executados
 
@@ -197,10 +263,15 @@ npm run build
   limpos após corrigir um erro de tipo real (`ROTULO_MODULO` com chave
   estrita não aceitava `LogSincronizacao.modulo`, que é texto livre —
   resolvido com `rotuloModulo()` como acesso seguro).
+- Sub-lote 3: `npm test` **162/162** (146 pré-existentes + 16 novos em
+  `lib/analytics/atencao.test.ts`, cobrindo cada uma das 4 regras
+  isoladamente e a combinação/priorização), `typecheck`/`lint`/`build`
+  limpos.
 
 Validação visual via browser (conferir que SECRETARIA de fato não vê os
-controles administrativos, que o CPF aparece mascarado, e que o bloco de
-saúde da base reflete a situação real de cada módulo) **não foi
+controles administrativos, que o CPF aparece mascarado, que o bloco de
+saúde da base reflete a situação real de cada módulo, e que os cartões de
+"Atenção agora" mostram fatos corretos contra dados reais) **não foi
 executada** — mesma limitação de credenciais já registrada nas etapas
 01–03.
 
@@ -208,11 +279,18 @@ executada** — mesma limitação de credenciais já registrada nas etapas
 
 1. **Validação visual/end-to-end logada não foi feita** (ver acima) —
    importante confirmar com uma conta SECRETARIA real antes de considerar
-   o achado "Permissões Admin × Secretaria" totalmente fechado.
-2. **Restante do escopo desta etapa ainda pendente** (ver checklist):
-   "Atenção agora", `/admin/servidores/[id]`, filtros analíticos,
-   sincronização com detecção de execução incompleta. Continuam em
-   sub-lotes futuros dentro desta mesma etapa.
+   o achado "Permissões Admin × Secretaria" totalmente fechado, e conferir
+   os cartões de "Atenção agora" contra a base real de produção (a lógica
+   está testada com dados sintéticos, não com o volume/distribuição real
+   da rede).
+2. **Limiares de "Atenção agora" não validados pela Secretaria** (ver
+   Decisões técnicas item 4) — podem gerar falsos positivos/negativos até
+   serem ajustados com feedback real de uso. Fáceis de recalibrar (são
+   parâmetros com default, não constantes espalhadas pelo código).
+3. **Restante do escopo desta etapa ainda pendente** (ver checklist):
+   `/admin/servidores/[id]`, filtros analíticos, sincronização com
+   detecção de execução incompleta. Continuam em sub-lotes futuros dentro
+   desta mesma etapa.
 
 ## Critérios de aceite
 
