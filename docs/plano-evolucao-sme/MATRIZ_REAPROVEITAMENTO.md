@@ -1,6 +1,6 @@
 # Matriz de Reaproveitamento — Núcleo x Perfil
 
-**Status:** atualizada pela última vez na ETAPA 04. Baseada em inspeção do
+**Status:** atualizada pela última vez na ETAPA 06. Baseada em inspeção do
 código real (`app/`, `components/`, `lib/`, `prisma/schema.prisma`) e nos 5
 DOCX em `base/`.
 
@@ -21,7 +21,7 @@ para o detalhamento completo.
 |---|---|---|
 | `NetworkScope` | ADMIN, SECRETARIA | `{ kind: "network" }` — vê qualquer escola/turma/estudante/servidor. Ainda não há distinção de capability entre ADMIN e SECRETARIA na autorização por entidade (só existe para a ação `usuarios:manage`, em `lib/authz/capabilities.ts`). |
 | `SchoolScope` | DIRETOR | `{ kind: "school", escolaId }`. Aplicado em `app/portal/direcao/alunos/[id]/page.tsx` via `canViewEstudante`. Outras rotas de Direção (`turmas/[turma]`, `estudantes`, `servidores`) ainda filtram por `escolaId` direto na query, não via o módulo — consolidação prevista para a ETAPA 03. |
-| `ProfessorScope` | PROFESSOR | `{ kind: "professor", escolaId, turmas }`. Aplicado em `app/portal/professor/turma/[id]/page.tsx`. Turmas vêm de `ServidorTurma` (sem `escolaId` próprio — a checagem de escola usa `Servidor.escolaId`, não a turma). Ainda **não** resolve o caso de um professor com mais de uma disciplina na mesma turma (`ServidorTurma` não modela isso) — decisão explícita de adiar a migração de schema para a ETAPA 06. O bug conhecido "professor sem turma recebe contagem de todos os alunos da escola" (`app/portal/professor/page.tsx`) **não foi corrigido** na ETAPA 01 — está reservado para a ETAPA 06 (Professor P0), que é onde o master prompt o lista. |
+| `ProfessorScope` | PROFESSOR | **Desde a ETAPA 06**: `{ kind: "professor", atribuicoes: { escolaId, turma }[] }` — cada atribuição carrega sua própria escola, não mais um `escolaId` único do scope. `ServidorTurma` ganhou coluna `escolaId` própria (migração aplicada em produção, backfill 611/611 linhas) e `lib/sync/sigeduc-sync.ts` grava esse valor por linha a cada sincronização. `canViewTurma`/`canViewEstudante`/`canViewEscola` checam a tupla `(escolaId, turma)` exata — fecha o risco de um código de turma colidindo entre duas escolas (57 casos confirmados na base real) liberar escopo indevido. Aplicado em `app/portal/professor/{page,turmas/page,turmas/[turma]/page,estudantes/[id]/page}.tsx`. Ainda **não** resolve o caso de um professor com mais de uma disciplina na mesma turma (`@@unique([servidorId, escolaId, turma])` continua limitando a 1 disciplina por turma) — decisão explícita de adiar essa parte para a ETAPA 10 (P1), pendente de confirmar a cardinalidade real da API do SIGEduc. |
 | `StudentSelfScope` | ALUNO | `{ kind: "student-self", estudanteId }`. Definido no módulo; ainda não há nenhum ponto no código do Aluno onde um `estudanteId` de outrem precisaria ser bloqueado (o portal do Aluno hoje só busca o próprio registro via `getEstudanteBySession`), então não houve refatoração de página nesta etapa. |
 | `StaffSelfScope` | SERVIDOR_GERAL | `{ kind: "staff-self", servidorId }`. `canViewEstudante` retorna sempre `false` para este scope — reforça em código a regra 7.7 do master prompt (Servidor Geral não recebe dados acadêmicos por lotação). |
 
@@ -56,8 +56,9 @@ que motivou cada extração):
 | `ComparisonDelta` | Existe (`components/ui/comparison-delta.tsx`, ETAPA 03); consumido por `/admin/indicadores/frequencia`, `/admin/indicadores/comparativos` e, desde a ETAPA 04, por `/admin/escolas/[id]` — a classificação de favorabilidade continua em cada página, só a apresentação é compartilhada. |
 | `InsightCard` | Existe desde a ETAPA 04 (`components/ui/insight-card.tsx`), consumido pelo bloco "Atenção agora" do dashboard `/admin` (`lib/analytics/atencao.ts` + `lib/queries/atencao.ts`). |
 | `StudentAcademicDetail` | Já existia antes da ETAPA 03 como `AlunoDetalhe` (`components/portal/aluno-detalhe.tsx`), usado por Admin/Direção/Professor. |
-| `SchoolOverview` | Parcial desde a ETAPA 04: `/admin/escolas/[id]` ganhou uma seção "Comparação com a rede" (reaproveitando `getComparativosPorEscola` + `ComparisonDelta`) e seletor de ano. Ainda **sem** as tabs completas (Visão Geral/Turmas/Servidores/Estudantes/Indicadores/Avaliações) nem o bloco "Destaques da escola" do DOCX — decisão consciente de esperar a ETAPA 05 (Diretor reutilizando o mesmo núcleo com `SchoolScope`) para desenhar a API completa com um segundo caso de uso real, em vez de especular sozinho. |
-| `AttendanceSummary`, `AttendanceTable`, `AcademicContextBar`/`AnalysisScopeBar`, `CoverageCard`, `MethodologyNote`, `EvaluationSummary`, `FunctionalDataCard`, `AssignmentSummary` | Avaliados nas ETAPAs 02/03 e **deliberadamente não criados** — sem duplicação real hoje para consolidar, ou dependem de telas que ainda não existem (cobertura de avaliação/`CoverageCard`/`EvaluationSummary` dependem da consolidação de Avaliações Municipais, ETAPA 09). |
+| `SchoolOverview` | **Extraído na ETAPA 05** (`components/portal/school-overview.tsx`) — núcleo "comparação com a rede" (frequência/desempenho/distorção vs. referência de rede), usado por `/admin/escolas/[id]` (Admin escolhe a escola) e pela Home da Direção (`SchoolScope`, escola fixa na sessão). Ainda **sem** as tabs completas (Turmas/Servidores/Estudantes/Avaliações) do DOCX — cada perfil continua tendo suas próprias rotas de turmas/estudantes/avaliações; só o bloco de comparação com a rede é o núcleo compartilhado hoje. |
+| `AttendanceSummary`, `AttendanceTable`, `AcademicContextBar`/`AnalysisScopeBar`, `MethodologyNote`, `FunctionalDataCard`, `AssignmentSummary` | Avaliados nas ETAPAs 02/03/05 e **deliberadamente não criados** — sem duplicação real hoje para consolidar. |
+| `CoverageCard`, `EvaluationSummary` | Ainda não extraídos como componente — a ETAPA 05 implementou cobertura (esperado × realizado por turma) inline em `/portal/direcao/avaliacoes/[id]` (só um caso de uso até agora). Candidatos a extração quando o Admin ganhar uma tela equivalente (ETAPA 09, Avaliações Municipais). |
 
 As telas de Admin/Diretor/Professor/Aluno continuam, fora desses pontos já
 consolidados, implementando suas próprias views sobre `lib/queries/*`
@@ -108,23 +109,31 @@ que a autorização por turma+disciplina seja hoje verificável com segurança.
 `IndicadoresLanding`, `Avaliacao`, `AvaliacaoQuestao`,
 `AvaliacaoResultadoAluno`, `LogSincronizacao`.
 
-Pontos já confirmados como estruturalmente frágeis (não alterar nesta etapa,
-apenas registrar):
+Pontos já confirmados como estruturalmente frágeis:
 
-- `ServidorTurma { servidorId, turma, serie?, turno?, disciplina?, cargaTrabalho? }`
-  com `@@unique([servidorId, turma])` — sem `escolaId`; `turma` é string livre,
-  o que é consistente com o achado do master prompt de que **códigos de turma
-  se repetem entre escolas**. A unicidade atual também não comporta um
-  professor com mais de uma disciplina na mesma turma.
+- `ServidorTurma { servidorId, escolaId, turma, serie?, turno?, disciplina?, cargaTrabalho? }`
+  com `@@unique([servidorId, escolaId, turma])` — **`escolaId` adicionado na
+  ETAPA 06** (antes não existia; a checagem de escola usava
+  `Servidor.escolaId`, único por servidor e frágil para professores em mais
+  de uma escola). `turma` continua string livre, consistente com o achado de
+  que **códigos de turma se repetem entre escolas** (57 casos confirmados).
+  A unicidade atual ainda **não** comporta um professor com mais de uma
+  disciplina na mesma turma — pendente de confirmar a cardinalidade real da
+  API do SIGEduc antes de migrar de novo (ETAPA 10/P1).
 - `Servidor.pendenciaPedagogica` — campo existe no schema, mas seu
   significado/público de exibição ainda não foi validado (achado do DOCX de
   Servidor Geral).
 
 ## 7. Próxima revisão desta matriz
 
-Scopes reais (ETAPA 01) e componentes acadêmicos reais (ETAPA 03) já foram
-incorporados às seções 1 e 3 acima. Próxima revisão prevista ao final da
-ETAPA 05 (Diretor P0), quando a Home da Direção deve passar a reaproveitar
-`SchoolOverview`/o núcleo do Admin com `SchoolScope` — o que deve mudar o
-estado de "implícito" para "código concreto" também na linha Escola/Turma
-da matriz da seção 5.
+Scopes reais (ETAPA 01), componentes acadêmicos reais (ETAPA 03), a
+extração de `SchoolOverview`/`getInsightsAtencaoEscola` com `SchoolScope`
+(ETAPA 05) e a migração de `ServidorTurma`/`ProfessorScope` para atribuições
+por tupla `(escolaId, turma)` (ETAPA 06) já foram incorporados às seções 1,
+3 e 6 acima — a coluna "Professor" da matriz da seção 5 (Turma/Aluno/Notas/
+Frequência) deixou de depender de um `escolaId` único e frágil e passou a
+usar o mesmo tipo de reaproveitamento que Diretor já tinha (`TurmaDetail`
+compartilhado, agora com escopo por atribuição real). Próxima revisão
+prevista ao final da ETAPA 07 (Aluno P0), que deve consolidar a política de
+"90 registros → período explícito" no último perfil que ainda a usa dessa
+forma antiga.

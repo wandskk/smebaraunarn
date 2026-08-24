@@ -11,15 +11,18 @@ export default async function ProfessorHomePage() {
   const servidor = await getServidorBySession(session);
   if (!servidor) return null;
 
-  const nomesTurma = servidor.turmas.map((t) => t.turma);
   const disciplinas = [...new Set(servidor.turmas.map((t) => t.disciplina).filter(Boolean))];
 
-  const totalAlunos = await prisma.estudante.count({
-    where: {
-      escolaId: servidor.escolaId ?? -1,
-      ...(nomesTurma.length > 0 ? { turmaSerie: { in: nomesTurma } } : {}),
-    },
-  });
+  // P0: sem turma vinculada, o professor não pode ver contagem da escola
+  // inteira. Agrupado por (escolaId, turma) da própria atribuição — não só
+  // por turma — porque um professor pode ter turmas em mais de uma escola
+  // (ETAPA 06); usar apenas servidor.escolaId contaria errado nesse caso.
+  const totalAlunos =
+    servidor.turmas.length === 0
+      ? 0
+      : await prisma.estudante.count({
+          where: { OR: servidor.turmas.map((t) => ({ escolaId: t.escolaId, turmaSerie: t.turma })) },
+        });
 
   return (
     <div>
@@ -59,8 +62,8 @@ export default async function ProfessorHomePage() {
 
       <div className="mt-6">
         <MetricCard
-          href="/portal/professor/turma"
-          label="Ver lista de estudantes e acompanhamento"
+          href="/portal/professor/turmas"
+          label="Ver minhas turmas"
           value={`${totalAlunos} aluno(s)`}
           icon={Users}
           accent="primary"

@@ -1,5 +1,11 @@
 import type { Role } from "@prisma/client";
 
+/** Uma turma atribuída ao professor, já com a escola correta desta atribuição — ver ETAPA 06. */
+export interface AtribuicaoProfessor {
+  escolaId: number;
+  turma: string;
+}
+
 /**
  * Representação central dos 5 scopes conceituais do master prompt. Função
  * pura (sem Prisma/I/O) para poder ser testada com node:test, seguindo o
@@ -8,7 +14,7 @@ import type { Role } from "@prisma/client";
 export type Scope =
   | { kind: "network" }
   | { kind: "school"; escolaId: number }
-  | { kind: "professor"; escolaId: number; turmas: string[] }
+  | { kind: "professor"; atribuicoes: AtribuicaoProfessor[] }
   | { kind: "student-self"; estudanteId: number }
   | { kind: "staff-self"; servidorId: number };
 
@@ -23,11 +29,13 @@ interface ScopeSessionInput {
 
 interface ScopeFromSessionOptions {
   /**
-   * Turmas do professor (código de turma, ex.: "EFAFM6A"), já carregadas
-   * pela página/layout via ServidorTurma. Necessário para role PROFESSOR;
-   * ignorado para os demais papéis.
+   * Atribuições do professor (turma + escolaId daquela turma especificamente,
+   * ETAPA 06), já carregadas pela página/layout via ServidorTurma. Necessário
+   * para role PROFESSOR; ignorado para os demais papéis. `escolaId` vem da
+   * própria linha de ServidorTurma, não de Servidor.escolaId — um professor
+   * pode ter atribuições em mais de uma escola.
    */
-  professorTurmas?: string[];
+  professorAtribuicoes?: AtribuicaoProfessor[];
 }
 
 /**
@@ -57,7 +65,7 @@ export function scopeFromSession(session: ScopeSessionInput, options: ScopeFromS
       if (session.escolaId == null) {
         throw new ScopeError("Professor sem escola vinculada.");
       }
-      return { kind: "professor", escolaId: session.escolaId, turmas: options.professorTurmas ?? [] };
+      return { kind: "professor", atribuicoes: options.professorAtribuicoes ?? [] };
 
     case "ALUNO":
       if (session.estudanteId == null) {

@@ -9,10 +9,22 @@ import { formatarDataIso } from "@/lib/format-date";
 interface AlunoDetalheProps {
   dados: AlunoDetalheCompleto;
   ano: number;
+  /**
+   * Quando informado, o boletim mostra só as disciplinas listadas — usado
+   * pelo Professor (ETAPA 06): por padrão, um professor vê a íntegra das
+   * notas do estudante mesmo lecionando só uma disciplina na turma (achado
+   * P0 do documento de Professor). Frequência não é filtrada por disciplina
+   * aqui — o próprio documento trata isso como visão geral permitida por
+   * padrão, diferente de notas.
+   */
+  disciplinasVisiveis?: string[];
 }
 
-export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
-  const { estudante, notas, frequencias, janelaFrequencia } = dados;
+export function AlunoDetalhe({ dados, ano, disciplinasVisiveis }: AlunoDetalheProps) {
+  const { estudante, frequencias, janelaFrequencia } = dados;
+  const notas = disciplinasVisiveis
+    ? dados.notas.filter((n) => disciplinasVisiveis.includes(n.disciplina))
+    : dados.notas;
 
   const totalAulas = frequencias.reduce((sum, r) => sum + r.quantidadeAula, 0);
   const totalFaltas = frequencias.reduce((sum, r) => sum + r.falta, 0);
@@ -55,6 +67,12 @@ export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
       </div>
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Boletim — {ano}</h2>
+      {disciplinasVisiveis && (
+        <p className="mt-1 text-xs text-foreground-muted/70">
+          Mostrando {disciplinasVisiveis.length > 1 ? "suas disciplinas" : "sua disciplina"}:{" "}
+          {disciplinasVisiveis.join(", ")}.
+        </p>
+      )}
       <div className="mt-3">
         <GradeTable notas={notas} emptyMessage={`Nenhuma nota lançada para ${ano} ainda.`} />
       </div>

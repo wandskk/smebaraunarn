@@ -65,6 +65,7 @@ model Escola {
   servidores  Servidor[]
   estudantes  Estudante[]
   avaliacoesResultados AvaliacaoResultadoAluno[]
+  servidorTurmas ServidorTurma[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -107,6 +108,14 @@ model ServidorTurma {
   id            String   @id @default(cuid())
   servidorId    Int
   servidor      Servidor @relation(fields: [servidorId], references: [id], onDelete: Cascade)
+  // Escola da turma nesta linha — a origem (SIGEduc) já entrega isso por
+  // linha (mesmo codigo_inep_escola usado para resolver Servidor.escolaId),
+  // mas antes da ETAPA 06 esse dado era descartado ao gravar ServidorTurma.
+  // Necessário porque Servidor.escolaId é único por servidor e pode não
+  // refletir a escola de CADA turma quando o professor atua em mais de uma
+  // unidade (ver decisão técnica na ETAPA 06).
+  escolaId      Int
+  escola        Escola   @relation(fields: [escolaId], references: [id])
   turma         String
   serie         String?
   turno         String?
@@ -115,8 +124,9 @@ model ServidorTurma {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@unique([servidorId, turma])
+  @@unique([servidorId, escolaId, turma])
   @@index([servidorId])
+  @@index([escolaId])
 }
 
 model Estudante {

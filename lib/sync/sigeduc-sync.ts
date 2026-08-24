@@ -167,7 +167,13 @@ export async function syncServidoresChunk(
           create: { cpf, ...data, escolaId },
         });
 
-        if (s.turma) {
+        // A escola da turma vem da própria linha (mesmo escolaId resolvido acima
+        // para o Servidor) — não da escola atual do Servidor, que é única por
+        // servidor e não reflete corretamente um professor com turmas em mais de
+        // uma escola (ver ETAPA 06). Sem escolaId resolvido para esta linha
+        // (cargo sem correspondência de escola), a turma não pode ser gravada de
+        // forma segura — melhor pular a linha do que assumir uma escola errada.
+        if (s.turma && escolaId !== null) {
           const turmaData = {
             serie: s.serie,
             turno: s.turno,
@@ -175,9 +181,9 @@ export async function syncServidoresChunk(
             cargaTrabalho: s.carga_trabalho,
           };
           await prisma.servidorTurma.upsert({
-            where: { servidorId_turma: { servidorId: servidor.id, turma: s.turma } },
+            where: { servidorId_escolaId_turma: { servidorId: servidor.id, escolaId, turma: s.turma } },
             update: turmaData,
-            create: { servidorId: servidor.id, turma: s.turma, ...turmaData },
+            create: { servidorId: servidor.id, escolaId, turma: s.turma, ...turmaData },
           });
         }
 

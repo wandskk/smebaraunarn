@@ -13,8 +13,9 @@ export function canViewEscola(scope: Scope, escolaId: number): boolean {
     case "network":
       return true;
     case "school":
-    case "professor":
       return scope.escolaId === escolaId;
+    case "professor":
+      return scope.atribuicoes.some((a) => a.escolaId === escolaId);
     case "student-self":
     case "staff-self":
       return false;
@@ -28,7 +29,11 @@ export function canViewTurma(scope: Scope, turma: { escolaId: number; turma: str
     case "school":
       return scope.escolaId === turma.escolaId;
     case "professor":
-      return scope.escolaId === turma.escolaId && scope.turmas.includes(turma.turma);
+      // Checa a tupla exata (escolaId + turma) em vez de escolaId e turma
+      // separadamente — evita que um código de turma que colide entre duas
+      // escolas (ver ETAPA 06) libere uma turma de outra escola só porque o
+      // código bate com uma atribuição real do professor.
+      return scope.atribuicoes.some((a) => a.escolaId === turma.escolaId && a.turma === turma.turma);
     case "student-self":
     case "staff-self":
       return false;
@@ -46,9 +51,8 @@ export function canViewEstudante(
       return scope.escolaId === estudante.escolaId;
     case "professor":
       return (
-        scope.escolaId === estudante.escolaId &&
         estudante.turmaSerie !== null &&
-        scope.turmas.includes(estudante.turmaSerie)
+        scope.atribuicoes.some((a) => a.escolaId === estudante.escolaId && a.turma === estudante.turmaSerie)
       );
     case "student-self":
       return scope.estudanteId === estudante.id;

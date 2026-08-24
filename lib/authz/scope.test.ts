@@ -22,17 +22,44 @@ describe("scopeFromSession", () => {
     );
   });
 
-  test("PROFESSOR recebe ProfessorScope com escola e turmas informadas", () => {
+  test("PROFESSOR recebe ProfessorScope com as atribuições informadas", () => {
     const scope = scopeFromSession(
       { role: "PROFESSOR", escolaId: 3, servidorId: 99, estudanteId: null },
-      { professorTurmas: ["EFAFM6A", "EFAFM7B"] },
+      {
+        professorAtribuicoes: [
+          { escolaId: 3, turma: "EFAFM6A" },
+          { escolaId: 3, turma: "EFAFM7B" },
+        ],
+      },
     );
-    assert.deepEqual(scope, { kind: "professor", escolaId: 3, turmas: ["EFAFM6A", "EFAFM7B"] });
+    assert.deepEqual(scope, {
+      kind: "professor",
+      atribuicoes: [
+        { escolaId: 3, turma: "EFAFM6A" },
+        { escolaId: 3, turma: "EFAFM7B" },
+      ],
+    });
   });
 
-  test("PROFESSOR sem turmas informadas recebe lista vazia, não undefined", () => {
+  test("PROFESSOR com atribuições em mais de uma escola preserva o escolaId de cada turma", () => {
+    const scope = scopeFromSession(
+      { role: "PROFESSOR", escolaId: 3, servidorId: 99, estudanteId: null },
+      {
+        professorAtribuicoes: [
+          { escolaId: 3, turma: "EFAFM6A" },
+          { escolaId: 5, turma: "EFAFM6A" }, // mesmo código de turma, escola diferente
+        ],
+      },
+    );
+    assert.deepEqual(scope.kind === "professor" ? scope.atribuicoes : [], [
+      { escolaId: 3, turma: "EFAFM6A" },
+      { escolaId: 5, turma: "EFAFM6A" },
+    ]);
+  });
+
+  test("PROFESSOR sem atribuições informadas recebe lista vazia, não undefined", () => {
     const scope = scopeFromSession({ role: "PROFESSOR", escolaId: 3, servidorId: 99, estudanteId: null });
-    assert.deepEqual(scope, { kind: "professor", escolaId: 3, turmas: [] });
+    assert.deepEqual(scope, { kind: "professor", atribuicoes: [] });
   });
 
   test("PROFESSOR sem escola vinculada lança ScopeError", () => {

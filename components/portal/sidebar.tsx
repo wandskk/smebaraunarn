@@ -48,7 +48,7 @@ const NAV_BY_ROLE: Partial<Record<SessionPayload["role"], PortalNavItem[]>> = {
   ],
   PROFESSOR: [
     { href: "/portal/professor", label: "Início", icon: LayoutDashboard },
-    { href: "/portal/professor/turma", label: "Minha Turma", icon: Users },
+    { href: "/portal/professor/turmas", label: "Minhas Turmas", icon: Users },
   ],
 };
 

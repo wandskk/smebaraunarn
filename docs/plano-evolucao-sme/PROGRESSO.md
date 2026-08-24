@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 04)
+**Última atualização:** 2026-08-24 (ETAPA 06)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -15,8 +15,8 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 02 | Contexto temporal e Data Freshness | **DONE** | 2026-08-24 |
 | 03 | Componentes acadêmicos compartilhados | **DONE** | 2026-08-24 |
 | 04 | Admin P0 | **DONE** | 2026-08-24 |
-| 05 | Diretor P0 | PENDING | — |
-| 06 | Professor P0 | PENDING | — |
+| 05 | Diretor P0 | **DONE** | 2026-08-24 |
+| 06 | Professor P0 | **DONE** | 2026-08-24 |
 | 07 | Aluno P0 | PENDING | — |
 | 08 | Servidor Geral P0 | PENDING | — |
 | 09 | Avaliações Municipais | PENDING | — |
@@ -25,7 +25,96 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 05.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 07.**
+
+## Resumo da ETAPA 06
+
+A etapa de maior risco estrutural do plano até agora: além do trabalho de
+tela, incluiu uma migração de schema em produção, autorizada explicitamente
+pelo usuário depois de a decisão ser documentada (regra 7.8 do master
+prompt).
+
+1. **Bug P0 concreto**: Home do professor contava todos os alunos da
+   escola quando não havia turma vinculada (filtro por turma era omitido
+   do `where`) — corrigido para `0`.
+2. **"Minhas Turmas" de verdade**: nova `/portal/professor/turmas` (lista
+   de turmas, não mais alunos de todas as turmas misturados) +
+   `/portal/professor/turmas/[turma]` (reaproveita `TurmaDetalheView` da
+   ETAPA 03, com checagem de escopo antes de renderizar).
+3. **Rota de estudante separada da rota de turma**: `turma/[id]` (que na
+   verdade representava estudante) virou
+   `/portal/professor/estudantes/[id]`, com redirect no caminho antigo.
+4. **Notas respeitam disciplina do professor por padrão** — novo prop
+   `disciplinasVisiveis` em `AlunoDetalhe`, filtra o boletim para a(s)
+   disciplina(s) do professor naquela turma específica (frequência
+   continua com resumo geral, política diferente por tipo de dado).
+5. **Migração `ServidorTurma.escolaId`** (o item de maior risco do
+   documento de Professor): auditoria confirmou 57 códigos de turma
+   colidindo entre escolas diferentes na base real. `ServidorTurma` não
+   tinha `escolaId` própria — `Servidor.escolaId` é único por servidor e
+   sobrescrito a cada sync, perdendo a escola de cada turma individual
+   para professores multi-escola. Migração manual (coluna nullable →
+   backfill → `NOT NULL` → troca de unique constraint) aplicada em
+   produção via `prisma migrate deploy`, confirmada 611/611 linhas
+   corretas. `ProfessorScope` deixou de ser `{ escolaId, turmas: string[] }`
+   e virou `{ atribuicoes: { escolaId, turma }[] }`; `canViewTurma`/
+   `canViewEstudante`/`canViewEscola` passaram a checar a tupla exata em
+   vez de escolaId+turma separadamente — o que efetivamente fecha o risco
+   estrutural, não só a migração em si. `lib/sync/sigeduc-sync.ts` foi
+   ajustado para gravar o `escolaId` correto por linha em cada
+   sincronização futura.
+
+**Itens deliberadamente adiados, com justificativa registrada**:
+disciplina na identidade de `ServidorTurma` (P1 — cardinalidade da API do
+SIGEduc não confirmada); `/portal/professor/avaliacoes` (fora de escopo
+explícito — só "preparar o encaixe", que ficou pronto via
+`ProfessorScope.atribuicoes`, para a ETAPA 09 implementar de fato).
+
+Baseline final: `npm test` 184/184 (4 testes novos), `typecheck`/`lint`/
+`build` limpos (61 rotas). Validação end-to-end logada como PROFESSOR real
+não foi executada — mesma limitação de credenciais das etapas anteriores;
+fica pendente para a ETAPA 11.
+
+Detalhes completos: [`etapas/06-professor-p0.md`](etapas/06-professor-p0.md).
+
+## Resumo da ETAPA 05
+
+Levantamento inicial mostrou que 3 dos 8 itens do escopo já estavam
+satisfeitos por reaproveitamento automático de etapas anteriores (turma
+com período unificado — ETAPA 03/04; ficha de estudante compartilhada —
+ETAPA 02/03; vínculo Diretor→Escola já tratado em
+`app/portal/direcao/layout.tsx`). Trabalho real em 3 frentes:
+
+1. **Avaliações sem truncamento silencioso**: a tela listava só os 100
+   resultados mais recentes agrupados por `avaliacao.nome` (risco de
+   misturar edições diferentes com nome igual). Nova
+   `lib/queries/avaliacoes.ts` + catálogo em `/portal/direcao/avaliacoes`
+   (uma linha por avaliação, agrupada por `avaliacaoId`) + nova rota
+   `/portal/direcao/avaliacoes/[id]` com cobertura por turma (matriculados
+   × resultados) e resultados paginados de verdade. Cobertura é calculada
+   só dentro das turmas já tocadas pela aplicação — o modelo não tem
+   tabela de turmas-alvo por avaliação, então "esperado" não inclui
+   turmas com zero aplicação (limitação documentada, não inventada).
+2. **Consistência de rotas**: `/portal/direcao/estudantes/[id]` passa a
+   ser a rota canônica da ficha do estudante; `/portal/direcao/alunos/[id]`
+   vira redirect (preserva links antigos).
+3. **Home cockpit**: `SchoolOverview` (comparação com a rede) extraído de
+   `/admin/escolas/[id]` para `components/portal/school-overview.tsx` e
+   reaproveitado pela Home da Direção — a extração que a ETAPA 04 havia
+   deliberadamente adiado por falta de um segundo caso de uso. Novo
+   `getInsightsAtencaoEscola` reaproveita as mesmas 3 regras puras de
+   "Atenção agora" da ETAPA 04, escopadas a 1 escola (a regra de
+   sincronização foi propositalmente deixada de fora — a Direção não tem
+   painel de sync para agir sobre ela). Freshness por módulo also exibida.
+
+Baseline final: `npm test` 180/180 (3 testes novos), `typecheck`/`lint`/
+`build` limpos. Build final: 49 rotas (46 da ETAPA 04 + 3 novas — `[id]`
+de avaliações, `[id]` de estudantes; `alunos/[id]` virou redirect mas
+continua contando como rota). Validação end-to-end logada como DIRETOR
+real não foi executada — mesma limitação de credenciais das etapas
+anteriores; pendência para a ETAPA 11.
+
+Detalhes completos: [`etapas/05-diretor-p0.md`](etapas/05-diretor-p0.md).
 
 ## Resumo da ETAPA 04
 

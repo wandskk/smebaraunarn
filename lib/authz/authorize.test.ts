@@ -6,9 +6,18 @@ import type { Scope } from "./scope";
 const network: Scope = { kind: "network" };
 const escolaA: Scope = { kind: "school", escolaId: 1 };
 const escolaB: Scope = { kind: "school", escolaId: 2 };
-const professorSemTurma: Scope = { kind: "professor", escolaId: 1, turmas: [] };
-const professorComTurmaA: Scope = { kind: "professor", escolaId: 1, turmas: ["EFAFM6A"] };
-const professorOutraEscola: Scope = { kind: "professor", escolaId: 2, turmas: ["EFAFM6A"] };
+const professorSemTurma: Scope = { kind: "professor", atribuicoes: [] };
+const professorComTurmaA: Scope = { kind: "professor", atribuicoes: [{ escolaId: 1, turma: "EFAFM6A" }] };
+const professorOutraEscola: Scope = { kind: "professor", atribuicoes: [{ escolaId: 2, turma: "EFAFM6A" }] };
+// Mesmo código de turma atribuído em duas escolas diferentes — cenário que motivou a
+// migração de ServidorTurma (ETAPA 06): a tupla (escolaId, turma) precisa bater exatamente.
+const professorDuasEscolasMesmoCodigo: Scope = {
+  kind: "professor",
+  atribuicoes: [
+    { escolaId: 1, turma: "EFAFM6A" },
+    { escolaId: 2, turma: "EFAFM6A" },
+  ],
+};
 const alunoSelf: Scope = { kind: "student-self", estudanteId: 100 };
 const servidorSelf: Scope = { kind: "staff-self", servidorId: 50 };
 
@@ -27,6 +36,13 @@ describe("canViewEscola", () => {
     assert.equal(canViewEscola(alunoSelf, 1), false);
     assert.equal(canViewEscola(servidorSelf, 1), false);
   });
+
+  test("professor vê só a(s) escola(s) onde tem alguma atribuição", () => {
+    assert.equal(canViewEscola(professorComTurmaA, 1), true);
+    assert.equal(canViewEscola(professorComTurmaA, 2), false);
+    assert.equal(canViewEscola(professorDuasEscolasMesmoCodigo, 2), true);
+    assert.equal(canViewEscola(professorSemTurma, 1), false);
+  });
 });
 
 describe("canViewTurma", () => {
@@ -40,6 +56,12 @@ describe("canViewTurma", () => {
 
   test("professor não vê turma de mesmo código em outra escola (códigos de turma se repetem entre escolas)", () => {
     assert.equal(canViewTurma(professorOutraEscola, { escolaId: 1, turma: "EFAFM6A" }), false);
+  });
+
+  test("professor com o mesmo código de turma em duas escolas só vê a turma da escola certa em cada uma (ETAPA 06)", () => {
+    assert.equal(canViewTurma(professorDuasEscolasMesmoCodigo, { escolaId: 1, turma: "EFAFM6A" }), true);
+    assert.equal(canViewTurma(professorDuasEscolasMesmoCodigo, { escolaId: 2, turma: "EFAFM6A" }), true);
+    assert.equal(canViewTurma(professorDuasEscolasMesmoCodigo, { escolaId: 3, turma: "EFAFM6A" }), false);
   });
 
   test("diretor só vê turma da própria escola", () => {
@@ -64,9 +86,15 @@ describe("canViewEstudante", () => {
   test("professor não abre estudante de turma não autorizada", () => {
     assert.equal(canViewEstudante(professorComTurmaA, estudanteEscolaA), true);
     assert.equal(
-      canViewEstudante({ kind: "professor", escolaId: 1, turmas: ["EFAFM7B"] }, estudanteEscolaA),
+      canViewEstudante({ kind: "professor", atribuicoes: [{ escolaId: 1, turma: "EFAFM7B" }] }, estudanteEscolaA),
       false,
     );
+  });
+
+  test("professor não abre estudante de outra escola mesmo com código de turma igual (ETAPA 06)", () => {
+    const estudanteEscolaB = { id: 20, escolaId: 2, turmaSerie: "EFAFM6A" };
+    assert.equal(canViewEstudante(professorComTurmaA, estudanteEscolaB), false);
+    assert.equal(canViewEstudante(professorDuasEscolasMesmoCodigo, estudanteEscolaB), true);
   });
 
   test("professor sem turma nenhuma não vê nenhum estudante da escola", () => {
