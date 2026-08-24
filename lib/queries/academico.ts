@@ -176,3 +176,128 @@ export async function getAlunoDetalheCompleto(
 
   return { estudante, notas, frequencias, janelaFrequencia };
 }
+
+export interface FiltroTurmasRede {
+  ano: number;
+  escolaId?: number;
+  serie?: string;
+  turno?: string;
+}
+
+export interface TurmaRedeResumo {
+  escolaId: number;
+  nomeEscola: string;
+  turma: string;
+  serie: string | null;
+  turno: string | null;
+  totalAlunos: number;
+  totalDocentes: number;
+  frequenciaPercentual: number | null;
+  desempenhoMedia: number | null;
+}
+
+/**
+ * Visão de rede por turma — o master prompt pede uma rota nova para quando
+ * "a pergunta começa por série/turma, não por escola" (hoje as turmas só
+ * são acessíveis dentro da ficha da escola). Cada linha abre a mesma ficha
+ * de turma já existente (`TurmaDetalheView`); esta função não cria um
+ * segundo cálculo de frequência/desempenho — agrega os mesmos dados por
+ * turma em vez de por escola, no mesmo espírito de
+ * `getFrequenciaPorEscola`/`getDesempenhoPorEscola` (uma consulta agregada
+ * cada, não uma consulta por turma).
+ *
+ * Matrícula da turma usa a atribuição ATUAL do estudante (mesma convenção
+ * de `getTurmaDetalhe`), não histórica.
+ */
+export async function getTurmasRede(filtro: FiltroTurmasRede): Promise<TurmaRedeResumo[]> {
+  const janelaAno = { gte: `${filtro.ano}-01-01`, lte: `${filtro.ano}-12-31` };
+
+  const [alunos, escolas, servidorTurmas, somaFrequencia, notasDoAno] = await Promise.all([
+    prisma.estudante.findMany({
+      where: { turmaSerie: { not: null }, ...(filtro.escolaId ? { escolaId: filtro.escolaId } : {}) },
+      select: { matricula: true, escolaId: true, turmaSerie: true },
+    }),
+    prisma.escola.findMany({ select: { id: true, nome: true } }),
+    prisma.servidorTurma.findMany({ select: { escolaId: true, turma: true, turno: true, servidorId: true } }),
+    prisma.frequenciaEstudante.groupBy({
+      by: ["estudanteMatricula"],
+      where: { data: janelaAno },
+      _sum: { falta: true, quantidadeAula: true },
+    }),
+    prisma.notaEstudante.findMany({ where: { ano: filtro.ano }, select: { nota: true, turma: true, escola: true } }),
+  ]);
+
+  const nomePorEscola = new Map(escolas.map((e) => [e.id, e.nome]));
+  const idPorNomeEscola = new Map(escolas.map((e) => [e.nome, e.id]));
+
+  const turmasUnicas = Array.from(new Set(alunos.map((a) => a.turmaSerie as string)));
+  const series = await getSeriePorTurma(turmasUnicas);
+
+  interface Acumulado {
+    escolaId: number;
+    turma: string;
+    totalAlunos: number;
+    aulas: number;
+    faltas: number;
+    somaNotas: number;
+    totalNotas: number;
+  }
+  const porTurma = new Map<string, Acumulado>();
+  const chave = (escolaId: number, turma: string) => `${escolaId}:${turma}`;
+
+  for (const aluno of alunos) {
+    const turma = aluno.turmaSerie as string;
+    const k = chave(aluno.escolaId, turma);
+    const acc = porTurma.get(k) ?? { escolaId: aluno.escolaId, turma, totalAlunos: 0, aulas: 0, faltas: 0, somaNotas: 0, totalNotas: 0 };
+    acc.totalAlunos += 1;
+    porTurma.set(k, acc);
+  }
+
+  const escolaTurmaPorMatricula = new Map(alunos.map((a) => [a.matricula, { escolaId: a.escolaId, turma: a.turmaSerie as string }]));
+  for (const f of somaFrequencia) {
+    const local = escolaTurmaPorMatricula.get(f.estudanteMatricula);
+    if (!local) continue;
+    const acc = porTurma.get(chave(local.escolaId, local.turma));
+    if (!acc) continue;
+    acc.aulas += f._sum.quantidadeAula ?? 0;
+    acc.faltas += f._sum.falta ?? 0;
+  }
+
+  for (const n of notasDoAno) {
+    if (!n.turma || !n.escola) continue;
+    const escolaId = idPorNomeEscola.get(n.escola);
+    if (escolaId === undefined) continue; // nome de escola sem correspondência — ver getEscolasNaoMapeadas
+    const acc = porTurma.get(chave(escolaId, n.turma));
+    if (!acc) continue; // turma sem nenhum aluno atualmente matriculado (ex.: turma extinta) — fora da listagem
+    acc.somaNotas += n.nota;
+    acc.totalNotas += 1;
+  }
+
+  const docentesPorTurma = new Map<string, number>();
+  const turnoPorTurma = new Map<string, string>();
+  for (const st of servidorTurmas) {
+    const k = chave(st.escolaId, st.turma);
+    docentesPorTurma.set(k, (docentesPorTurma.get(k) ?? 0) + 1);
+    if (st.turno && !turnoPorTurma.has(k)) turnoPorTurma.set(k, st.turno);
+  }
+
+  let resultado: TurmaRedeResumo[] = Array.from(porTurma.values()).map((acc) => {
+    const k = chave(acc.escolaId, acc.turma);
+    return {
+      escolaId: acc.escolaId,
+      nomeEscola: nomePorEscola.get(acc.escolaId) ?? `Escola ${acc.escolaId}`,
+      turma: acc.turma,
+      serie: series.get(acc.turma) ?? null,
+      turno: turnoPorTurma.get(k) ?? null,
+      totalAlunos: acc.totalAlunos,
+      totalDocentes: docentesPorTurma.get(k) ?? 0,
+      frequenciaPercentual: calcularPercentualFrequencia(acc.aulas, acc.faltas),
+      desempenhoMedia: acc.totalNotas > 0 ? acc.somaNotas / acc.totalNotas : null,
+    };
+  });
+
+  if (filtro.serie) resultado = resultado.filter((t) => t.serie === filtro.serie);
+  if (filtro.turno) resultado = resultado.filter((t) => t.turno === filtro.turno);
+
+  return resultado.sort((a, b) => a.nomeEscola.localeCompare(b.nomeEscola) || a.turma.localeCompare(b.turma));
+}

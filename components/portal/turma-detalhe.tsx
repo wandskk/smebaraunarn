@@ -1,13 +1,27 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { GraduationCap, CalendarCheck, CalendarX } from "lucide-react";
+import { GraduationCap, CalendarCheck, CalendarX, AlertTriangle } from "lucide-react";
 import { formatTurmaLabel, getTurmaDetalhe } from "@/lib/queries/academico";
+import { getEstudantesEmSequenciaDeFaltas } from "@/lib/queries/frequencia";
 import { PageHeader } from "@/components/ui/page-header";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { MetricCard } from "@/components/ui/metric-card";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+
+const GRAVIDADE_BADGE_VARIANT: Record<string, BadgeVariant> = {
+  atencao: "warning",
+  alerta: "warning",
+  critico: "danger",
+};
+
+const GRAVIDADE_LABEL: Record<string, string> = {
+  atencao: "Atenção",
+  alerta: "Alerta",
+  critico: "Crítico",
+};
 
 export interface TurmaDetalheViewProps {
   escolaId: number;
@@ -41,7 +55,10 @@ export async function TurmaDetalheView({
   alunoHref,
   paginationBasePath,
 }: TurmaDetalheViewProps) {
-  const detalhe = await getTurmaDetalhe(escolaId, turma, anoAtual);
+  const [detalhe, emSequenciaDeFaltas] = await Promise.all([
+    getTurmaDetalhe(escolaId, turma, anoAtual),
+    getEstudantesEmSequenciaDeFaltas(escolaId, turma),
+  ]);
 
   const q = searchParams.q?.trim().toLowerCase();
   const alunosFiltrados = q
@@ -83,6 +100,49 @@ export async function TurmaDetalheView({
           accent="education"
         />
       </div>
+
+      {emSequenciaDeFaltas.length > 0 && (
+        <>
+          <h2 className="mt-8 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            Faltas consecutivas agora ({emSequenciaDeFaltas.length})
+          </h2>
+          <p className="mt-1 text-xs text-foreground-muted/70">
+            Alunos com falta em todo dia letivo registrado nos últimos 20 dias corridos, sem nenhuma presença no
+            meio — sinal de agora, independente do ano letivo selecionado acima.
+          </p>
+          <div className="mt-3">
+            <DataTable>
+              <TableHeader>
+                <tr>
+                  <TableHeadCell>Nome</TableHeadCell>
+                  <TableHeadCell>Matrícula</TableHeadCell>
+                  <TableHeadCell>Dias consecutivos</TableHeadCell>
+                  <TableHeadCell>Gravidade</TableHeadCell>
+                  <TableHeadCell className="text-right">Ações</TableHeadCell>
+                </tr>
+              </TableHeader>
+              <TableBody>
+                {emSequenciaDeFaltas.map((a) => (
+                  <TableRow key={a.estudanteId}>
+                    <TableCell className="font-medium text-foreground">{a.nome}</TableCell>
+                    <TableCell className="text-foreground-muted">{a.matricula}</TableCell>
+                    <TableCell className="text-foreground-muted">{a.diasConsecutivos}</TableCell>
+                    <TableCell>
+                      <Badge variant={GRAVIDADE_BADGE_VARIANT[a.gravidade]}>{GRAVIDADE_LABEL[a.gravidade]}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={alunoHref(a.estudanteId)} className="text-primary hover:underline">
+                        Ver detalhes
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </DataTable>
+          </div>
+        </>
+      )}
 
       {detalhe.notasPorDisciplina.length > 0 && (
         <>

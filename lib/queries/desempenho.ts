@@ -18,6 +18,10 @@ export const NOTA_MINIMA_ESPERADA_PADRAO = 6;
 export interface FiltroDesempenhoPorEscola {
   anoLetivo: number;
   notaMinimaEsperada?: number;
+  /** Sem filtro, mistura todas as disciplinas — útil para visão geral, mas esconde diferença entre componentes. */
+  disciplina?: string;
+  /** Bimestre (1-4, ver TOTAL_UNIDADES_ANO em components/portal/grade-table.tsx). */
+  unidade?: number;
 }
 
 export interface DesempenhoEscola {
@@ -51,7 +55,11 @@ export async function getDesempenhoPorEscola(filtro: FiltroDesempenhoPorEscola):
 
   const [notas, escolas] = await Promise.all([
     prisma.notaEstudante.findMany({
-      where: { ano: filtro.anoLetivo },
+      where: {
+        ano: filtro.anoLetivo,
+        ...(filtro.disciplina ? { disciplina: filtro.disciplina } : {}),
+        ...(filtro.unidade ? { unidade: filtro.unidade } : {}),
+      },
       select: { nota: true, escola: true },
     }),
     prisma.escola.findMany({ select: { id: true, nome: true } }),
@@ -83,4 +91,15 @@ export async function getDesempenhoPorEscola(filtro: FiltroDesempenhoPorEscola):
   }
 
   return resultado.sort((a, b) => (a.media ?? 10) - (b.media ?? 10));
+}
+
+/** Disciplinas com nota lançada no ano — alimenta o filtro de `/admin/indicadores/aprendizagem`, sem inventar uma lista fixa. */
+export async function getDisciplinasComNota(anoLetivo: number): Promise<string[]> {
+  const linhas = await prisma.notaEstudante.findMany({
+    where: { ano: anoLetivo },
+    distinct: ["disciplina"],
+    select: { disciplina: true },
+    orderBy: { disciplina: "asc" },
+  });
+  return linhas.map((l) => l.disciplina);
 }

@@ -4,12 +4,122 @@ import {
   calcularPercentualFrequencia,
   calcularVariacaoFrequencia,
   classificarFaixaFrequencia,
+  faltasConsecutivasAtuais,
+  classificarGravidadeFaltasConsecutivas,
   FAIXAS_PADRAO_FREQUENCIA,
+  LIMIARES_PADRAO_FALTAS_CONSECUTIVAS,
   type FaixaFrequencia,
   type FaixasFrequencia,
   type VariacaoFrequencia,
+  type RegistroDiario,
+  type GravidadeFaltasConsecutivas,
 } from "@/lib/analytics/frequencia";
 import { resolverMatriculaPorAno } from "@/lib/queries/distorcao";
+
+/** Janela padrão para detectar sequência de faltas "em andamento agora" — sinal de tempo real, não histórico. */
+const DIAS_JANELA_FALTAS_CONSECUTIVAS = 20;
+
+/**
+ * Um `RegistroDiario` por (estudante, dia) a partir de `FrequenciaEstudante`
+ * — a origem grava por disciplina/aula, várias linhas no mesmo dia; aqui
+ * somamos as faltas do dia e consideramos "faltou" quando a soma é > 0.
+ * `groupBy` faz essa agregação em uma única query, independente de quantos
+ * estudantes/turmas existam na janela.
+ */
+async function buscarRegistrosDiariosPorJanela(inicio: string, fim: string): Promise<Map<string, RegistroDiario[]>> {
+  const linhas = await prisma.frequenciaEstudante.groupBy({
+    by: ["estudanteMatricula", "data"],
+    where: { data: { gte: inicio, lte: fim } },
+    _sum: { falta: true },
+  });
+
+  const porMatricula = new Map<string, RegistroDiario[]>();
+  for (const l of linhas) {
+    const lista = porMatricula.get(l.estudanteMatricula) ?? [];
+    lista.push({ data: l.data, faltou: (l._sum.falta ?? 0) > 0 });
+    porMatricula.set(l.estudanteMatricula, lista);
+  }
+  return porMatricula;
+}
+
+export interface EstudanteEmSequenciaFaltas {
+  estudanteId: number;
+  nome: string;
+  matricula: string;
+  diasConsecutivos: number;
+  gravidade: GravidadeFaltasConsecutivas;
+}
+
+/**
+ * Estudantes de uma turma com sequência de faltas em andamento (dias letivos
+ * consecutivos sem presença, motor em lib/analytics/frequencia.ts) — sinal de
+ * "agora", não recorte de ano letivo: sempre olha os últimos
+ * `DIAS_JANELA_FALTAS_CONSECUTIVAS` dias corridos a partir de hoje. Turmas
+ * matriculam pela atribuição ATUAL do estudante (mesma convenção de
+ * `getTurmaDetalhe`), não histórica.
+ */
+export async function getEstudantesEmSequenciaDeFaltas(
+  escolaId: number,
+  turma: string,
+  hoje: Date = new Date(),
+): Promise<EstudanteEmSequenciaFaltas[]> {
+  const janela = calcularJanelaDias(hoje, DIAS_JANELA_FALTAS_CONSECUTIVAS);
+  const [alunos, registrosPorMatricula] = await Promise.all([
+    prisma.estudante.findMany({ where: { escolaId, turmaSerie: turma }, select: { id: true, nome: true, matricula: true } }),
+    buscarRegistrosDiariosPorJanela(janela.inicio, janela.fim),
+  ]);
+
+  const resultado: EstudanteEmSequenciaFaltas[] = [];
+  for (const aluno of alunos) {
+    const registros = registrosPorMatricula.get(aluno.matricula) ?? [];
+    const dias = faltasConsecutivasAtuais(registros);
+    const gravidade = classificarGravidadeFaltasConsecutivas(dias);
+    if (gravidade === "nenhuma") continue;
+    resultado.push({ estudanteId: aluno.id, nome: aluno.nome, matricula: aluno.matricula, diasConsecutivos: dias, gravidade });
+  }
+
+  return resultado.sort((a, b) => b.diasConsecutivos - a.diasConsecutivos);
+}
+
+export interface ContagemFaltasConsecutivasEscola {
+  atencao: number;
+  alerta: number;
+  critico: number;
+  total: number;
+}
+
+/**
+ * Mesmo motor de `getEstudantesEmSequenciaDeFaltas`, mas para toda a rede de
+ * uma vez (usado por `/admin/indicadores/frequencia`) — uma única consulta
+ * agregada em vez de uma por escola/turma, mesmo padrão de
+ * `somarFrequenciaPorEstudante` abaixo.
+ */
+export async function getContagemFaltasConsecutivasPorEscola(
+  hoje: Date = new Date(),
+): Promise<Map<number, ContagemFaltasConsecutivasEscola>> {
+  const janela = calcularJanelaDias(hoje, DIAS_JANELA_FALTAS_CONSECUTIVAS);
+  const [alunos, registrosPorMatricula] = await Promise.all([
+    prisma.estudante.findMany({ select: { matricula: true, escolaId: true } }),
+    buscarRegistrosDiariosPorJanela(janela.inicio, janela.fim),
+  ]);
+
+  const porEscola = new Map<number, ContagemFaltasConsecutivasEscola>();
+  for (const aluno of alunos) {
+    const registros = registrosPorMatricula.get(aluno.matricula) ?? [];
+    const dias = faltasConsecutivasAtuais(registros);
+    const gravidade = classificarGravidadeFaltasConsecutivas(dias);
+    if (gravidade === "nenhuma") continue;
+
+    const acumulado = porEscola.get(aluno.escolaId) ?? { atencao: 0, alerta: 0, critico: 0, total: 0 };
+    acumulado[gravidade] += 1;
+    acumulado.total += 1;
+    porEscola.set(aluno.escolaId, acumulado);
+  }
+
+  return porEscola;
+}
+
+export { LIMIARES_PADRAO_FALTAS_CONSECUTIVAS };
 
 export interface JanelaComparativa {
   atualInicio: string;

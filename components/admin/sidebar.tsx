@@ -10,6 +10,7 @@ import {
   GaugeCircle,
   GraduationCap,
   LayoutDashboard,
+  LayoutGrid,
   RefreshCw,
   School,
   Users,
@@ -49,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
     accent: "success",
     items: [
       { href: "/admin/escolas", label: "Escolas", icon: School },
+      { href: "/admin/turmas", label: "Turmas", icon: LayoutGrid },
       { href: "/admin/estudantes", label: "Estudantes", icon: GraduationCap },
       { href: "/admin/servidores", label: "Servidores", icon: Users },
     ],

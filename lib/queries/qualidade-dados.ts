@@ -194,3 +194,123 @@ export async function getColisoesCodigoTurma(): Promise<ColisaoCodigoTurma[]> {
     })
     .sort((a, b) => Number(b.divergente) - Number(a.divergente) || a.turma.localeCompare(b.turma));
 }
+
+export interface ChecagemCompletude {
+  campo: string;
+  impacto: string;
+  ausentes: number;
+  total: number;
+  /** null quando `total` é 0 — não dá pra calcular percentual de nada. */
+  percentualAusente: number | null;
+}
+
+/**
+ * Completude por campo — responde "esse número que estou vendo é confiável?"
+ * em vez de só "a sincronização rodou?" (a saúde de sincronização acima já
+ * cobre isso). Cada checagem usa `count()` diretamente no banco, não
+ * `findMany` + filtro em memória — mesmo em anos com muitos registros, o
+ * custo de cada checagem é um único `COUNT`.
+ */
+export async function getCompletudeDados(): Promise<ChecagemCompletude[]> {
+  const [
+    totalEstudantes,
+    estudantesSemNascimento,
+    estudantesSemCpf,
+    totalServidores,
+    servidoresSemEscola,
+    totalNotas,
+    notasSemEscola,
+    notasSemSerie,
+    totalFrequencias,
+    frequenciasSemEscola,
+  ] = await Promise.all([
+    prisma.estudante.count(),
+    prisma.estudante.count({ where: { dataNascimento: null } }),
+    prisma.estudante.count({ where: { cpf: null } }),
+    prisma.servidor.count(),
+    prisma.servidor.count({ where: { escolaId: null } }),
+    prisma.notaEstudante.count(),
+    prisma.notaEstudante.count({ where: { escola: null } }),
+    prisma.notaEstudante.count({ where: { serie: null } }),
+    prisma.frequenciaEstudante.count(),
+    prisma.frequenciaEstudante.count({ where: { escola: null } }),
+  ]);
+
+  const pct = (ausentes: number, total: number) => (total > 0 ? (ausentes / total) * 100 : null);
+
+  return [
+    {
+      campo: "Estudantes sem data de nascimento",
+      impacto: "Impede o cálculo de distorção idade-série para esses estudantes.",
+      ausentes: estudantesSemNascimento,
+      total: totalEstudantes,
+      percentualAusente: pct(estudantesSemNascimento, totalEstudantes),
+    },
+    {
+      campo: "Estudantes sem CPF",
+      impacto: "Impede login do Aluno/responsável por CPF e busca de resultado de avaliação por CPF.",
+      ausentes: estudantesSemCpf,
+      total: totalEstudantes,
+      percentualAusente: pct(estudantesSemCpf, totalEstudantes),
+    },
+    {
+      campo: "Servidores sem escola vinculada",
+      impacto: "Servidor não aparece em nenhuma ficha de escola/turma; se tiver usuário provisionado, o portal não terá contexto de escola.",
+      ausentes: servidoresSemEscola,
+      total: totalServidores,
+      percentualAusente: pct(servidoresSemEscola, totalServidores),
+    },
+    {
+      campo: "Notas sem escola no registro",
+      impacto: "Essas notas não entram em nenhum indicador por escola (Aprendizagem, Comparativos) — só na média geral da rede.",
+      ausentes: notasSemEscola,
+      total: totalNotas,
+      percentualAusente: pct(notasSemEscola, totalNotas),
+    },
+    {
+      campo: "Notas sem série no registro",
+      impacto: "Essas notas não contribuem para a resolução de série da turma (usada pela distorção idade-série).",
+      ausentes: notasSemSerie,
+      total: totalNotas,
+      percentualAusente: pct(notasSemSerie, totalNotas),
+    },
+    {
+      campo: "Frequência sem escola no registro",
+      impacto: "Esses registros de frequência não entram no indicador de frequência por escola — só afetam a ficha individual do estudante.",
+      ausentes: frequenciasSemEscola,
+      total: totalFrequencias,
+      percentualAusente: pct(frequenciasSemEscola, totalFrequencias),
+    },
+  ];
+}
+
+export interface EscolaNaoMapeada {
+  nome: string;
+  origem: "notas" | "frequencia";
+}
+
+/**
+ * Nomes de escola (texto livre em `NotaEstudante.escola`/`FrequenciaEstudante.escola`)
+ * que não correspondem a nenhuma `Escola` sincronizada — cada um representa
+ * um grupo de registros invisível aos indicadores por escola (ver checagens
+ * acima). Conta nomes distintos, não linhas — o volume de linhas já está
+ * coberto por `getCompletudeDados` via outra dimensão (ausência, não
+ * divergência).
+ */
+export async function getEscolasNaoMapeadas(): Promise<EscolaNaoMapeada[]> {
+  const [nomesNotas, nomesFrequencia, escolas] = await Promise.all([
+    prisma.notaEstudante.findMany({ where: { escola: { not: null } }, distinct: ["escola"], select: { escola: true } }),
+    prisma.frequenciaEstudante.findMany({ where: { escola: { not: null } }, distinct: ["escola"], select: { escola: true } }),
+    prisma.escola.findMany({ select: { nome: true } }),
+  ]);
+
+  const nomesEscolas = new Set(escolas.map((e) => e.nome));
+  const resultado: EscolaNaoMapeada[] = [];
+  for (const n of nomesNotas) {
+    if (n.escola && !nomesEscolas.has(n.escola)) resultado.push({ nome: n.escola, origem: "notas" });
+  }
+  for (const n of nomesFrequencia) {
+    if (n.escola && !nomesEscolas.has(n.escola)) resultado.push({ nome: n.escola, origem: "frequencia" });
+  }
+  return resultado.sort((a, b) => a.nome.localeCompare(b.nome));
+}

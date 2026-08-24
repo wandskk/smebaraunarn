@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
-import { getStatusSincronizacao, getColisoesCodigoTurma, ROTULO_MODULO, rotuloModulo } from "@/lib/queries/qualidade-dados";
+import {
+  getStatusSincronizacao,
+  getColisoesCodigoTurma,
+  getCompletudeDados,
+  getEscolasNaoMapeadas,
+  ROTULO_MODULO,
+  rotuloModulo,
+} from "@/lib/queries/qualidade-dados";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
@@ -27,9 +34,11 @@ function StatusLogBadge({ status }: { status: string }) {
 }
 
 export default async function QualidadeDadosPage() {
-  const [{ modulos, historico }, colisoes] = await Promise.all([
+  const [{ modulos, historico }, colisoes, completude, escolasNaoMapeadas] = await Promise.all([
     getStatusSincronizacao(),
     getColisoesCodigoTurma(),
+    getCompletudeDados(),
+    getEscolasNaoMapeadas(),
   ]);
 
   const colisoesDivergentes = colisoes.filter((c) => c.divergente);
@@ -116,6 +125,54 @@ export default async function QualidadeDadosPage() {
               </p>
             ))}
         </div>
+      )}
+
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">Completude por campo</h2>
+      <p className="mt-1 max-w-2xl text-sm text-foreground-muted">
+        A sincronização pode rodar com SUCESSO e ainda assim faltar dado em campos específicos — isso não aparece na
+        saúde de sincronização acima, só olhando campo a campo.
+      </p>
+      <div className="mt-3">
+        <DataTable>
+          <TableHeader>
+            <tr>
+              <TableHeadCell>Campo</TableHeadCell>
+              <TableHeadCell>Ausentes</TableHeadCell>
+              <TableHeadCell>% do total</TableHeadCell>
+              <TableHeadCell>Impacto</TableHeadCell>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            {completude.map((c) => (
+              <TableRow key={c.campo}>
+                <TableCell className="font-medium text-foreground">{c.campo}</TableCell>
+                <TableCell className="text-foreground-muted">
+                  {formatNumber(c.ausentes)} / {formatNumber(c.total)}
+                </TableCell>
+                <TableCell>
+                  {c.percentualAusente === null ? (
+                    "-"
+                  ) : c.percentualAusente > 0 ? (
+                    <span className="font-semibold text-warning-subtle-foreground">{c.percentualAusente.toFixed(1)}%</span>
+                  ) : (
+                    <span className="text-success-subtle-foreground">0%</span>
+                  )}
+                </TableCell>
+                <TableCell className="max-w-sm text-xs text-foreground-muted">{c.impacto}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </DataTable>
+      </div>
+
+      {escolasNaoMapeadas.length > 0 && (
+        <p className="mt-3 max-w-2xl rounded-lg bg-warning-subtle px-3 py-2 text-sm text-warning-subtle-foreground">
+          <strong>{escolasNaoMapeadas.length} nome(s) de escola sem correspondência</strong> a uma Escola cadastrada,
+          em registros de notas/frequência:{" "}
+          {escolasNaoMapeadas.map((e) => e.nome).join(", ")}. Esses registros contam nos totais acima
+          (&quot;sem escola&quot; quando o campo é vazio) ou ficam de fora dos indicadores por escola quando o nome
+          não bate com nenhuma escola sincronizada.
+        </p>
       )}
 
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">

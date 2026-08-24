@@ -2,13 +2,16 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
-import { getDesempenhoPorEscola, NOTA_MINIMA_ESPERADA_PADRAO } from "@/lib/queries/desempenho";
+import { getDesempenhoPorEscola, getDisciplinasComNota, NOTA_MINIMA_ESPERADA_PADRAO } from "@/lib/queries/desempenho";
+import { TOTAL_UNIDADES_ANO } from "@/components/portal/grade-table";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
-  searchParams: { ano?: string };
+  searchParams: { ano?: string; disciplina?: string; unidade?: string };
 }
 
 function formatarNota(valor: number | null): string {
@@ -19,8 +22,13 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
   const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
   const anosDisponiveis = anosRows.map((r) => r.ano);
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+  const disciplina = searchParams.disciplina?.trim() || undefined;
+  const unidade = searchParams.unidade ? Number(searchParams.unidade) : undefined;
 
-  const escolas = await getDesempenhoPorEscola({ anoLetivo });
+  const [escolas, disciplinasDisponiveis] = await Promise.all([
+    getDesempenhoPorEscola({ anoLetivo, disciplina, unidade }),
+    getDisciplinasComNota(anoLetivo),
+  ]);
 
   return (
     <div>
@@ -37,11 +45,49 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
             Duas escolas com a mesma média podem ter realidades bem diferentes — por isso a distribuição importa
             mais que a média isolada. Mediana e percentis (P25/P75) mostram a nota típica e a dispersão; a proporção
             abaixo de {NOTA_MINIMA_ESPERADA_PADRAO.toFixed(1)} usa o critério provisório de aprovação (ainda não
-            confirmado pela Secretaria — ver docs/PLANO_DESENVOLVIMENTO.md). Ano letivo {anoLetivo}. Lista ordenada
-            da média mais baixa para a mais alta.
+            confirmado pela Secretaria — ver docs/PLANO_DESENVOLVIMENTO.md). Ano letivo {anoLetivo}
+            {disciplina && ` · ${disciplina}`}
+            {unidade && ` · ${unidade}ª unidade`}. Lista ordenada da média mais baixa para a mais alta.
           </>
         }
       />
+
+      <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
+        {searchParams.ano && <input type="hidden" name="ano" value={searchParams.ano} />}
+        <div className="w-56">
+          <label className="mb-1 block text-xs text-foreground-muted">Disciplina</label>
+          <Select name="disciplina" defaultValue={searchParams.disciplina ?? ""}>
+            <option value="">Todas</option>
+            {disciplinasDisponiveis.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-40">
+          <label className="mb-1 block text-xs text-foreground-muted">Unidade</label>
+          <Select name="unidade" defaultValue={searchParams.unidade ?? ""}>
+            <option value="">Todas</option>
+            {Array.from({ length: TOTAL_UNIDADES_ANO }, (_, i) => i + 1).map((u) => (
+              <option key={u} value={u}>
+                {u}ª unidade
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Button type="submit" variant="secondary">
+          Filtrar
+        </Button>
+        {(disciplina || unidade) && (
+          <Link
+            href={searchParams.ano ? `/admin/indicadores/aprendizagem?ano=${searchParams.ano}` : "/admin/indicadores/aprendizagem"}
+            className="text-sm text-primary hover:underline"
+          >
+            Limpar filtros
+          </Link>
+        )}
+      </form>
 
       <div className="mt-6">
         <DataTable>

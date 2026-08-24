@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 09)
+**Última atualização:** 2026-08-24 (ETAPA 10)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -20,12 +20,59 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 07 | Aluno P0 | **DONE** | 2026-08-24 |
 | 08 | Servidor Geral P0 | **DONE** | 2026-08-24 |
 | 09 | Avaliações Municipais | **DONE** | 2026-08-24 |
-| 10 | P1: evolução funcional | PENDING | — |
+| 10 | P1: evolução funcional | **DONE** (rodada 1 — ver resumo) | 2026-08-24 |
 | 11 | Hardening, regressão e fechamento | PENDING | — |
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 10.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 11**
+(ou para abrir uma nova rodada da ETAPA 10 com um dos blocos P1 ainda não
+selecionados — ver resumo abaixo).
+
+## Resumo da ETAPA 10
+
+Primeira etapa do plano com escopo explicitamente aberto ao usuário antes de
+implementar — o próprio checklist da ETAPA 10 pede priorização, e o backlog
+P1 dos 5 DOCX é grande demais para uma rodada só. Apresentados 4 blocos via
+pergunta ao usuário; **selecionado apenas "Indicadores de rede"**.
+
+1. **Motor de faltas consecutivas (3/5/10) conectado pela primeira vez.**
+   `lib/analytics/frequencia.ts` já tinha `faltasConsecutivasAtuais`/
+   `classificarGravidadeFaltasConsecutivas`, puros e testados desde etapas
+   anteriores, mas nunca ligados a nenhuma query ou tela. Novas
+   `getEstudantesEmSequenciaDeFaltas`/`getContagemFaltasConsecutivasPorEscola`
+   os conectam a dados reais; a seção nova em `TurmaDetalheView`
+   (compartilhada por Admin/Direção/Professor desde a ETAPA 03) leva o
+   drill-down aos 3 perfis de uma vez. `/admin/indicadores/frequencia` ganha
+   a contagem por escola como ponto de entrada do drill-down.
+2. **Filtros de disciplina/unidade em `/admin/indicadores/aprendizagem`** —
+   a distribuição (média/mediana/percentis/proporção) já existia; faltava só
+   o recorte por componente curricular e bimestre.
+3. **Completude por campo em `/admin/indicadores/qualidade`** — 6 checagens
+   novas (nascimento/CPF do estudante, escola do servidor, escola/série da
+   nota, escola da frequência) + lista de nomes de escola sem
+   correspondência a uma `Escola` cadastrada.
+4. **Nova rota `/admin/turmas`** — visão de rede por turma (escola, turno,
+   estudantes, docentes, frequência com faixa, desempenho), com filtros e 3
+   ordenações; cada linha abre a ficha de turma já existente.
+
+**Deliberadamente sem score de atenção** em `/admin/turmas` (frequência e
+desempenho lado a lado, não combinados — mesmo critério da ETAPA 04) e
+**sem migração de schema** (todos os itens usam dados já sincronizados).
+
+**3 dos 4 blocos apresentados ficam como backlog em aberto, não perdidos**:
+importação CSV/XLSX de avaliações (ETAPA 09 já deixou `respostasJson`
+pronto para recebê-la), comunicação/documentos (CMS e Documentos), e itens
+específicos por perfil (Direção: servidores/notas; Aluno: declaração de
+matrícula). Qualquer um pode virar uma nova rodada da ETAPA 10.
+
+Baseline final: `npm test` 193/193 (sem teste novo — itens desta rodada são
+consultas/apresentação sobre motores já testados), `typecheck`/`lint`/
+`build` limpos (66 rotas — 1 nova: `/admin/turmas`). Validação end-to-end
+logada não foi executada — mesma limitação de credenciais das etapas
+anteriores; pendente para a ETAPA 11.
+
+Detalhes completos: [`etapas/10-p1-evolucao-funcional.md`](etapas/10-p1-evolucao-funcional.md).
 
 ## Resumo da ETAPA 09
 
