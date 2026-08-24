@@ -1,6 +1,6 @@
 # Matriz de Reaproveitamento — Núcleo x Perfil
 
-**Status:** atualizada pela última vez na ETAPA 06. Baseada em inspeção do
+**Status:** atualizada pela última vez na ETAPA 07. Baseada em inspeção do
 código real (`app/`, `components/`, `lib/`, `prisma/schema.prisma`) e nos 5
 DOCX em `base/`.
 
@@ -52,13 +52,13 @@ que motivou cada extração):
 | `CapabilityGate` | Existe desde a ETAPA 01 (`components/ui/capability-gate.tsx`); em uso desde a ETAPA 04 em `/admin/usuarios` (lista e detalhe), gate por `usuarios:manage`. |
 | `DataFreshnessBadge` | Existe desde a ETAPA 02 (`components/ui/data-freshness-badge.tsx`); usado em `/admin/indicadores/qualidade` e no dashboard `/admin` (ETAPA 04). |
 | `TurmaDetail` | Existe como `TurmaDetalheView` (`components/portal/turma-detalhe.tsx`, ETAPA 03), usado por Admin e Direção. |
-| `GradeTable` | Existe (`components/portal/grade-table.tsx`, ETAPA 03), usado por `AlunoDetalhe` (Admin/Direção/Professor) e pelo portal do Aluno. |
+| `GradeTable` | Existe (`components/portal/grade-table.tsx`, ETAPA 03), usado por `AlunoDetalhe` (Admin/Direção/Professor) e pelo portal do Aluno. **ETAPA 07** adicionou prop opcional `mostrarCompletude` (coluna "Situação": Final/Parcial x/4 unidades) — ligado só no boletim do Aluno; os demais consumidores continuam com o comportamento anterior. |
 | `ComparisonDelta` | Existe (`components/ui/comparison-delta.tsx`, ETAPA 03); consumido por `/admin/indicadores/frequencia`, `/admin/indicadores/comparativos` e, desde a ETAPA 04, por `/admin/escolas/[id]` — a classificação de favorabilidade continua em cada página, só a apresentação é compartilhada. |
 | `InsightCard` | Existe desde a ETAPA 04 (`components/ui/insight-card.tsx`), consumido pelo bloco "Atenção agora" do dashboard `/admin` (`lib/analytics/atencao.ts` + `lib/queries/atencao.ts`). |
 | `StudentAcademicDetail` | Já existia antes da ETAPA 03 como `AlunoDetalhe` (`components/portal/aluno-detalhe.tsx`), usado por Admin/Direção/Professor. |
 | `SchoolOverview` | **Extraído na ETAPA 05** (`components/portal/school-overview.tsx`) — núcleo "comparação com a rede" (frequência/desempenho/distorção vs. referência de rede), usado por `/admin/escolas/[id]` (Admin escolhe a escola) e pela Home da Direção (`SchoolScope`, escola fixa na sessão). Ainda **sem** as tabs completas (Turmas/Servidores/Estudantes/Avaliações) do DOCX — cada perfil continua tendo suas próprias rotas de turmas/estudantes/avaliações; só o bloco de comparação com a rede é o núcleo compartilhado hoje. |
 | `AttendanceSummary`, `AttendanceTable`, `AcademicContextBar`/`AnalysisScopeBar`, `MethodologyNote`, `FunctionalDataCard`, `AssignmentSummary` | Avaliados nas ETAPAs 02/03/05 e **deliberadamente não criados** — sem duplicação real hoje para consolidar. |
-| `CoverageCard`, `EvaluationSummary` | Ainda não extraídos como componente — a ETAPA 05 implementou cobertura (esperado × realizado por turma) inline em `/portal/direcao/avaliacoes/[id]` (só um caso de uso até agora). Candidatos a extração quando o Admin ganhar uma tela equivalente (ETAPA 09, Avaliações Municipais). |
+| `CoverageCard`, `EvaluationSummary` | Ainda não extraídos como componente — a ETAPA 05 implementou cobertura (esperado × realizado por turma) inline em `/portal/direcao/avaliacoes/[id]` (só um caso de uso até agora). `lib/queries/avaliacoes.ts` (`TIPO_AVALIACAO_LABEL`/`NIVEL_FLUENCIA_LABEL`) já tem 3 consumidores (Admin, Diretor, e desde a ETAPA 07, Aluno via `getAvaliacoesResultadosPorEstudante`) — a query está pronta, falta extrair a apresentação quando o Admin ganhar uma tela equivalente (ETAPA 09). |
 
 As telas de Admin/Diretor/Professor/Aluno continuam, fora desses pontos já
 consolidados, implementando suas próprias views sobre `lib/queries/*`
@@ -128,12 +128,14 @@ Pontos já confirmados como estruturalmente frágeis:
 
 Scopes reais (ETAPA 01), componentes acadêmicos reais (ETAPA 03), a
 extração de `SchoolOverview`/`getInsightsAtencaoEscola` com `SchoolScope`
-(ETAPA 05) e a migração de `ServidorTurma`/`ProfessorScope` para atribuições
-por tupla `(escolaId, turma)` (ETAPA 06) já foram incorporados às seções 1,
-3 e 6 acima — a coluna "Professor" da matriz da seção 5 (Turma/Aluno/Notas/
-Frequência) deixou de depender de um `escolaId` único e frágil e passou a
-usar o mesmo tipo de reaproveitamento que Diretor já tinha (`TurmaDetail`
-compartilhado, agora com escopo por atribuição real). Próxima revisão
-prevista ao final da ETAPA 07 (Aluno P0), que deve consolidar a política de
-"90 registros → período explícito" no último perfil que ainda a usa dessa
-forma antiga.
+(ETAPA 05), a migração de `ServidorTurma`/`ProfessorScope` para atribuições
+por tupla `(escolaId, turma)` (ETAPA 06) e o encerramento da política "90
+registros" no último perfil que ainda a usava dessa forma — o Aluno, já
+corrigido na ETAPA 02, a ETAPA 07 tratou o restante do escopo (faltas
+abonadas, seletor de período/ano, completude do boletim, avaliações
+próprias) — já foram incorporados às seções 1, 3 e 6 acima. A coluna
+"Aluno" da matriz da seção 5 ganhou sua própria tela de Avaliações
+Municipais (antes só Admin/Diretor/Professor tinham visão de avaliação).
+Próxima revisão prevista ao final da ETAPA 08 (Servidor Geral P0), o
+último perfil individual antes da consolidação transversal de Avaliações
+Municipais (ETAPA 09).

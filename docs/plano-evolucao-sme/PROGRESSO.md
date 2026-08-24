@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 06)
+**Última atualização:** 2026-08-24 (ETAPA 07)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -17,7 +17,7 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 04 | Admin P0 | **DONE** | 2026-08-24 |
 | 05 | Diretor P0 | **DONE** | 2026-08-24 |
 | 06 | Professor P0 | **DONE** | 2026-08-24 |
-| 07 | Aluno P0 | PENDING | — |
+| 07 | Aluno P0 | **DONE** | 2026-08-24 |
 | 08 | Servidor Geral P0 | PENDING | — |
 | 09 | Avaliações Municipais | PENDING | — |
 | 10 | P1: evolução funcional | PENDING | — |
@@ -25,7 +25,45 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 07.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 08.**
+
+## Resumo da ETAPA 07
+
+Levantamento inicial mostrou que os 2 achados P0 mais citados no master
+prompt para este perfil ("frequência sem aulas retorna 100%" e "90
+registros em vez de período real") **já tinham sido corrigidos na ETAPA
+02** — o trabalho real desta etapa foi o restante do escopo, em 4 frentes:
+
+1. **Frequência**: "faltas abonadas" media linhas marcadas `abonada=true`,
+   não a quantidade real de faltas nesses registros (um registro pode
+   representar mais de uma aula/falta) — corrigido para somar `falta` só
+   dos registros abonados. Seletor de período (7/30/60/90 dias, antes
+   fixo em 90) + badge de atualização de FREQUENCIA.
+2. **Boletim**: seletor de ano visível (antes só aceitava `?ano` sem UI) +
+   aviso de médias parciais + nova coluna opcional de completude
+   (`x/4 unidades`) no `GradeTable` compartilhado (opt-in, não muda
+   Admin/Direção/Professor) + badge de NOTAS.
+3. **Home**: reescrita para "resumo dos últimos 30 dias" (frequência,
+   disciplinas com nota lançada, última avaliação municipal) no topo;
+   NIS/filiação/responsável movidos para bloco `<details>` recolhível.
+4. **Avaliações Municipais próprias**: novas `/portal/aluno/avaliacoes`
+   (lista) e `/portal/aluno/avaliacoes/[id]` (detalhe + evolução pessoal
+   por tipo, sem ranking) — reaproveita `lib/queries/avaliacoes.ts` e os
+   rótulos já centralizados na ETAPA 05.
+
+**Itens deliberadamente adiados**: filtros de ano/tipo na lista de
+avaliações (lista por estudante tende a ser pequena); declaração de
+matrícula (fora do escopo P0 explícito, "já resolve bem a tarefa
+principal" segundo o próprio documento) — ambos candidatos a P1/ETAPA 10.
+
+Baseline final: `npm test` 184/184 (sem testes novos — mudanças são
+apresentacionais/agregação simples, mesmo padrão de granularidade do
+código que substituíram), `typecheck`/`lint`/`build` limpos (63 rotas).
+Validação end-to-end logada como ALUNO real não foi executada — mesma
+limitação de credenciais das etapas anteriores; fica pendente para a
+ETAPA 11.
+
+Detalhes completos: [`etapas/07-aluno-p0.md`](etapas/07-aluno-p0.md).
 
 ## Resumo da ETAPA 06
 

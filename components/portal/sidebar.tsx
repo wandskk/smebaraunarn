@@ -35,6 +35,7 @@ const NAV_BY_ROLE: Partial<Record<SessionPayload["role"], PortalNavItem[]>> = {
     { href: "/portal/aluno", label: "Início", icon: LayoutDashboard },
     { href: "/portal/aluno/boletim", label: "Boletim", icon: BookOpen },
     { href: "/portal/aluno/frequencia", label: "Frequência", icon: CalendarCheck },
+    { href: "/portal/aluno/avaliacoes", label: "Avaliações Municipais", icon: ClipboardList },
     { href: "/portal/aluno/declaracao", label: "Declaração de Matrícula", icon: FileDown },
   ],
   DIRETOR: [

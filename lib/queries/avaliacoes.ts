@@ -84,6 +84,50 @@ export interface ResultadoAvaliacaoItem {
   palavrasPorMin: number | null;
 }
 
+export interface ResultadoAvaliacaoAluno {
+  id: string;
+  avaliacaoId: string;
+  nome: string;
+  codigo: string;
+  tipo: TipoAvaliacao;
+  ano: number;
+  etapaEnsino: string | null;
+  pontuacao: number | null;
+  nivelDesempenho: NivelFluencia | null;
+  palavrasPorMin: number | null;
+  observacoes: string | null;
+  atualizadoEm: Date;
+}
+
+/**
+ * Resultados de avaliações municipais do PRÓPRIO estudante — usado pelo
+ * portal do Aluno (ETAPA 07). Nunca inclui dado de outro estudante nem
+ * posição/ranking na turma; é só a leitura pessoal do mesmo
+ * `AvaliacaoResultadoAluno` que Admin/Diretor já usam com escopo mais amplo.
+ */
+export async function getAvaliacoesResultadosPorEstudante(estudanteId: number): Promise<ResultadoAvaliacaoAluno[]> {
+  const resultados = await prisma.avaliacaoResultadoAluno.findMany({
+    where: { estudanteId },
+    include: { avaliacao: true },
+    orderBy: [{ avaliacao: { ano: "desc" } }, { updatedAt: "desc" }],
+  });
+
+  return resultados.map((r) => ({
+    id: r.id,
+    avaliacaoId: r.avaliacaoId,
+    nome: r.avaliacao.nome,
+    codigo: r.avaliacao.codigo,
+    tipo: r.avaliacao.tipo,
+    ano: r.avaliacao.ano,
+    etapaEnsino: r.avaliacao.etapaEnsino,
+    pontuacao: r.pontuacao,
+    nivelDesempenho: r.nivelDesempenho,
+    palavrasPorMin: r.palavrasPorMin,
+    observacoes: r.observacoes,
+    atualizadoEm: r.updatedAt,
+  }));
+}
+
 /**
  * Uma linha por avaliação aplicada à escola (agrupada pelo id real da
  * avaliação, nunca pelo nome — edições diferentes com nome igual não se
