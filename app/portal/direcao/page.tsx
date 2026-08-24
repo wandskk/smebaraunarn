@@ -1,49 +1,53 @@
+import Link from "next/link";
 import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { getComparativosPorEscola } from "@/lib/queries/comparativos";
+import { getInsightsAtencaoEscola } from "@/lib/queries/atencao";
+import { getStatusSincronizacao, ROTULO_MODULO } from "@/lib/queries/qualidade-dados";
+import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
+import { resolverAnoLetivo } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard, type MetricCardAccent } from "@/components/ui/metric-card";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { SchoolOverview } from "@/components/portal/school-overview";
+import { InsightCard } from "@/components/ui/insight-card";
+import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 
-export default async function DirecaoHomePage() {
+interface PageProps {
+  searchParams: { ano?: string };
+}
+
+export default async function DirecaoHomePage({ searchParams }: PageProps) {
   const session = await requireSession(["DIRETOR"]);
   const escolaId = session.escolaId!;
-  const anoAtual = new Date().getFullYear();
 
-  const [totalServidores, totalEstudantes, totalResultadosAvaliacao, totalNotas, totalFrequencias] =
+  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], where: { escolaId }, orderBy: { ano: "desc" } });
+  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+
+  const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
+
+  const [{ escolas: comparativos }, insights, { modulos }, totalServidores, totalEstudantes, totalResultadosAvaliacao] =
     await Promise.all([
+      getComparativosPorEscola({ anoLetivo, ...janela }),
+      getInsightsAtencaoEscola(escolaId, anoLetivo),
+      getStatusSincronizacao(),
       prisma.servidor.count({ where: { escolaId } }),
       prisma.estudante.count({ where: { escolaId } }),
       prisma.avaliacaoResultadoAluno.count({ where: { escolaId } }),
-      prisma.notaEstudante.count({ where: { ano: anoAtual, estudante: { escolaId } } }),
-      prisma.frequenciaEstudante.count({ where: { estudante: { escolaId } } }),
     ]);
 
-  const cards: { href: string; label: string; value: number; icon: typeof Users; accent: MetricCardAccent }[] = [
+  const comparativo = comparativos.find((c) => c.escolaId === escolaId) ?? null;
+  const modulosComProblema = modulos.filter((m) => m.situacao !== "em-dia" || m.execucaoIncompleta);
+
+  const cardsEstrutura: { href: string; label: string; value: number; icon: typeof Users; accent: MetricCardAccent }[] = [
     { href: "/portal/direcao/servidores", label: "Servidores", value: totalServidores, icon: Users, accent: "primary" },
-    {
-      href: "/portal/direcao/estudantes",
-      label: "Estudantes",
-      value: totalEstudantes,
-      icon: GraduationCap,
-      accent: "success",
-    },
-    {
-      href: "/portal/direcao/notas",
-      label: `Notas lançadas (${anoAtual})`,
-      value: totalNotas,
-      icon: BookOpen,
-      accent: "education",
-    },
-    {
-      href: "/portal/direcao/frequencia",
-      label: "Registros de frequência",
-      value: totalFrequencias,
-      icon: CalendarCheck,
-      accent: "attendance",
-    },
+    { href: "/portal/direcao/estudantes", label: "Estudantes", value: totalEstudantes, icon: GraduationCap, accent: "success" },
     {
       href: "/portal/direcao/avaliacoes",
-      label: "Resultados de Avaliações",
+      label: "Resultados de avaliações",
       value: totalResultadosAvaliacao,
       icon: ClipboardList,
       accent: "info",
@@ -52,10 +56,49 @@ export default async function DirecaoHomePage() {
 
   return (
     <div>
-      <PageHeader title="Painel da Direção" description="Visão geral da unidade escolar." />
+      <PageHeader
+        title="Painel da Direção"
+        description="Cockpit da unidade escolar — mesmos cálculos do Admin, escopados à sua escola."
+        actions={
+          anosDisponiveis.length > 1 && (
+            <form method="get" className="flex items-center gap-2">
+              <Select name="ano" defaultValue={anoLetivo}>
+                {anosDisponiveis.map((ano) => (
+                  <option key={ano} value={ano}>
+                    Ano letivo {ano}
+                  </option>
+                ))}
+              </Select>
+              <Button type="submit" variant="secondary">
+                Aplicar
+              </Button>
+            </form>
+          )
+        }
+      />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {cards.map((card) => (
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Atenção agora</h2>
+      {insights.length === 0 ? (
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-foreground-muted">
+          Nenhum ponto de atenção identificado no momento pelas regras vigentes (frequência em queda, desempenho
+          abaixo da rede e distorção elevada).
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {insights.map((insight) => (
+            <InsightCard key={insight.id} insight={insight} />
+          ))}
+        </div>
+      )}
+
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Comparação com a rede — {anoLetivo}</h2>
+      <div className="mt-3">
+        <SchoolOverview comparativo={comparativo} anoLetivo={anoLetivo} />
+      </div>
+
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Estrutura da escola</h2>
+      <div className="mt-3 grid gap-4 sm:grid-cols-3">
+        {cardsEstrutura.map((card) => (
           <MetricCard
             key={card.href}
             href={card.href}
@@ -66,6 +109,26 @@ export default async function DirecaoHomePage() {
           />
         ))}
       </div>
+
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Atualização dos dados</h2>
+      <p className="mt-1 text-xs text-foreground-muted">
+        Cada indicador acima usa a atualização do módulo do qual depende — um sync de Cargos não torna Notas ou
+        Frequência mais recentes.
+      </p>
+      <div className="mt-3 grid gap-2 rounded-xl border border-border bg-surface p-4 sm:grid-cols-3 lg:grid-cols-6">
+        {modulos.map((m) => (
+          <div key={m.modulo} className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-foreground-muted">{ROTULO_MODULO[m.modulo]}</span>
+            <DataFreshnessBadge situacao={m.situacao} />
+          </div>
+        ))}
+      </div>
+      {modulosComProblema.length > 0 && (
+        <p className="mt-2 text-xs text-warning-subtle-foreground">
+          {modulosComProblema.length} módulo(s) atrasado(s) ou sem sincronização — indicadores dependentes podem
+          estar desatualizados. A sincronização é feita pela Secretaria.
+        </p>
+      )}
     </div>
   );
 }

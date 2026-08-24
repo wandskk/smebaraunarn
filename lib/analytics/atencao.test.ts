@@ -71,6 +71,15 @@ describe("gerarInsightsFrequencia", () => {
     });
     assert.equal(gerarInsightsFrequencia([escola], 2026)[0]!.severidade, "atencao");
   });
+
+  test("linkBuilder customizado substitui o href padrão do Admin (uso pela Direção, ETAPA 05)", () => {
+    const escola = escolaBase({
+      frequenciaFaixa: "critica",
+      frequenciaVariacao: { diferencaPontosPercentuais: -6.1, tendencia: "queda" },
+    });
+    const insights = gerarInsightsFrequencia([escola], 2026, () => "/portal/direcao/frequencia");
+    assert.equal(insights[0]!.href, "/portal/direcao/frequencia");
+  });
 });
 
 describe("gerarInsightsDesempenho", () => {
@@ -96,6 +105,12 @@ describe("gerarInsightsDesempenho", () => {
     const escola = escolaBase({ desempenhoDiferencaRede: null, percentualAbaixoDoEsperado: null });
     assert.deepEqual(gerarInsightsDesempenho([escola], 2026), []);
   });
+
+  test("linkBuilder customizado substitui o href padrão do Admin", () => {
+    const escola = escolaBase({ desempenhoDiferencaRede: -2, percentualAbaixoDoEsperado: 75 });
+    const insights = gerarInsightsDesempenho([escola], 2026, undefined, undefined, () => "/portal/direcao/notas");
+    assert.equal(insights[0]!.href, "/portal/direcao/notas");
+  });
 });
 
 describe("gerarInsightsDistorcao", () => {
@@ -109,6 +124,12 @@ describe("gerarInsightsDistorcao", () => {
   test("não gera insight quando diferença para a rede é pequena", () => {
     const escola = escolaBase({ distorcaoPercentual: 12, distorcaoDiferencaRede: 1 });
     assert.deepEqual(gerarInsightsDistorcao([escola], 2026), []);
+  });
+
+  test("linkBuilder customizado substitui o href padrão do Admin", () => {
+    const escola = escolaBase({ distorcaoPercentual: 25, distorcaoDiferencaRede: 12 });
+    const insights = gerarInsightsDistorcao([escola], 2026, undefined, () => "/portal/direcao");
+    assert.equal(insights[0]!.href, "/portal/direcao");
   });
 });
 

@@ -1,71 +1,61 @@
+import Link from "next/link";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ClipboardList } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
-import { prisma } from "@/lib/prisma";
+import { getAvaliacoesResumoPorEscola, TIPO_AVALIACAO_LABEL } from "@/lib/queries/avaliacoes";
 import { PageHeader } from "@/components/ui/page-header";
-import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
-
-const NIVEL_LABEL: Record<string, string> = {
-  NAO_LEITOR: "Não leitor",
-  LEITOR_DE_SILABAS: "Leitor de sílabas",
-  LEITOR_DE_PALAVRAS: "Leitor de palavras",
-  LEITOR_DE_FRASES: "Leitor de frases",
-  LEITOR_SEM_FLUENCIA: "Leitor sem fluência",
-  LEITOR_FLUENTE: "Leitor fluente",
-};
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function DirecaoAvaliacoesPage() {
   const session = await requireSession(["DIRETOR"]);
-
-  const resultados = await prisma.avaliacaoResultadoAluno.findMany({
-    where: { escolaId: session.escolaId! },
-    include: { avaliacao: true, estudante: true },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
-
-  const porAvaliacao = resultados.reduce<Record<string, typeof resultados>>((acc, r) => {
-    (acc[r.avaliacao.nome] ??= []).push(r);
-    return acc;
-  }, {});
+  const avaliacoes = await getAvaliacoesResumoPorEscola(session.escolaId!);
 
   return (
     <div>
-      <PageHeader title="Avaliações Municipais" description="Resultados registrados para a sua escola." />
+      <PageHeader
+        title="Avaliações Municipais"
+        description="Catálogo das avaliações aplicadas à sua escola, com cobertura por turma."
+      />
 
-      {Object.keys(porAvaliacao).length === 0 ? (
+      {avaliacoes.length === 0 ? (
         <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhum resultado de avaliação registrado ainda.
+          Nenhuma avaliação com resultados registrados para esta escola ainda.
         </p>
       ) : (
-        <div className="mt-6 space-y-8">
-          {Object.entries(porAvaliacao).map(([nome, itens]) => (
-            <div key={nome}>
-              <h2 className="text-sm font-semibold text-foreground">{nome}</h2>
-              <div className="mt-3">
-                <DataTable>
-                  <TableHeader>
-                    <tr>
-                      <TableHeadCell>Aluno</TableHeadCell>
-                      <TableHeadCell>Turma</TableHeadCell>
-                      <TableHeadCell>Pontuação</TableHeadCell>
-                      <TableHeadCell>Nível</TableHeadCell>
-                    </tr>
-                  </TableHeader>
-                  <TableBody>
-                    {itens.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium text-foreground">{r.estudante.nome}</TableCell>
-                        <TableCell className="text-foreground-muted">{r.turma}</TableCell>
-                        <TableCell className="text-foreground-muted">{r.pontuacao ?? "-"}</TableCell>
-                        <TableCell className="text-foreground-muted">
-                          {r.nivelDesempenho ? NIVEL_LABEL[r.nivelDesempenho] : "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </DataTable>
-              </div>
-            </div>
-          ))}
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {avaliacoes.map((a) => {
+            const percentual = a.totalEsperado > 0 ? (a.totalResultados / a.totalEsperado) * 100 : null;
+            return (
+              <Link
+                key={a.avaliacaoId}
+                href={`/portal/direcao/avaliacoes/${a.avaliacaoId}`}
+                className="block transition hover:shadow-card"
+              >
+                <Card interactive>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-info-subtle text-info">
+                      <ClipboardList className="h-5 w-5" />
+                    </span>
+                    <Badge variant="neutral">{a.ano}</Badge>
+                  </div>
+                  <div className="mt-3 font-semibold text-foreground">{a.nome}</div>
+                  <div className="mt-0.5 text-xs text-foreground-muted/70">
+                    {a.codigo} · {TIPO_AVALIACAO_LABEL[a.tipo]}
+                    {a.etapaEnsino && ` · ${a.etapaEnsino}`}
+                  </div>
+                  <div className="mt-3 text-sm text-foreground-muted">
+                    Cobertura: {a.totalResultados}/{a.totalEsperado || "?"}{" "}
+                    {percentual !== null && `(${percentual.toFixed(0)}%)`} · {a.turmasComResultado} turma(s)
+                  </div>
+                  <div className="mt-1 text-xs text-foreground-muted/70">
+                    Atualizado em {format(a.ultimaAtualizacao, "dd/MM/yyyy", { locale: ptBR })}
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

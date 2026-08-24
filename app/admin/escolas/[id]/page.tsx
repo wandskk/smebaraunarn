@@ -10,40 +10,13 @@ import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ComparisonDelta } from "@/components/ui/comparison-delta";
-import { FaixaBadge } from "@/components/admin/faixa-badge";
+import { SchoolOverview } from "@/components/portal/school-overview";
 
 interface PageProps {
   params: { id: string };
   searchParams: { q?: string; page?: string; pageSize?: string; ano?: string };
-}
-
-function formatarPercentual(valor: number | null): string {
-  return valor === null ? "-" : `${valor.toFixed(1)}%`;
-}
-
-function formatarNota(valor: number | null): string {
-  return valor === null ? "-" : valor.toFixed(1);
-}
-
-/** Mesma leitura de favorabilidade usada em /admin/indicadores/comparativos: distorção inverte o sinal. */
-function DiferencaRede({
-  diferenca,
-  unidade,
-  maiorEhMelhor,
-}: {
-  diferenca: number | null;
-  unidade: "p.p." | "pts";
-  maiorEhMelhor: boolean;
-}) {
-  if (diferenca === null) return <span className="text-xs text-foreground-muted/60">sem referência de rede</span>;
-  const estavel = Math.abs(diferenca) < 0.05;
-  const favoravel = estavel ? null : maiorEhMelhor ? diferenca > 0 : diferenca < 0;
-  const texto = `${diferenca > 0 ? "+" : ""}${diferenca.toFixed(1)} ${unidade} da rede`;
-  return <ComparisonDelta diferenca={diferenca} texto={texto} favoravel={favoravel} />;
 }
 
 export default async function AdminEscolaDetalhePage({ params, searchParams }: PageProps) {
@@ -98,42 +71,9 @@ export default async function AdminEscolaDetalhePage({ params, searchParams }: P
       />
 
       <h2 className="mt-6 text-sm font-semibold text-foreground">Comparação com a rede — {anoLetivo}</h2>
-      {comparativo ? (
-        <div className="mt-3 grid gap-4 sm:grid-cols-3">
-          <Card>
-            <div className="text-xs uppercase text-foreground-muted">Frequência</div>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="text-xl font-semibold text-foreground">
-                {formatarPercentual(comparativo.frequenciaPercentual)}
-              </span>
-              {comparativo.frequenciaFaixa && <FaixaBadge faixa={comparativo.frequenciaFaixa} />}
-            </div>
-            <div className="mt-1">
-              <DiferencaRede diferenca={comparativo.frequenciaDiferencaRede} unidade="p.p." maiorEhMelhor />
-            </div>
-          </Card>
-          <Card>
-            <div className="text-xs uppercase text-foreground-muted">Desempenho</div>
-            <div className="mt-1 text-xl font-semibold text-foreground">{formatarNota(comparativo.desempenhoMedia)}</div>
-            <div className="mt-1">
-              <DiferencaRede diferenca={comparativo.desempenhoDiferencaRede} unidade="pts" maiorEhMelhor />
-            </div>
-          </Card>
-          <Card>
-            <div className="text-xs uppercase text-foreground-muted">Distorção idade-série</div>
-            <div className="mt-1 text-xl font-semibold text-foreground">
-              {formatarPercentual(comparativo.distorcaoPercentual)}
-            </div>
-            <div className="mt-1">
-              <DiferencaRede diferenca={comparativo.distorcaoDiferencaRede} unidade="p.p." maiorEhMelhor={false} />
-            </div>
-          </Card>
-        </div>
-      ) : (
-        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-foreground-muted">
-          Sem dado suficiente para comparar esta escola com a rede no ano letivo {anoLetivo}.
-        </p>
-      )}
+      <div className="mt-3">
+        <SchoolOverview comparativo={comparativo} anoLetivo={anoLetivo} />
+      </div>
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Turmas</h2>
       {todasTurmas.length === 0 ? (

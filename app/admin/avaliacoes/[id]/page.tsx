@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { NIVEL_FLUENCIA_LABEL as NIVEL_LABEL } from "@/lib/queries/avaliacoes";
 import { QuestaoForm } from "./questao-form";
 import { ResultadoForm } from "./resultado-form";
 import { DeleteRowButton } from "./row-actions";
@@ -11,15 +12,6 @@ import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell }
 interface PageProps {
   params: { id: string };
 }
-
-const NIVEL_LABEL: Record<string, string> = {
-  NAO_LEITOR: "Não leitor",
-  LEITOR_DE_SILABAS: "Leitor de sílabas",
-  LEITOR_DE_PALAVRAS: "Leitor de palavras",
-  LEITOR_DE_FRASES: "Leitor de frases",
-  LEITOR_SEM_FLUENCIA: "Leitor sem fluência",
-  LEITOR_FLUENTE: "Leitor fluente",
-};
 
 export default async function AvaliacaoDetailPage({ params }: PageProps) {
   const avaliacao = await prisma.avaliacao.findUnique({

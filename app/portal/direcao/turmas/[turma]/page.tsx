@@ -23,7 +23,7 @@ export default async function DirecaoTurmaDetalhePage({ params, searchParams }: 
           ← Turmas
         </Link>
       }
-      alunoHref={(alunoId) => `/portal/direcao/alunos/${alunoId}`}
+      alunoHref={(alunoId) => `/portal/direcao/estudantes/${alunoId}`}
       paginationBasePath={`/portal/direcao/turmas/${params.turma}`}
     />
   );

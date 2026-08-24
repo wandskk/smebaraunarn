@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import type { TipoAvaliacao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { TIPO_AVALIACAO_LABEL as TIPO_LABEL } from "@/lib/queries/avaliacoes";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
@@ -10,13 +11,6 @@ import { Select } from "@/components/ui/select";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
-
-const TIPO_LABEL: Record<string, string> = {
-  FLUENCIA_LEITORA: "Fluência Leitora",
-  SPADEB: "SPADEB",
-  SIMULADO: "Simulado",
-  PROVA_MUNICIPAL: "Prova Municipal",
-};
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string; tipo?: string; ano?: string };

@@ -54,7 +54,7 @@ export default async function DirecaoEstudantesPage({ searchParams }: PageProps)
                 <TableCell className="text-foreground-muted">{e.turmaSerie ?? "-"}</TableCell>
                 <TableCell className="text-foreground-muted">{e.nomeResponsavel ?? "-"}</TableCell>
                 <TableCell className="text-right">
-                  <Link href={`/portal/direcao/alunos/${e.id}`} className="text-primary hover:underline">
+                  <Link href={`/portal/direcao/estudantes/${e.id}`} className="text-primary hover:underline">
                     Ver detalhes
                   </Link>
                 </TableCell>

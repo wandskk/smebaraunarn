@@ -16,7 +16,7 @@ export interface TurmaDetalheViewProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
   /** Breadcrumb acima do título — "← Escola" (Admin) ou "← Turmas" (Direção). */
   breadcrumb: ReactNode;
-  /** Rota de destino do "Ver detalhes" de um aluno — difere por perfil (/admin/estudantes/[id] vs /portal/direcao/alunos/[id]). */
+  /** Rota de destino do "Ver detalhes" de um aluno — difere por perfil (/admin/estudantes/[id] vs /portal/direcao/estudantes/[id]). */
   alunoHref: (alunoId: number) => string;
   /** Base path usado pela paginação — a própria rota desta página. */
   paginationBasePath: string;

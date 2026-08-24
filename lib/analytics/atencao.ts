@@ -46,8 +46,15 @@ function hrefEscola(escolaId: number, anoLetivo: number): string {
   return `/admin/escolas/${escolaId}?ano=${anoLetivo}`;
 }
 
+/** Constrói o deep-link de um insight — por padrão vai para a ficha da escola no Admin; a Direção passa o link da própria tela relevante (ver `getInsightsAtencaoEscola`). */
+export type LinkBuilderAtencao = (escolaId: number, anoLetivo: number) => string;
+
 /** Regra 1: frequência fora da faixa adequada e em queda no período mais recente. */
-export function gerarInsightsFrequencia(escolas: EscolaAtencaoInput[], anoLetivo: number): InsightAtencao[] {
+export function gerarInsightsFrequencia(
+  escolas: EscolaAtencaoInput[],
+  anoLetivo: number,
+  linkBuilder: LinkBuilderAtencao = hrefEscola,
+): InsightAtencao[] {
   const periodo = `Ano letivo ${anoLetivo}`;
   const insights: InsightAtencao[] = [];
 
@@ -63,7 +70,7 @@ export function gerarInsightsFrequencia(escolas: EscolaAtencaoInput[], anoLetivo
       titulo: `${e.nomeEscola}: frequência ${e.frequenciaPercentual.toFixed(1)}%, ${diferencaPontosPercentuais > 0 ? "+" : ""}${diferencaPontosPercentuais.toFixed(1)} p.p. vs período anterior`,
       motivo: `Frequência na faixa "${e.frequenciaFaixa}" e em queda no período mais recente.`,
       periodo,
-      href: hrefEscola(e.escolaId, anoLetivo),
+      href: linkBuilder(e.escolaId, anoLetivo),
     });
   }
 
@@ -76,6 +83,7 @@ export function gerarInsightsDesempenho(
   anoLetivo: number,
   limiarDiferencaRede = -0.3,
   limiarPercentualAbaixo = 40,
+  linkBuilder: LinkBuilderAtencao = hrefEscola,
 ): InsightAtencao[] {
   const periodo = `Ano letivo ${anoLetivo}`;
   const insights: InsightAtencao[] = [];
@@ -91,7 +99,7 @@ export function gerarInsightsDesempenho(
       titulo: `${e.nomeEscola}: desempenho ${e.desempenhoDiferencaRede.toFixed(1)} pts vs rede, ${e.percentualAbaixoDoEsperado.toFixed(0)}% das notas abaixo do parâmetro`,
       motivo: "Desempenho abaixo da referência de rede, com proporção elevada de notas abaixo do parâmetro esperado.",
       periodo,
-      href: hrefEscola(e.escolaId, anoLetivo),
+      href: linkBuilder(e.escolaId, anoLetivo),
     });
   }
 
@@ -103,6 +111,7 @@ export function gerarInsightsDistorcao(
   escolas: EscolaAtencaoInput[],
   anoLetivo: number,
   limiarDiferencaRede = 5,
+  linkBuilder: LinkBuilderAtencao = hrefEscola,
 ): InsightAtencao[] {
   const periodo = `Ano letivo ${anoLetivo}`;
   const insights: InsightAtencao[] = [];
@@ -117,7 +126,7 @@ export function gerarInsightsDistorcao(
       titulo: `${e.nomeEscola}: distorção idade-série ${e.distorcaoPercentual.toFixed(1)}%, ${e.distorcaoDiferencaRede.toFixed(1)} p.p. acima da rede`,
       motivo: "Proporção de estudantes em distorção idade-série bem acima da referência de rede.",
       periodo,
-      href: hrefEscola(e.escolaId, anoLetivo),
+      href: linkBuilder(e.escolaId, anoLetivo),
     });
   }
 
