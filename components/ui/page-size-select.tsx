@@ -23,7 +23,7 @@ export function PageSizeSelect({
   const current = Number(searchParams.get(paramName)) || defaultValue;
 
   return (
-    <label className="flex shrink-0 items-center gap-2 text-sm text-slate-500">
+    <label className="flex shrink-0 items-center gap-2 text-sm text-foreground-muted">
       Itens por página
       <select
         value={current}
@@ -36,7 +36,7 @@ export function PageSizeSelect({
             router.replace(`${pathname}?${params.toString()}`, { scroll: false });
           });
         }}
-        className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
+        className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-50"
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>

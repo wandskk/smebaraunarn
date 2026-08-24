@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard } from "@/components/ui/metric-card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { BarChart3, BookOpen } from "lucide-react";
 
 export default async function DirecaoNotasPage({
   searchParams,
@@ -34,56 +38,56 @@ export default async function DirecaoNotasPage({
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Notas por Turma</h1>
-      <p className="mt-1 text-sm text-slate-500">Ano letivo {ano} · média por disciplina em cada turma.</p>
+      <PageHeader title="Notas por Turma" description={`Ano letivo ${ano} · média por disciplina em cada turma.`} />
 
       {mediaGeral !== null && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-2xl font-bold text-slate-900">{mediaGeral.toFixed(1)}</div>
-            <div className="text-xs text-slate-500">Média geral da escola</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-2xl font-bold text-slate-900">{turmasOrdenadas.length}</div>
-            <div className="text-xs text-slate-500">Turmas com notas lançadas</div>
-          </div>
+          <MetricCard label="Média geral da escola" value={mediaGeral.toFixed(1)} icon={BarChart3} accent="education" />
+          <MetricCard
+            label="Turmas com notas lançadas"
+            value={String(turmasOrdenadas.length)}
+            icon={BookOpen}
+            accent="education"
+          />
         </div>
       )}
 
       {turmasOrdenadas.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
           Nenhuma nota lançada para o ano {ano} ainda.
         </p>
       ) : (
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-8">
           {turmasOrdenadas.map((turma) => {
             const itens = [...(porTurma[turma] ?? [])].sort((a, b) => a.disciplina.localeCompare(b.disciplina));
             return (
-              <div key={turma} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div key={turma}>
                 <Link
                   href={`/portal/direcao/turmas/${encodeURIComponent(turma)}`}
-                  className="block border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900 hover:text-brand-700 hover:underline"
+                  className="text-sm font-semibold text-foreground hover:text-primary hover:underline"
                 >
                   {turma}
                 </Link>
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Disciplina</th>
-                      <th className="px-4 py-3">Notas lançadas</th>
-                      <th className="px-4 py-3">Média da turma</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {itens.map((item) => (
-                      <tr key={item.disciplina}>
-                        <td className="px-4 py-3 font-medium text-slate-900">{item.disciplina}</td>
-                        <td className="px-4 py-3 text-slate-500">{item._count._all}</td>
-                        <td className="px-4 py-3 text-slate-900">{(item._avg.nota ?? 0).toFixed(1)}</td>
+                <div className="mt-3">
+                  <DataTable>
+                    <TableHeader>
+                      <tr>
+                        <TableHeadCell>Disciplina</TableHeadCell>
+                        <TableHeadCell>Notas lançadas</TableHeadCell>
+                        <TableHeadCell>Média da turma</TableHeadCell>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </TableHeader>
+                    <TableBody>
+                      {itens.map((item) => (
+                        <TableRow key={item.disciplina}>
+                          <TableCell className="font-medium text-foreground">{item.disciplina}</TableCell>
+                          <TableCell className="text-foreground-muted">{item._count._all}</TableCell>
+                          <TableCell className="text-foreground">{(item._avg.nota ?? 0).toFixed(1)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </DataTable>
+                </div>
               </div>
             );
           })}

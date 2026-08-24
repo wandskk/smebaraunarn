@@ -1,6 +1,6 @@
 import { GraduationCap, Menu } from "lucide-react";
 import type { SessionPayload } from "@/lib/auth";
-import { UserMenu } from "./user-menu";
+import { UserMenu } from "@/components/ui/user-menu";
 
 export interface AdminTopbarProps {
   session: SessionPayload;

@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -28,45 +31,38 @@ export default async function DirecaoEstudantesPage({ searchParams }: PageProps)
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Estudantes</h1>
-      <p className="mt-1 text-sm text-slate-500">{total} estudante(s) enturmado(s).</p>
+      <PageHeader title="Estudantes" description={`${total} estudante(s) enturmado(s).`} />
 
       <ListToolbar searchPlaceholder="Buscar por nome ou matrícula..." />
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Matrícula</th>
-              <th className="px-4 py-3">Turma</th>
-              <th className="px-4 py-3">Responsável</th>
-              <th className="px-4 py-3 text-right">Ações</th>
+              <TableHeadCell>Nome</TableHeadCell>
+              <TableHeadCell>Matrícula</TableHeadCell>
+              <TableHeadCell>Turma</TableHeadCell>
+              <TableHeadCell>Responsável</TableHeadCell>
+              <TableHeadCell className="text-right">Ações</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {estudantes.map((e) => (
-              <tr key={e.id}>
-                <td className="px-4 py-3 font-medium text-slate-900">{e.nome}</td>
-                <td className="px-4 py-3 text-slate-500">{e.matricula}</td>
-                <td className="px-4 py-3 text-slate-500">{e.turmaSerie ?? "-"}</td>
-                <td className="px-4 py-3 text-slate-500">{e.nomeResponsavel ?? "-"}</td>
-                <td className="px-4 py-3 text-right">
-                  <Link href={`/portal/direcao/alunos/${e.id}`} className="text-brand-700 hover:underline">
+              <TableRow key={e.id}>
+                <TableCell className="font-medium text-foreground">{e.nome}</TableCell>
+                <TableCell className="text-foreground-muted">{e.matricula}</TableCell>
+                <TableCell className="text-foreground-muted">{e.turmaSerie ?? "-"}</TableCell>
+                <TableCell className="text-foreground-muted">{e.nomeResponsavel ?? "-"}</TableCell>
+                <TableCell className="text-right">
+                  <Link href={`/portal/direcao/alunos/${e.id}`} className="text-primary hover:underline">
                     Ver detalhes
                   </Link>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-            {estudantes.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum estudante encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {estudantes.length === 0 && <TableEmptyState colSpan={5} title="Nenhum estudante encontrado." />}
+          </TableBody>
+        </DataTable>
       </div>
 
       <Pagination

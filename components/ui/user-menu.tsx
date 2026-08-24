@@ -7,12 +7,18 @@ import { logoutAction } from "@/app/logout/actions";
 import type { SessionPayload } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
+export interface UserMenuProps {
+  session: SessionPayload;
+  /** Rótulo exibido sob o nome — usa session.role quando omitido. */
+  roleLabel?: string;
+}
+
 /**
- * Une "Minha Conta" + "Sair" (antes dois links/botões separados no topbar) num
- * único menu de usuário — mesmos destino (/conta) e Server Action
- * (logoutAction) de antes, só a apresentação muda.
+ * Une "Minha Conta" + "Sair" num único menu de usuário, usado tanto no
+ * topbar administrativo quanto no do portal — mesmo destino (/conta) e
+ * Server Action (logoutAction) em ambos.
  */
-export function UserMenu({ session }: { session: SessionPayload }) {
+export function UserMenu({ session, roleLabel }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -50,7 +56,7 @@ export function UserMenu({ session }: { session: SessionPayload }) {
         </span>
         <span className="hidden leading-tight sm:block">
           <span className="block text-sm font-medium text-foreground">{session.nome}</span>
-          <span className="block text-xs text-foreground-muted">{session.role}</span>
+          <span className="block text-xs text-foreground-muted">{roleLabel ?? session.role}</span>
         </span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-foreground-muted transition", open && "rotate-180")} />
       </button>

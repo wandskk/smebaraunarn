@@ -20,7 +20,7 @@ export default async function DirecaoAlunoDetalhePage({ params }: PageProps) {
     <div>
       <Link
         href={`/portal/direcao/turmas/${encodeURIComponent(dados.estudante.turmaSerie ?? "")}`}
-        className="text-sm text-brand-700 hover:underline"
+        className="text-sm text-primary hover:underline"
       >
         ← {dados.estudante.turmaSerie ?? "Turmas"}
       </Link>

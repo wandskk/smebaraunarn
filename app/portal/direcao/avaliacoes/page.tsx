@@ -1,5 +1,7 @@
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 const NIVEL_LABEL: Record<string, string> = {
   NAO_LEITOR: "Não leitor",
@@ -27,42 +29,41 @@ export default async function DirecaoAvaliacoesPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Avaliações Municipais</h1>
-      <p className="mt-1 text-sm text-slate-500">Resultados registrados para a sua escola.</p>
+      <PageHeader title="Avaliações Municipais" description="Resultados registrados para a sua escola." />
 
       {Object.keys(porAvaliacao).length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
           Nenhum resultado de avaliação registrado ainda.
         </p>
       ) : (
         <div className="mt-6 space-y-8">
           {Object.entries(porAvaliacao).map(([nome, itens]) => (
-            <div key={nome} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-                {nome}
-              </div>
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Aluno</th>
-                    <th className="px-4 py-3">Turma</th>
-                    <th className="px-4 py-3">Pontuação</th>
-                    <th className="px-4 py-3">Nível</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {itens.map((r) => (
-                    <tr key={r.id}>
-                      <td className="px-4 py-3 font-medium text-slate-900">{r.estudante.nome}</td>
-                      <td className="px-4 py-3 text-slate-500">{r.turma}</td>
-                      <td className="px-4 py-3 text-slate-500">{r.pontuacao ?? "-"}</td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {r.nivelDesempenho ? NIVEL_LABEL[r.nivelDesempenho] : "-"}
-                      </td>
+            <div key={nome}>
+              <h2 className="text-sm font-semibold text-foreground">{nome}</h2>
+              <div className="mt-3">
+                <DataTable>
+                  <TableHeader>
+                    <tr>
+                      <TableHeadCell>Aluno</TableHeadCell>
+                      <TableHeadCell>Turma</TableHeadCell>
+                      <TableHeadCell>Pontuação</TableHeadCell>
+                      <TableHeadCell>Nível</TableHeadCell>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </TableHeader>
+                  <TableBody>
+                    {itens.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium text-foreground">{r.estudante.nome}</TableCell>
+                        <TableCell className="text-foreground-muted">{r.turma}</TableCell>
+                        <TableCell className="text-foreground-muted">{r.pontuacao ?? "-"}</TableCell>
+                        <TableCell className="text-foreground-muted">
+                          {r.nivelDesempenho ? NIVEL_LABEL[r.nivelDesempenho] : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </DataTable>
+              </div>
             </div>
           ))}
         </div>

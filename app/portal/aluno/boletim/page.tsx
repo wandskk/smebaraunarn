@@ -1,6 +1,8 @@
 import { requireSession } from "@/lib/require-session";
 import { getEstudanteBySession } from "@/lib/queries/portal";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 export default async function BoletimPage({
   searchParams,
@@ -25,49 +27,44 @@ export default async function BoletimPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Boletim Escolar</h1>
-          <p className="mt-1 text-sm text-slate-500">Ano letivo {ano}</p>
-        </div>
-      </div>
+      <PageHeader title="Boletim Escolar" description={`Ano letivo ${ano}`} />
 
       {Object.keys(porDisciplina).length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
           Nenhuma nota lançada para este ano letivo ainda.
         </p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <div className="mt-6">
+          <DataTable>
+            <TableHeader>
               <tr>
-                <th className="px-4 py-3">Disciplina</th>
-                <th className="px-4 py-3">1ª Un.</th>
-                <th className="px-4 py-3">2ª Un.</th>
-                <th className="px-4 py-3">3ª Un.</th>
-                <th className="px-4 py-3">4ª Un.</th>
-                <th className="px-4 py-3">Média</th>
+                <TableHeadCell>Disciplina</TableHeadCell>
+                <TableHeadCell>1ª Un.</TableHeadCell>
+                <TableHeadCell>2ª Un.</TableHeadCell>
+                <TableHeadCell>3ª Un.</TableHeadCell>
+                <TableHeadCell>4ª Un.</TableHeadCell>
+                <TableHeadCell>Média</TableHeadCell>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+            </TableHeader>
+            <TableBody>
               {Object.entries(porDisciplina).map(([disciplina, unidades]) => {
                 const porUnidade = new Map(unidades.map((u) => [u.unidade, u.nota]));
                 const media =
                   unidades.reduce((sum, u) => sum + u.nota, 0) / (unidades.length || 1);
                 return (
-                  <tr key={disciplina}>
-                    <td className="px-4 py-3 font-medium text-slate-900">{disciplina}</td>
+                  <TableRow key={disciplina}>
+                    <TableCell className="font-medium text-foreground">{disciplina}</TableCell>
                     {[1, 2, 3, 4].map((u) => (
-                      <td key={u} className="px-4 py-3 text-slate-600">
+                      <TableCell key={u} className="text-foreground-muted">
                         {porUnidade.get(u) ?? "-"}
-                      </td>
+                      </TableCell>
                     ))}
-                    <td className="px-4 py-3 font-semibold text-slate-900">{media.toFixed(1)}</td>
-                  </tr>
+                    <TableCell className="font-semibold text-foreground">{media.toFixed(1)}</TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </DataTable>
         </div>
       )}
     </div>

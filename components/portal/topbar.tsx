@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { GraduationCap, LogOut, UserCog } from "lucide-react";
-import { logoutAction } from "@/app/logout/actions";
+import { GraduationCap, Menu } from "lucide-react";
 import type { SessionPayload } from "@/lib/auth";
+import { UserMenu } from "@/components/ui/user-menu";
+import { cn } from "@/lib/utils";
 
 const ROLE_LABEL: Record<SessionPayload["role"], string> = {
   ADMIN: "Administrador",
@@ -12,41 +12,40 @@ const ROLE_LABEL: Record<SessionPayload["role"], string> = {
   ALUNO: "Aluno / Responsável",
 };
 
-export function PortalTopbar({ session, subtitle }: { session: SessionPayload; subtitle: string }) {
+export interface PortalTopbarProps {
+  session: SessionPayload;
+  /** Nome da escola (ou "SME Baraúna" como fallback) exibido sob a marca. */
+  subtitle: string;
+  /** Presente apenas quando a página tem sidebar (o botão fica oculto em telas lg+, onde a sidebar já é visível). */
+  onOpenMobileNav?: () => void;
+}
+
+export function PortalTopbar({ session, subtitle, onOpenMobileNav }: PortalTopbarProps) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
-      <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-          <GraduationCap className="h-5 w-5" />
-        </span>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold text-slate-900">{subtitle}</div>
-          <div className="text-xs text-slate-500">{ROLE_LABEL[session.role]}</div>
+    <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 lg:px-6">
+      <div className="flex items-center gap-3">
+        {onOpenMobileNav && (
+          <button
+            type="button"
+            onClick={onOpenMobileNav}
+            aria-label="Abrir menu de navegação"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground-muted transition hover:bg-surface-muted lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+        <div className={cn("flex items-center gap-2", onOpenMobileNav && "lg:hidden")}>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <GraduationCap className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-sm font-semibold text-foreground">SME Baraúna</div>
+            <div className="truncate text-xs text-foreground-muted">{subtitle}</div>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="hidden text-right leading-tight sm:block">
-          <div className="text-sm font-medium text-slate-900">{session.nome}</div>
-          <div className="text-xs text-slate-500">{session.cpf}</div>
-        </div>
-        <Link
-          href="/conta"
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-        >
-          <UserCog className="h-4 w-4" />
-          <span className="hidden sm:inline">Minha Conta</span>
-        </Link>
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </button>
-        </form>
-      </div>
+      <UserMenu session={session} roleLabel={ROLE_LABEL[session.role]} />
     </header>
   );
 }

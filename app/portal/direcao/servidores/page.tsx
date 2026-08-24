@@ -1,8 +1,11 @@
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -25,41 +28,34 @@ export default async function DirecaoServidoresPage({ searchParams }: PageProps)
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Servidores</h1>
-      <p className="mt-1 text-sm text-slate-500">{total} servidor(es) lotado(s) na escola.</p>
+      <PageHeader title="Servidores" description={`${total} servidor(es) lotado(s) na escola.`} />
 
       <ListToolbar searchPlaceholder="Buscar por nome..." />
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+      <div className="mt-6">
+        <DataTable>
+          <TableHeader>
             <tr>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Cargo</th>
-              <th className="px-4 py-3">Função</th>
-              <th className="px-4 py-3">Vínculo</th>
-              <th className="px-4 py-3">Status</th>
+              <TableHeadCell>Nome</TableHeadCell>
+              <TableHeadCell>Cargo</TableHeadCell>
+              <TableHeadCell>Função</TableHeadCell>
+              <TableHeadCell>Vínculo</TableHeadCell>
+              <TableHeadCell>Status</TableHeadCell>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHeader>
+          <TableBody>
             {servidores.map((s) => (
-              <tr key={s.id}>
-                <td className="px-4 py-3 font-medium text-slate-900">{s.nome}</td>
-                <td className="px-4 py-3 text-slate-500">{s.cargo ?? "-"}</td>
-                <td className="px-4 py-3 text-slate-500">{s.funcao ?? "-"}</td>
-                <td className="px-4 py-3 text-slate-500">{s.tipoVinculo ?? "-"}</td>
-                <td className="px-4 py-3 text-slate-500">{s.status ?? "-"}</td>
-              </tr>
+              <TableRow key={s.id}>
+                <TableCell className="font-medium text-foreground">{s.nome}</TableCell>
+                <TableCell className="text-foreground-muted">{s.cargo ?? "-"}</TableCell>
+                <TableCell className="text-foreground-muted">{s.funcao ?? "-"}</TableCell>
+                <TableCell className="text-foreground-muted">{s.tipoVinculo ?? "-"}</TableCell>
+                <TableCell className="text-foreground-muted">{s.status ?? "-"}</TableCell>
+              </TableRow>
             ))}
-            {servidores.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
-                  Nenhum servidor encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            {servidores.length === 0 && <TableEmptyState colSpan={5} title="Nenhum servidor encontrado." />}
+          </TableBody>
+        </DataTable>
       </div>
 
       <Pagination

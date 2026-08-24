@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard, type MetricCardAccent } from "@/components/ui/metric-card";
 
 export default async function DirecaoHomePage() {
   const session = await requireSession(["DIRETOR"]);
@@ -17,40 +18,52 @@ export default async function DirecaoHomePage() {
       prisma.frequenciaEstudante.count({ where: { estudante: { escolaId } } }),
     ]);
 
-  const cards = [
-    { href: "/portal/direcao/servidores", label: "Servidores", value: totalServidores, icon: Users },
-    { href: "/portal/direcao/estudantes", label: "Estudantes", value: totalEstudantes, icon: GraduationCap },
-    { href: "/portal/direcao/notas", label: `Notas lançadas (${anoAtual})`, value: totalNotas, icon: BookOpen },
+  const cards: { href: string; label: string; value: number; icon: typeof Users; accent: MetricCardAccent }[] = [
+    { href: "/portal/direcao/servidores", label: "Servidores", value: totalServidores, icon: Users, accent: "primary" },
+    {
+      href: "/portal/direcao/estudantes",
+      label: "Estudantes",
+      value: totalEstudantes,
+      icon: GraduationCap,
+      accent: "success",
+    },
+    {
+      href: "/portal/direcao/notas",
+      label: `Notas lançadas (${anoAtual})`,
+      value: totalNotas,
+      icon: BookOpen,
+      accent: "education",
+    },
     {
       href: "/portal/direcao/frequencia",
       label: "Registros de frequência",
       value: totalFrequencias,
       icon: CalendarCheck,
+      accent: "attendance",
     },
     {
       href: "/portal/direcao/avaliacoes",
       label: "Resultados de Avaliações",
       value: totalResultadosAvaliacao,
       icon: ClipboardList,
+      accent: "info",
     },
   ];
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Painel da Direção</h1>
-      <p className="mt-1 text-sm text-slate-500">Visão geral da unidade escolar.</p>
+      <PageHeader title="Painel da Direção" description="Visão geral da unidade escolar." />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {cards.map((card) => (
-          <Link
+          <MetricCard
             key={card.href}
             href={card.href}
-            className="rounded-xl border border-slate-200 bg-white p-5 transition hover:shadow-sm"
-          >
-            <card.icon className="mb-3 h-6 w-6 text-brand-600" />
-            <div className="text-2xl font-bold text-slate-900">{card.value}</div>
-            <div className="text-xs text-slate-500">{card.label}</div>
-          </Link>
+            label={card.label}
+            value={String(card.value)}
+            icon={card.icon}
+            accent={card.accent}
+          />
         ))}
       </div>
     </div>

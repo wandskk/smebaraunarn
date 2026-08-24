@@ -1,8 +1,12 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CalendarCheck, CalendarX, FileCheck } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { getEstudanteBySession } from "@/lib/queries/portal";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard } from "@/components/ui/metric-card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 export default async function FrequenciaPage() {
   const session = await requireSession(["ALUNO"]);
@@ -22,56 +26,51 @@ export default async function FrequenciaPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Frequência</h1>
-      <p className="mt-1 text-sm text-slate-500">Últimos registros de presença e falta.</p>
+      <PageHeader title="Frequência" description="Últimos registros de presença e falta." />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="text-2xl font-bold text-slate-900">{percentualPresenca.toFixed(1)}%</div>
-          <div className="text-xs text-slate-500">Frequência no período</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="text-2xl font-bold text-slate-900">{totalFaltas}</div>
-          <div className="text-xs text-slate-500">Faltas registradas</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="text-2xl font-bold text-slate-900">{totalAbonadas}</div>
-          <div className="text-xs text-slate-500">Faltas abonadas</div>
-        </div>
+        <MetricCard
+          label="Frequência no período"
+          value={`${percentualPresenca.toFixed(1)}%`}
+          icon={CalendarCheck}
+          accent="attendance"
+        />
+        <MetricCard label="Faltas registradas" value={String(totalFaltas)} icon={CalendarX} accent="attendance" />
+        <MetricCard label="Faltas abonadas" value={String(totalAbonadas)} icon={FileCheck} accent="attendance" />
       </div>
 
       {registros.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
           Nenhum registro de frequência encontrado.
         </p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <div className="mt-6">
+          <DataTable>
+            <TableHeader>
               <tr>
-                <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3">Disciplina</th>
-                <th className="px-4 py-3">Aulas</th>
-                <th className="px-4 py-3">Faltas</th>
-                <th className="px-4 py-3">Abonada</th>
+                <TableHeadCell>Data</TableHeadCell>
+                <TableHeadCell>Disciplina</TableHeadCell>
+                <TableHeadCell>Aulas</TableHeadCell>
+                <TableHeadCell>Faltas</TableHeadCell>
+                <TableHeadCell>Abonada</TableHeadCell>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+            </TableHeader>
+            <TableBody>
               {registros.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-4 py-3 text-slate-900">
+                <TableRow key={r.id}>
+                  <TableCell className="text-foreground">
                     {format(new Date(r.data), "dd/MM/yyyy", { locale: ptBR })}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{r.disciplina ?? "-"}</td>
-                  <td className="px-4 py-3 text-slate-600">{r.quantidadeAula}</td>
-                  <td className="px-4 py-3 text-slate-600">{r.falta}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  </TableCell>
+                  <TableCell className="text-foreground-muted">{r.disciplina ?? "-"}</TableCell>
+                  <TableCell className="text-foreground-muted">{r.quantidadeAula}</TableCell>
+                  <TableCell className="text-foreground-muted">{r.falta}</TableCell>
+                  <TableCell className="text-foreground-muted">
                     {r.abonada ? `Sim${r.motivoAbono ? ` (${r.motivoAbono})` : ""}` : "Não"}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </DataTable>
         </div>
       )}
     </div>

@@ -27,7 +27,7 @@ export default async function ProfessorAlunoDetalhePage({ params }: PageProps) {
 
   return (
     <div>
-      <Link href="/portal/professor/turma" className="text-sm text-brand-700 hover:underline">
+      <Link href="/portal/professor/turma" className="text-sm text-primary hover:underline">
         ← Minhas Turmas
       </Link>
       <div className="mt-2">

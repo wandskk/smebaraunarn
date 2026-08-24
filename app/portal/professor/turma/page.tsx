@@ -2,9 +2,11 @@ import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
 import { getServidorBySession } from "@/lib/queries/portal";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -44,47 +46,45 @@ export default async function TurmaPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Minhas Turmas</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        {nomesTurma.length > 0 ? nomesTurma.join(", ") : "Nenhuma turma vinculada"} ·{" "}
-        {servidor.escolaNome ?? "Escola"} · {total} aluno(s)
-      </p>
+      <PageHeader
+        title="Minhas Turmas"
+        description={`${nomesTurma.length > 0 ? nomesTurma.join(", ") : "Nenhuma turma vinculada"} · ${
+          servidor.escolaNome ?? "Escola"
+        } · ${total} aluno(s)`}
+      />
 
       {nomesTurma.length > 0 && <ListToolbar searchPlaceholder="Buscar por nome ou matrícula..." />}
 
       {alunos.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
           Nenhum aluno enturmado encontrado para suas turmas.
         </p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <div className="mt-6">
+          <DataTable>
+            <TableHeader>
               <tr>
-                <th className="px-4 py-3">Nome</th>
-                <th className="px-4 py-3">Matrícula</th>
-                <th className="px-4 py-3">Turma</th>
-                <th className="px-4 py-3 text-right">Ações</th>
+                <TableHeadCell>Nome</TableHeadCell>
+                <TableHeadCell>Matrícula</TableHeadCell>
+                <TableHeadCell>Turma</TableHeadCell>
+                <TableHeadCell className="text-right">Ações</TableHeadCell>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+            </TableHeader>
+            <TableBody>
               {alunos.map((aluno) => (
-                <tr key={aluno.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">{aluno.nome}</td>
-                  <td className="px-4 py-3 text-slate-500">{aluno.matricula}</td>
-                  <td className="px-4 py-3 text-slate-500">{aluno.turmaSerie ?? "-"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/portal/professor/turma/${aluno.id}`}
-                      className="text-brand-700 hover:underline"
-                    >
+                <TableRow key={aluno.id}>
+                  <TableCell className="font-medium text-foreground">{aluno.nome}</TableCell>
+                  <TableCell className="text-foreground-muted">{aluno.matricula}</TableCell>
+                  <TableCell className="text-foreground-muted">{aluno.turmaSerie ?? "-"}</TableCell>
+                  <TableCell className="text-right">
+                    <Link href={`/portal/professor/turma/${aluno.id}`} className="text-primary hover:underline">
                       Ver detalhes
                     </Link>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </DataTable>
         </div>
       )}
 

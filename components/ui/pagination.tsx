@@ -33,8 +33,8 @@ export function Pagination({ page, totalPages, basePath, searchParams }: Paginat
         className={cn(
           "flex h-9 items-center rounded-lg border px-3 text-sm",
           page === 1
-            ? "pointer-events-none border-slate-200 text-slate-300"
-            : "border-slate-300 text-slate-600 hover:border-brand-400",
+            ? "pointer-events-none border-border text-foreground-muted/40"
+            : "border-border text-foreground-muted hover:border-primary/40",
         )}
       >
         Anterior
@@ -42,7 +42,7 @@ export function Pagination({ page, totalPages, basePath, searchParams }: Paginat
 
       {pages.map((p, i) =>
         p === "..." ? (
-          <span key={`ellipsis-${i}`} className="px-1 text-sm text-slate-400">
+          <span key={`ellipsis-${i}`} className="px-1 text-sm text-foreground-muted/60">
             …
           </span>
         ) : (
@@ -52,8 +52,8 @@ export function Pagination({ page, totalPages, basePath, searchParams }: Paginat
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-lg border text-sm",
               page === p
-                ? "border-brand-600 bg-brand-600 text-white"
-                : "border-slate-300 text-slate-600 hover:border-brand-400",
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-foreground-muted hover:border-primary/40",
             )}
           >
             {p}
@@ -68,8 +68,8 @@ export function Pagination({ page, totalPages, basePath, searchParams }: Paginat
         className={cn(
           "flex h-9 items-center rounded-lg border px-3 text-sm",
           page === totalPages
-            ? "pointer-events-none border-slate-200 text-slate-300"
-            : "border-slate-300 text-slate-600 hover:border-brand-400",
+            ? "pointer-events-none border-border text-foreground-muted/40"
+            : "border-border text-foreground-muted hover:border-primary/40",
         )}
       >
         Próxima

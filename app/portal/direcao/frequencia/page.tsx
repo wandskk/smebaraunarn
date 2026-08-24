@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { CalendarCheck, CalendarX, LayoutGrid } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard } from "@/components/ui/metric-card";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 export default async function DirecaoFrequenciaPage() {
   const session = await requireSession(["DIRETOR"]);
@@ -31,61 +35,56 @@ export default async function DirecaoFrequenciaPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Frequência por Turma</h1>
-      <p className="mt-1 text-sm text-slate-500">Ano letivo {anoAtual}.</p>
+      <PageHeader title="Frequência por Turma" description={`Ano letivo ${anoAtual}.`} />
 
       {percentualEscola !== null && (
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-2xl font-bold text-slate-900">{percentualEscola.toFixed(1)}%</div>
-            <div className="text-xs text-slate-500">Frequência geral da escola</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-2xl font-bold text-slate-900">{totalFaltasEscola}</div>
-            <div className="text-xs text-slate-500">Faltas registradas</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-2xl font-bold text-slate-900">{linhas.length}</div>
-            <div className="text-xs text-slate-500">Turmas com registro</div>
-          </div>
+          <MetricCard
+            label="Frequência geral da escola"
+            value={`${percentualEscola.toFixed(1)}%`}
+            icon={CalendarCheck}
+            accent="attendance"
+          />
+          <MetricCard label="Faltas registradas" value={String(totalFaltasEscola)} icon={CalendarX} accent="attendance" />
+          <MetricCard label="Turmas com registro" value={String(linhas.length)} icon={LayoutGrid} accent="attendance" />
         </div>
       )}
 
       {linhas.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
+        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
           Nenhum registro de frequência para {anoAtual} ainda.
         </p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <div className="mt-6">
+          <DataTable>
+            <TableHeader>
               <tr>
-                <th className="px-4 py-3">Turma</th>
-                <th className="px-4 py-3">Aulas registradas</th>
-                <th className="px-4 py-3">Faltas</th>
-                <th className="px-4 py-3">Frequência</th>
+                <TableHeadCell>Turma</TableHeadCell>
+                <TableHeadCell>Aulas registradas</TableHeadCell>
+                <TableHeadCell>Faltas</TableHeadCell>
+                <TableHeadCell>Frequência</TableHeadCell>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+            </TableHeader>
+            <TableBody>
               {linhas.map((l) => (
-                <tr key={l.turma}>
-                  <td className="px-4 py-3 font-medium text-slate-900">
+                <TableRow key={l.turma}>
+                  <TableCell className="font-medium text-foreground">
                     <Link
                       href={`/portal/direcao/turmas/${encodeURIComponent(l.turma)}`}
-                      className="hover:text-brand-700 hover:underline"
+                      className="hover:text-primary hover:underline"
                     >
                       {l.turma}
                     </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{l.totalAulas}</td>
-                  <td className="px-4 py-3 text-slate-500">{l.totalFaltas}</td>
-                  <td className="px-4 py-3 text-slate-900">
+                  </TableCell>
+                  <TableCell className="text-foreground-muted">{l.totalAulas}</TableCell>
+                  <TableCell className="text-foreground-muted">{l.totalFaltas}</TableCell>
+                  <TableCell className="text-foreground">
                     {l.percentual !== null ? `${l.percentual.toFixed(1)}%` : "-"}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </DataTable>
         </div>
       )}
     </div>
