@@ -4,6 +4,25 @@ import { classificarSituacaoSincronizacao, possuiDivergenciaDeSerie } from "@/li
 /** Módulos disparados pelos crons diários (`vercel.json`) e pelo painel de sincronização manual. */
 export const MODULOS_SINCRONIZACAO = ["ESCOLAS", "CARGOS", "SERVIDORES", "ESTUDANTES", "NOTAS", "FREQUENCIA"] as const;
 
+/** Rótulo amigável de cada módulo — compartilhado entre qualquer tela que liste saúde de sincronização. */
+export const ROTULO_MODULO: Record<(typeof MODULOS_SINCRONIZACAO)[number], string> = {
+  ESCOLAS: "Escolas",
+  CARGOS: "Cargos",
+  SERVIDORES: "Servidores",
+  ESTUDANTES: "Estudantes",
+  NOTAS: "Notas",
+  FREQUENCIA: "Frequência",
+};
+
+/**
+ * Versão segura de `ROTULO_MODULO` para `modulo` vindo de texto livre (ex.:
+ * `LogSincronizacao.modulo` no histórico bruto) — cai para o próprio nome
+ * do módulo se não for um dos conhecidos, em vez de erro de tipo.
+ */
+export function rotuloModulo(modulo: string): string {
+  return (ROTULO_MODULO as Record<string, string>)[modulo] ?? modulo;
+}
+
 export interface StatusModuloSincronizacao {
   modulo: (typeof MODULOS_SINCRONIZACAO)[number];
   ultimoLog: {

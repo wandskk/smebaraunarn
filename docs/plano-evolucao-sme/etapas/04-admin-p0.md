@@ -60,7 +60,7 @@ adiados com justificativa, como já é o padrão nas etapas anteriores).
 - [x] Reler `base/Plano_Evolucao_MVP_Admin_SME_Barauna.docx` / extrato.
 - [x] Confirmar código atual de cada rota antes de alterar.
 - [ ] Implementar "Atenção agora" explicável. *(sub-lote futuro)*
-- [ ] Implementar saúde/freshness por módulo no dashboard `/admin`. *(sub-lote futuro)*
+- [x] Implementar saúde/freshness por módulo no dashboard `/admin`.
 - [x] Implementar período consistente em turma (frequência agora usa o
       mesmo recorte de ano que notas). Estudante já ficou consistente na
       ETAPA 02.
@@ -119,6 +119,32 @@ na ETAPA 02). Este sub-lote cobre os que ainda estavam abertos:
    fallback explica o motivo em vez de deixar a SECRETARIA descobrir
    pelo erro da Server Action (achado literal do DOCX).
 
+### Sub-lote 2 — saúde da base no dashboard `/admin`
+
+`/admin` (Visão Geral) tinha só 4 contagens e um card genérico chamando
+para a Sincronização, sem dizer nada sobre a saúde dos dados — exatamente
+o achado do DOCX ("é funcional, mas ainda não se comporta como a 'entrada
+inteligente' do sistema"; Tabela 10: "Adicionar... saúde dos dados").
+
+- [`app/admin/page.tsx`](../../../app/admin/page.tsx): o card genérico de
+  sincronização foi trocado por um bloco "Saúde da base" que reaproveita
+  `getStatusSincronizacao()` (já existente desde antes da ETAPA 00) e
+  `DataFreshnessBadge` (ETAPA 02) — mostra a situação (em-dia/atrasado/sem
+  sincronização) de cada um dos 6 módulos (Escolas, Cargos, Servidores,
+  Estudantes, Notas, Frequência) lado a lado, com um resumo textual no
+  topo ("Todos os módulos... em dia" ou "N módulo(s) atrasado(s)...") e o
+  ícone/cor mudando conforme há ou não problema. O link para
+  `/admin/sincronizacao` continua no mesmo lugar.
+- `ROTULO_MODULO` (rótulo amigável de cada módulo) estava duplicado como
+  constante local em `app/admin/indicadores/qualidade/page.tsx`; movido
+  para [`lib/queries/qualidade-dados.ts`](../../../lib/queries/qualidade-dados.ts)
+  (exportado, tipado pelos 6 módulos conhecidos) para o dashboard também
+  usar. Como o histórico bruto de sincronização (`LogSincronizacao.modulo`)
+  é texto livre no banco, não a união estrita dos 6 módulos, foi adicionada
+  `rotuloModulo(modulo: string)` como acesso seguro com fallback — a página
+  de Qualidade dos Dados usa essa versão para a coluna de histórico, que
+  precisa aceitar qualquer string sem erro de tipo.
+
 ## Decisões técnicas
 
 1. **Máscara de CPF só nas listas, não no detalhe.** `/admin/usuarios/[id]`
@@ -141,6 +167,16 @@ na ETAPA 02). Este sub-lote cobre os que ainda estavam abertos:
    grep em todos os `requireSession([...])` na ETAPA 01) — aplicar
    `CapabilityGate` em outro lugar agora não teria nenhuma capability real
    por trás para consultar.
+4. **"Atalhos contextuais" ("ver escolas em atenção", "ver avaliação
+   pendente") não entraram no sub-lote 2.** Os exemplos do DOCX para esses
+   atalhos dependem do conceito de "atenção" (escola com queda de
+   frequência, avaliação com cobertura baixa), que ainda não existe em
+   nenhuma tela — é literalmente o próximo achado do checklist ("Atenção
+   agora"). Construir um atalho para um conceito que ainda não existe seria
+   inventar a peça errada primeiro; o atalho "ver sync atrasado" já existe
+   de fato agora, como o link "Ir para Sincronização" ao lado do resumo de
+   saúde (fica mais evidente quando há módulo com problema, pela cor do
+   ícone).
 
 ## Testes executados
 
@@ -153,14 +189,18 @@ npm run build
 
 ## Resultado dos testes
 
-- `npm test`: **146 testes, 30 suítes, 146 passaram, 0 falharam** (143
-  pré-existentes + 3 novos em `lib/utils.test.ts` para `maskCpf`).
-- `npm run typecheck`: sem erros.
-- `npm run lint`: sem warnings/erros.
-- `npm run build`: sucesso, as mesmas 46 rotas continuam gerando.
+- Sub-lote 1: `npm test` **146/146** (143 pré-existentes + 3 novos em
+  `lib/utils.test.ts` para `maskCpf`), `typecheck`/`lint`/`build` limpos.
+- Sub-lote 2: `npm test` **146/146** (sem testes novos — mudança é
+  apresentacional/reuso de query já testada indiretamente via
+  `lib/analytics/qualidade-dados.test.ts`), `typecheck`/`lint`/`build`
+  limpos após corrigir um erro de tipo real (`ROTULO_MODULO` com chave
+  estrita não aceitava `LogSincronizacao.modulo`, que é texto livre —
+  resolvido com `rotuloModulo()` como acesso seguro).
 
 Validação visual via browser (conferir que SECRETARIA de fato não vê os
-controles administrativos, e que o CPF aparece mascarado) **não foi
+controles administrativos, que o CPF aparece mascarado, e que o bloco de
+saúde da base reflete a situação real de cada módulo) **não foi
 executada** — mesma limitação de credenciais já registrada nas etapas
 01–03.
 
@@ -170,10 +210,9 @@ executada** — mesma limitação de credenciais já registrada nas etapas
    importante confirmar com uma conta SECRETARIA real antes de considerar
    o achado "Permissões Admin × Secretaria" totalmente fechado.
 2. **Restante do escopo desta etapa ainda pendente** (ver checklist):
-   "Atenção agora", saúde/freshness no dashboard `/admin`,
-   `/admin/servidores/[id]`, filtros analíticos, sincronização com
-   detecção de execução incompleta. Continuam em sub-lotes futuros dentro
-   desta mesma etapa.
+   "Atenção agora", `/admin/servidores/[id]`, filtros analíticos,
+   sincronização com detecção de execução incompleta. Continuam em
+   sub-lotes futuros dentro desta mesma etapa.
 
 ## Critérios de aceite
 

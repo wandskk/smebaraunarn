@@ -1,21 +1,12 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
-import { getStatusSincronizacao, getColisoesCodigoTurma } from "@/lib/queries/qualidade-dados";
+import { getStatusSincronizacao, getColisoesCodigoTurma, ROTULO_MODULO, rotuloModulo } from "@/lib/queries/qualidade-dados";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
-
-const ROTULO_MODULO: Record<string, string> = {
-  ESCOLAS: "Escolas",
-  CARGOS: "Cargos",
-  SERVIDORES: "Servidores",
-  ESTUDANTES: "Estudantes",
-  NOTAS: "Notas",
-  FREQUENCIA: "Frequência",
-};
 
 function formatarData(data: Date | null): string {
   return data ? data.toLocaleString("pt-BR") : "nunca";
@@ -194,7 +185,7 @@ export default async function QualidadeDadosPage() {
             {historico.map((h) => (
               <TableRow key={h.id}>
                 <TableCell className="text-foreground-muted">{formatarData(h.createdAt)}</TableCell>
-                <TableCell className="text-foreground">{ROTULO_MODULO[h.modulo] ?? h.modulo}</TableCell>
+                <TableCell className="text-foreground">{rotuloModulo(h.modulo)}</TableCell>
                 <TableCell>
                   <StatusLogBadge status={h.status} />
                 </TableCell>
