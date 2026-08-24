@@ -68,9 +68,16 @@ matrícula). Qualquer um pode virar uma nova rodada da ETAPA 10.
 
 Baseline final: `npm test` 193/193 (sem teste novo — itens desta rodada são
 consultas/apresentação sobre motores já testados), `typecheck`/`lint`/
-`build` limpos (66 rotas — 1 nova: `/admin/turmas`). Validação end-to-end
-logada não foi executada — mesma limitação de credenciais das etapas
-anteriores; pendente para a ETAPA 11.
+`build` limpos (66 rotas — 1 nova: `/admin/turmas`).
+
+**Validação end-to-end logada executada** nesta etapa (não mais pendente) —
+o usuário forneceu contas reais dos 5 papéis. Encontrado e corrigido em
+seguida um bug real de inconsistência: `getTurmasRede` atribuía frequência/
+nota pela turma atual do estudante em vez do campo `turma` do próprio
+registro (a mesma convenção que a ficha de turma já usava desde a ETAPA
+03), fazendo a lista de rede e a ficha mostrarem números diferentes para a
+mesma turma quando havia estudante com histórico de troca. Ver
+[`decisoes/10-validacao-e2e-turmas-rede.md`](decisoes/10-validacao-e2e-turmas-rede.md).
 
 Detalhes completos: [`etapas/10-p1-evolucao-funcional.md`](etapas/10-p1-evolucao-funcional.md).
 

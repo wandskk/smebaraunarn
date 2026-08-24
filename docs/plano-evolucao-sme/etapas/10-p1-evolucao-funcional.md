@@ -170,11 +170,28 @@ Alterados: `lib/queries/academico.ts` (`getTurmasRede`),
   etapa).
 - `npm run build`: sucesso — **66 rotas** (65 do baseline da ETAPA 09 + 1
   nova: `/admin/turmas`).
+- Após a validação manual (ver Riscos e pendências) e a correção em
+  `getTurmasRede`, `typecheck`/`lint`/`test` foram reexecutados: mesmos
+  resultados (193/193, limpos) — a correção não muda nenhum tipo/contrato
+  público, só a lógica interna de agregação.
 
 ## Riscos e pendências
 
-- **Validação end-to-end logada não foi executada** — mesma limitação de
-  credenciais de todas as etapas anteriores; pendente para a ETAPA 11.
+- **Validação end-to-end logada executada** com contas reais dos 5 papéis
+  fornecidas pelo usuário — ver
+  [`decisoes/10-validacao-e2e-turmas-rede.md`](../decisoes/10-validacao-e2e-turmas-rede.md).
+  Encontrou e corrigiu um bug real: `getTurmasRede` atribuía frequência/nota
+  pela turma ATUAL do estudante em vez do campo `turma` do próprio registro
+  histórico (mesma convenção de `getTurmaDetalhe`), causando divergência de
+  número entre `/admin/turmas` e a ficha de turma para a mesma turma quando
+  havia estudante com histórico de troca de turma. Corrigido e revalidado
+  manualmente. Suíte automatizada não é afetada (`lib/queries/*` sem testes
+  próprios por depender de I/O) — mesma limitação já registrada em etapas
+  anteriores; validação manual foi o que pegou este caso.
+- Smoke test foi dirigido às áreas construídas nas ETAPAS 04-10, não uma
+  varredura de todas as ~66 rotas nem dos fluxos de escrita — o checklist
+  completo (estados de erro/loading, mobile, acessibilidade, fluxos de
+  escrita) continua sendo escopo da ETAPA 11.
 - **3 dos 4 blocos P1 apresentados ao usuário não foram selecionados nesta
   rodada** e continuam como backlog em aberto, não perdido:
   - Importação CSV/XLSX de avaliações (já preparada pela ETAPA 09 —

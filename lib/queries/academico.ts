@@ -206,29 +206,46 @@ export interface TurmaRedeResumo {
  * `getFrequenciaPorEscola`/`getDesempenhoPorEscola` (uma consulta agregada
  * cada, não uma consulta por turma).
  *
- * Matrícula da turma usa a atribuição ATUAL do estudante (mesma convenção
- * de `getTurmaDetalhe`), não histórica.
+ * Matrícula (roster/contagem de alunos) usa a atribuição ATUAL do estudante
+ * (mesma convenção de `getTurmaDetalhe`). Frequência e notas usam a MESMA
+ * fonte que `getTurmaDetalhe` usa por trás da ficha para a qual esta lista
+ * linka: o campo `turma` gravado no próprio registro de frequência/nota,
+ * casado com a escola ATUAL do estudante — nunca a turma atual do estudante
+ * para esses dois. Atribuir frequência/nota pela turma atual (em vez da
+ * turma do registro) inflaria a turma nova de quem mudou de turma no meio
+ * do ano com dias/notas que na verdade pertencem à turma antiga, e a lista
+ * mostraria um número diferente do que a própria ficha de turma mostra ao
+ * clicar — inconsistência encontrada e corrigida durante a validação manual
+ * desta etapa (ver decisão técnica correspondente no Markdown da ETAPA 10).
  */
 export async function getTurmasRede(filtro: FiltroTurmasRede): Promise<TurmaRedeResumo[]> {
   const janelaAno = { gte: `${filtro.ano}-01-01`, lte: `${filtro.ano}-12-31` };
+  const filtroEscolaRelacao = filtro.escolaId ? { estudante: { escolaId: filtro.escolaId } } : {};
 
-  const [alunos, escolas, servidorTurmas, somaFrequencia, notasDoAno] = await Promise.all([
+  const [alunos, todosAlunos, escolas, servidorTurmas, somaFrequencia, notasDoAno] = await Promise.all([
     prisma.estudante.findMany({
       where: { turmaSerie: { not: null }, ...(filtro.escolaId ? { escolaId: filtro.escolaId } : {}) },
       select: { matricula: true, escolaId: true, turmaSerie: true },
     }),
+    // Sem filtro de escola — precisa da escola ATUAL de qualquer estudante
+    // cujo registro histórico de frequência/nota aponte para uma turma
+    // dentro do escopo filtrado (ver comentário acima).
+    prisma.estudante.findMany({ select: { matricula: true, escolaId: true } }),
     prisma.escola.findMany({ select: { id: true, nome: true } }),
     prisma.servidorTurma.findMany({ select: { escolaId: true, turma: true, turno: true, servidorId: true } }),
     prisma.frequenciaEstudante.groupBy({
-      by: ["estudanteMatricula"],
-      where: { data: janelaAno },
+      by: ["estudanteMatricula", "turma"],
+      where: { data: janelaAno, ...filtroEscolaRelacao },
       _sum: { falta: true, quantidadeAula: true },
     }),
-    prisma.notaEstudante.findMany({ where: { ano: filtro.ano }, select: { nota: true, turma: true, escola: true } }),
+    prisma.notaEstudante.findMany({
+      where: { ano: filtro.ano, ...filtroEscolaRelacao },
+      select: { nota: true, turma: true, estudanteMatricula: true },
+    }),
   ]);
 
   const nomePorEscola = new Map(escolas.map((e) => [e.id, e.nome]));
-  const idPorNomeEscola = new Map(escolas.map((e) => [e.nome, e.id]));
+  const escolaAtualPorMatricula = new Map(todosAlunos.map((a) => [a.matricula, a.escolaId]));
 
   const turmasUnicas = Array.from(new Set(alunos.map((a) => a.turmaSerie as string)));
   const series = await getSeriePorTurma(turmasUnicas);
@@ -253,22 +270,22 @@ export async function getTurmasRede(filtro: FiltroTurmasRede): Promise<TurmaRede
     porTurma.set(k, acc);
   }
 
-  const escolaTurmaPorMatricula = new Map(alunos.map((a) => [a.matricula, { escolaId: a.escolaId, turma: a.turmaSerie as string }]));
   for (const f of somaFrequencia) {
-    const local = escolaTurmaPorMatricula.get(f.estudanteMatricula);
-    if (!local) continue;
-    const acc = porTurma.get(chave(local.escolaId, local.turma));
-    if (!acc) continue;
+    if (!f.turma) continue;
+    const escolaId = escolaAtualPorMatricula.get(f.estudanteMatricula);
+    if (escolaId === undefined) continue;
+    const acc = porTurma.get(chave(escolaId, f.turma));
+    if (!acc) continue; // turma sem nenhum aluno atualmente matriculado (ex.: aluno mudou de turma) — fora da listagem
     acc.aulas += f._sum.quantidadeAula ?? 0;
     acc.faltas += f._sum.falta ?? 0;
   }
 
   for (const n of notasDoAno) {
-    if (!n.turma || !n.escola) continue;
-    const escolaId = idPorNomeEscola.get(n.escola);
-    if (escolaId === undefined) continue; // nome de escola sem correspondência — ver getEscolasNaoMapeadas
+    if (!n.turma) continue;
+    const escolaId = escolaAtualPorMatricula.get(n.estudanteMatricula);
+    if (escolaId === undefined) continue;
     const acc = porTurma.get(chave(escolaId, n.turma));
-    if (!acc) continue; // turma sem nenhum aluno atualmente matriculado (ex.: turma extinta) — fora da listagem
+    if (!acc) continue;
     acc.somaNotas += n.nota;
     acc.totalNotas += 1;
   }
