@@ -7,11 +7,13 @@ import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { EscolaSelect } from "./escola-select";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
-  searchParams: { q?: string; page?: string; pageSize?: string };
+  searchParams: { q?: string; page?: string; pageSize?: string; escolaId?: string; status?: string };
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -20,15 +22,30 @@ const ROLE_LABEL: Record<string, string> = {
   SERVIDOR_GERAL: "Servidor Geral",
 };
 
+const SEM_ESCOLA = "sem-escola";
+
 export default async function AdminServidoresPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim();
+  const escolaIdFiltro = searchParams.escolaId && searchParams.escolaId !== SEM_ESCOLA ? Number(searchParams.escolaId) : undefined;
+  const semEscolaFiltro = searchParams.escolaId === SEM_ESCOLA;
+  const statusFiltro = searchParams.status?.trim();
   const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
 
-  const where = q
-    ? { OR: [{ nome: { contains: q, mode: "insensitive" as const } }, { cpf: { contains: q } }] }
-    : undefined;
+  const [escolas, statusDisponiveis] = await Promise.all([
+    prisma.escola.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+    prisma.servidor
+      .groupBy({ by: ["status"] })
+      .then((rows) => rows.map((r) => r.status).filter((s): s is string => Boolean(s)).sort()),
+  ]);
 
-  const [servidores, total, escolas] = await Promise.all([
+  const where = {
+    ...(q ? { OR: [{ nome: { contains: q, mode: "insensitive" as const } }, { cpf: { contains: q } }] } : {}),
+    ...(escolaIdFiltro ? { escolaId: escolaIdFiltro } : {}),
+    ...(semEscolaFiltro ? { escolaId: null } : {}),
+    ...(statusFiltro ? { status: statusFiltro } : {}),
+  };
+
+  const [servidores, total] = await Promise.all([
     prisma.servidor.findMany({
       where,
       orderBy: { nome: "asc" },
@@ -37,7 +54,6 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
       include: { escola: true },
     }),
     prisma.servidor.count({ where }),
-    prisma.escola.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
   ]);
 
   return (
@@ -46,6 +62,41 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
         title="Servidores"
         description={`Base sincronizada com o SIGEduc. Cargos de direção/coordenação vêm sem escola vinculada na origem (ficam lotados na Secretaria) — atribua manualmente abaixo. ${total} servidor(es).`}
       />
+
+      <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
+        {q && <input type="hidden" name="q" value={q} />}
+        <div className="w-56">
+          <label className="mb-1 block text-xs text-foreground-muted">Escola</label>
+          <Select name="escolaId" defaultValue={searchParams.escolaId ?? ""}>
+            <option value="">Todas</option>
+            <option value={SEM_ESCOLA}>Sem escola atribuída</option>
+            {escolas.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nome}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-40">
+          <label className="mb-1 block text-xs text-foreground-muted">Status</label>
+          <Select name="status" defaultValue={searchParams.status ?? ""}>
+            <option value="">Todos</option>
+            {statusDisponiveis.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Button type="submit" variant="secondary">
+          Filtrar
+        </Button>
+        {(escolaIdFiltro || semEscolaFiltro || statusFiltro) && (
+          <Link href={q ? `/admin/servidores?q=${encodeURIComponent(q)}` : "/admin/servidores"} className="text-sm text-primary hover:underline">
+            Limpar filtros
+          </Link>
+        )}
+      </form>
 
       <ListToolbar searchPlaceholder="Buscar por nome ou CPF..." />
 

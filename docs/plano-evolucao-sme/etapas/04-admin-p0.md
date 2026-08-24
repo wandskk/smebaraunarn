@@ -1,7 +1,7 @@
 # ETAPA 04 — Admin P0
 
 ## Status
-IN_PROGRESS
+DONE
 
 ## Objetivo
 
@@ -68,7 +68,13 @@ adiados com justificativa, como já é o padrão nas etapas anteriores).
 - [x] Permissão visual Admin×Secretaria em `/admin/usuarios` (lista e detalhe).
 - [x] `/admin/servidores/[id]` (confirmado ausente na ETAPA 00, criada
       no sub-lote 5).
-- [ ] Filtros analíticos em escolas/estudantes/servidores/avaliações. *(sub-lote futuro)*
+- [x] Filtros analíticos em estudantes/servidores/avaliações (sub-lote 6);
+      escolas deliberadamente adiado (ver Decisões técnicas item 8).
+- [x] `SchoolOverview` inteligente aplicado ao Admin — comparação com a
+      rede em `/admin/escolas/[id]` (sub-lote 7); tabs completas
+      (Visão Geral/Turmas/Servidores/Estudantes/Indicadores/Avaliações)
+      e "Destaques da escola" deliberadamente adiados (ver Decisões
+      técnicas item 9).
 - [x] Sincronização: saúde por módulo (sub-lote 2) e detecção de execução
       incompleta (sub-lote 4).
 
@@ -260,6 +266,40 @@ status de acesso ao portal". Confirmada ausente na ETAPA 00; a lista em
 - `/admin/servidores` (lista) ganhou a coluna "Ver detalhes" linkando para
   a nova rota.
 
+### Sub-lote 6 — filtros analíticos em estudantes, servidores e avaliações
+
+Achado do DOCX (Tabela 6, todas P0): listas hoje só tinham busca por texto.
+Adicionados filtros estruturados usando o mesmo padrão já usado em
+`/admin/indicadores` (`<form method="get">` + `<Select>` + botão "Filtrar",
+preservando `q` via campo oculto — funciona sem JavaScript, mesma
+paginação preservando os filtros via `Pagination`, que já repassa todo
+`searchParams` automaticamente):
+
+- [`app/admin/estudantes/page.tsx`](../../../app/admin/estudantes/page.tsx):
+  filtros por Escola e Ano (ambos derivados de dados reais — lista de
+  escolas e `groupBy` de anos com estudante matriculado).
+- [`app/admin/servidores/page.tsx`](../../../app/admin/servidores/page.tsx):
+  filtros por Escola (incluindo opção "Sem escola atribuída",
+  `escolaId: null`) e Status (`groupBy` dos valores reais já usados na
+  base, não uma lista inventada).
+- [`app/admin/avaliacoes/page.tsx`](../../../app/admin/avaliacoes/page.tsx):
+  filtros por Tipo (`TipoAvaliacao`) e Ano.
+
+### Sub-lote 7 — `SchoolOverview` inteligente: comparação com a rede em `/admin/escolas/[id]`
+
+Achado do DOCX (seção 6.3, Tabela 9 — componente `EntityOverviewTabs`) e
+item do escopo original desta etapa que ainda não tinha sido coberto por
+nenhum sub-lote anterior.
+
+- [`app/admin/escolas/[id]/page.tsx`](<../../../app/admin/escolas/[id]/page.tsx>):
+  nova seção "Comparação com a rede" acima da lista de turmas, reaproveitando
+  `getComparativosPorEscola` (já usada por `/admin/indicadores/comparativos`
+  — mesma fórmula, mesma referência de rede ponderada) e `ComparisonDelta`
+  (ETAPA 03) para mostrar Frequência/Desempenho/Distorção da escola com a
+  variação em relação à rede. Ganhou também um seletor de ano letivo
+  (mesmo padrão de `/admin/indicadores`), propagado via `?ano=` — antes a
+  ficha da escola não tinha noção nenhuma de ano/período.
+
 ## Decisões técnicas
 
 1. **Máscara de CPF só nas listas, não no detalhe.** `/admin/usuarios/[id]`
@@ -314,6 +354,30 @@ status de acesso ao portal". Confirmada ausente na ETAPA 00; a lista em
    aqui exigiria calcular cobertura pela primeira vez fora do contexto que
    já vai fazer isso de forma completa; ficou fora por decisão consciente,
    não esquecimento.
+8. **Filtros de `/admin/escolas` não foram implementados.** A lista tem
+   hoje 28 escolas — pequena o suficiente para a busca por texto já
+   resolver bem. Os filtros que o DOCX sugere para essa tela (etapa/série
+   atendida, tamanho, "com atenção") exigem dado derivado por análise
+   (não são colunas diretas como Escola/Ano/Status usados nos outros 3
+   filtros deste sub-lote), e "com atenção" especificamente dependeria de
+   reaproveitar a mesma classificação do "Atenção agora" por escola — mais
+   proveitoso fazer isso quando houver um segundo consumidor real dessa
+   ideia (ex.: ordenação da lista de escolas por atenção), não só para
+   preencher a lista de filtros do DOCX.
+9. **`SchoolOverview` não ganhou tabs nem "Destaques da escola" nesta
+   etapa.** O DOCX pede `Tabs: Visão Geral | Turmas | Servidores |
+   Estudantes | Indicadores | Avaliações` e um bloco de destaques (maior
+   queda de frequência, turma de maior dispersão, série com maior
+   distorção) — isso é uma reestruturação de navegação bem maior que
+   "adicionar uma comparação com a rede" (exigiria views de
+   servidores/estudantes/avaliações filtradas por escola, hoje
+   inexistentes como sub-rotas). A ETAPA 05 (Diretor P0) é onde o master
+   prompt já prevê que a Direção reutilize o mesmo núcleo de
+   `SchoolOverview` do Admin com `SchoolScope` — decidido entregar a
+   versão que já tem valor real sozinha (comparação com a rede, com ano
+   selecionável) agora, e revisitar a API completa quando a ETAPA 05 der
+   um segundo consumidor real para desenhar as tabs corretamente, em vez
+   de desenhá-las especulativamente para um único caso de uso.
 
 ## Testes executados
 
@@ -346,6 +410,13 @@ npm run build
   que ainda não tinha teste, e `explicarClassificacaoServidorRole`),
   `typecheck`/`lint`/`build` limpos. Build confirma a rota nova:
   `/admin/servidores/[id]` (47 rotas no total, uma a mais que o baseline).
+- Sub-lote 6: `npm test` **177/177** (sem testes novos — filtros são
+  composição de `where` do Prisma com dados já reais, sem fórmula nova),
+  `typecheck`/`lint`/`build` limpos.
+- Sub-lote 7: `npm test` **177/177** (sem testes novos — reaproveita
+  `getComparativosPorEscola`/`ComparisonDelta` já testados/em produção
+  indiretamente via `/admin/indicadores/comparativos`), `typecheck`/`lint`/`build`
+  limpos.
 
 Validação visual via browser (conferir que SECRETARIA de fato não vê os
 controles administrativos, que o CPF aparece mascarado, que o bloco de
@@ -371,14 +442,32 @@ executada** — mesma limitação de credenciais já registrada nas etapas
    tempo real de um lote em produção variar muito mais que o esperado
    (ex.: API do SIGEduc lenta em horário de pico), pode gerar falso
    positivo; fácil de ajustar (é parâmetro com default).
-4. **Restante do escopo desta etapa ainda pendente** (ver checklist):
-   filtros analíticos em escolas/estudantes/servidores/avaliações.
-   Continua em sub-lote futuro dentro desta mesma etapa.
+4. **Filtros de `/admin/escolas` e tabs/"Destaques" de `SchoolOverview`
+   ficaram fora desta etapa por decisão consciente** (ver Decisões
+   técnicas 8 e 9) — não são bugs esquecidos, mas escopo real adiado para
+   quando houver um segundo caso de uso (ETAPA 05) ou dado derivado
+   disponível para os filtros pedidos.
+5. **Nenhuma das telas alteradas nesta etapa foi vista rodando contra a
+   base real de produção** — todas as mudanças foram verificadas por
+   `typecheck`/`test`/`lint`/`build`, não por navegação logada (sem
+   credenciais de teste disponíveis nesta sessão, mesma limitação das
+   etapas 01–03). Recomenda-se uma passada visual pelas telas alteradas
+   assim que houver acesso: `/admin`, `/admin/usuarios` (+ `[id]`),
+   `/admin/servidores` (+ `[id]`), `/admin/escolas/[id]`,
+   `/admin/estudantes`, `/admin/avaliacoes`,
+   `/admin/indicadores/qualidade`.
 
 ## Critérios de aceite
 
-A visão Admin responde "onde devo olhar agora e por quê?" e todo indicador
-relevante mantém rastreabilidade de período/fonte.
+A visão Admin responde "onde devo olhar agora e por quê?" (bloco "Atenção
+agora", 4 regras explicáveis, sem score opaco) e todo indicador relevante
+mantém rastreabilidade de período/fonte (freshness por módulo no dashboard
+e em Qualidade dos Dados; turma e estudante com período consistente e
+explícito; comparação da escola com a rede com ano selecionável). CPF não
+aparece completo por padrão em listagens; SECRETARIA não vê mais controles
+que não pode executar. Os itens de escopo restantes (filtros de escolas,
+tabs completas de `SchoolOverview`) foram avaliados e adiados com
+justificativa registrada, não deixados pendentes silenciosamente.
 
 ## Próximo passo permitido
 

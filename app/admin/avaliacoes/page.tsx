@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import type { TipoAvaliacao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { PageHeader } from "@/components/ui/page-header";
-import { buttonVariants } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 
@@ -17,21 +19,31 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 interface PageProps {
-  searchParams: { q?: string; page?: string; pageSize?: string };
+  searchParams: { q?: string; page?: string; pageSize?: string; tipo?: string; ano?: string };
 }
 
 export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim();
+  const tipoFiltro = searchParams.tipo?.trim() as TipoAvaliacao | undefined;
+  const anoFiltro = searchParams.ano ? Number(searchParams.ano) : undefined;
   const { page, pageSize, skip, take } = parsePaginationParams(searchParams);
 
-  const where = q
-    ? {
-        OR: [
-          { nome: { contains: q, mode: "insensitive" as const } },
-          { codigo: { contains: q, mode: "insensitive" as const } },
-        ],
-      }
-    : undefined;
+  const anosDisponiveis = (await prisma.avaliacao.groupBy({ by: ["ano"], orderBy: { ano: "desc" } })).map(
+    (r) => r.ano,
+  );
+
+  const where = {
+    ...(q
+      ? {
+          OR: [
+            { nome: { contains: q, mode: "insensitive" as const } },
+            { codigo: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+    ...(tipoFiltro ? { tipo: tipoFiltro } : {}),
+    ...(anoFiltro ? { ano: anoFiltro } : {}),
+  };
 
   const [avaliacoes, total] = await Promise.all([
     prisma.avaliacao.findMany({
@@ -56,6 +68,40 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
           </Link>
         }
       />
+
+      <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
+        {q && <input type="hidden" name="q" value={q} />}
+        <div className="w-52">
+          <label className="mb-1 block text-xs text-foreground-muted">Tipo</label>
+          <Select name="tipo" defaultValue={searchParams.tipo ?? ""}>
+            <option value="">Todos</option>
+            {Object.entries(TIPO_LABEL).map(([valor, rotulo]) => (
+              <option key={valor} value={valor}>
+                {rotulo}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-32">
+          <label className="mb-1 block text-xs text-foreground-muted">Ano</label>
+          <Select name="ano" defaultValue={searchParams.ano ?? ""}>
+            <option value="">Todos</option>
+            {anosDisponiveis.map((ano) => (
+              <option key={ano} value={ano}>
+                {ano}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Button type="submit" variant="secondary">
+          Filtrar
+        </Button>
+        {(tipoFiltro || anoFiltro) && (
+          <Link href={q ? `/admin/avaliacoes?q=${encodeURIComponent(q)}` : "/admin/avaliacoes"} className="text-sm text-primary hover:underline">
+            Limpar filtros
+          </Link>
+        )}
+      </form>
 
       <ListToolbar searchPlaceholder="Buscar por nome ou código..." />
 
