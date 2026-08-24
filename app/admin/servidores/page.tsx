@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatCpf } from "@/lib/utils";
+import { maskCpf } from "@/lib/utils";
 import { classifyServidorRole } from "@/lib/roles";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
@@ -64,7 +64,7 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
             {servidores.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="font-medium text-foreground">{s.nome}</TableCell>
-                <TableCell className="text-foreground-muted">{formatCpf(s.cpf)}</TableCell>
+                <TableCell className="text-foreground-muted">{maskCpf(s.cpf)}</TableCell>
                 <TableCell className="text-foreground-muted">{s.cargo ?? "-"}</TableCell>
                 <TableCell className="text-foreground-muted">
                   {ROLE_LABEL[classifyServidorRole(s.cargo, s.funcao)]}

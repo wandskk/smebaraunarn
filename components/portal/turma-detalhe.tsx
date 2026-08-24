@@ -65,13 +65,13 @@ export async function TurmaDetalheView({
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <MetricCard
-          label="Frequência da turma"
-          value={detalhe.frequencia.percentual !== null ? `${detalhe.frequencia.percentual.toFixed(1)}%` : "-"}
+          label={`Frequência da turma (${anoAtual})`}
+          value={detalhe.frequencia.percentual !== null ? `${detalhe.frequencia.percentual.toFixed(1)}%` : "Sem dados no período"}
           icon={CalendarCheck}
           accent="attendance"
         />
         <MetricCard
-          label="Faltas registradas"
+          label={`Faltas registradas (${anoAtual})`}
           value={String(detalhe.frequencia.totalFaltas)}
           icon={CalendarX}
           accent="attendance"

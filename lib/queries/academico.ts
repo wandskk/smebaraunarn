@@ -91,7 +91,13 @@ export interface TurmaDetalhe {
   frequencia: { totalAulas: number; totalFaltas: number; percentual: number | null };
 }
 
-/** Alunos, médias por disciplina e frequência agregada de uma turma específica. */
+/**
+ * Alunos, médias por disciplina e frequência agregada de uma turma
+ * específica — notas e frequência usam o mesmo recorte de ano (`ano-01-01`
+ * a `ano-12-31`), para não combinar frequência de todo o histórico com
+ * notas de um único ano letivo (achado do master prompt, ETAPA 04: "notas
+ * usam ano atual; frequência é agregada sem o mesmo recorte").
+ */
 export async function getTurmaDetalhe(escolaId: number, turma: string, ano: number): Promise<TurmaDetalhe> {
   const [alunos, notasAgregadas, frequenciaAgregada, series] = await Promise.all([
     prisma.estudante.findMany({ where: { escolaId, turmaSerie: turma }, orderBy: { nome: "asc" } }),
@@ -103,7 +109,7 @@ export async function getTurmaDetalhe(escolaId: number, turma: string, ano: numb
       orderBy: { disciplina: "asc" },
     }),
     prisma.frequenciaEstudante.aggregate({
-      where: { turma, estudante: { escolaId } },
+      where: { turma, estudante: { escolaId }, data: { gte: `${ano}-01-01`, lte: `${ano}-12-31` } },
       _sum: { falta: true, quantidadeAula: true },
     }),
     getSeriePorTurma([turma]),

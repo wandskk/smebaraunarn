@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 import { formatCpf } from "@/lib/utils";
+import { hasCapability } from "@/lib/authz/capabilities";
 import type { VinculoSelection } from "../vinculo-picker";
 import { EditVinculoForm } from "./edit-vinculo-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, SectionCard } from "@/components/ui/card";
+import { CapabilityGate } from "@/components/ui/capability-gate";
 
 interface PageProps {
   params: { id: string };
@@ -21,6 +24,9 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default async function EditarUsuarioPage({ params }: PageProps) {
+  const session = await requireSession(["ADMIN", "SECRETARIA"]);
+  const podeGerenciar = hasCapability(session.role, "usuarios:manage");
+
   const user = await prisma.user.findUnique({ where: { id: params.id } });
   if (!user) notFound();
 
@@ -69,13 +75,22 @@ export default async function EditarUsuarioPage({ params }: PageProps) {
         </dl>
       </Card>
 
-      <SectionCard
-        title="Vínculo com Servidor/Estudante"
-        description="Corrige contas manuais criadas antes de existir vínculo, ou troca o vínculo de uma conta existente. Ao salvar, CPF, nome, papel e escola são recalculados a partir do registro selecionado (a conta passa a se comportar como um acesso automático — o próximo login já reflete qualquer mudança futura de cargo/escola na origem)."
-        className="mt-6 max-w-2xl"
+      <CapabilityGate
+        allowed={podeGerenciar}
+        fallback={
+          <p className="mt-6 max-w-2xl rounded-xl border border-dashed border-border bg-surface p-4 text-sm text-foreground-muted">
+            Editar o vínculo desta conta está disponível apenas para Administradores.
+          </p>
+        }
       >
-        <EditVinculoForm userId={user.id} vinculoAtual={vinculoAtual} />
-      </SectionCard>
+        <SectionCard
+          title="Vínculo com Servidor/Estudante"
+          description="Corrige contas manuais criadas antes de existir vínculo, ou troca o vínculo de uma conta existente. Ao salvar, CPF, nome, papel e escola são recalculados a partir do registro selecionado (a conta passa a se comportar como um acesso automático — o próximo login já reflete qualquer mudança futura de cargo/escola na origem)."
+          className="mt-6 max-w-2xl"
+        >
+          <EditVinculoForm userId={user.id} vinculoAtual={vinculoAtual} />
+        </SectionCard>
+      </CapabilityGate>
     </div>
   );
 }

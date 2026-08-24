@@ -36,6 +36,19 @@ export function formatCpf(value: string): string {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
+/**
+ * Versão mascarada de `formatCpf` para uso em listagens — mostra os 3
+ * primeiros e os 2 últimos dígitos, oculta o miolo. Não expor CPF completo
+ * em listas sem necessidade operacional (regra 7.7 do master prompt); a
+ * tela de detalhe de um registro específico, já um drill-down intencional,
+ * pode continuar usando `formatCpf`.
+ */
+export function maskCpf(value: string): string {
+  const digits = normalizeCpf(value);
+  if (digits.length !== 11) return value;
+  return `${digits.slice(0, 3)}.***.***-${digits.slice(9)}`;
+}
+
 /** Exige exatamente 11 dígitos — usado para validar entrada do usuário. */
 export function isValidCpfFormat(value: string | null | undefined): boolean {
   return onlyDigits(value).length === 11;
