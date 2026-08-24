@@ -221,8 +221,11 @@ implementado nesta rodada:
 
 **P1 (ETAPA 10, blocos não escolhidos pelo usuário — prontos para uma nova
 rodada a qualquer momento):**
-- Importação CSV/XLSX de questões/resultados de avaliações (`respostasJson`
-  já pronto para recebê-la, ver ETAPA 09).
+- ~~Importação CSV/XLSX de questões/resultados de avaliações~~ — **concluído
+  na ETAPA 10 rodada 2** (pedida pelo usuário após o fechamento desta
+  ETAPA 11), incluindo a importação real de dois datasets externos (SPADEB
+  2026 e Leitor Fluente Rápido). Ver
+  [`etapas/10-p1-evolucao-funcional.md`](10-p1-evolucao-funcional.md).
 - Comunicação e documentos: CMS (`/admin/posts` — preview, agendamento,
   galeria) e Documentos (`/admin/documentos` — edição, substituição,
   categorias, validade).

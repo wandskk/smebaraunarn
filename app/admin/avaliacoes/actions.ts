@@ -6,6 +6,17 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/require-session";
 import { normalizeCpf } from "@/lib/utils";
 import { avaliacaoSchema, questaoSchema, resultadoSchema } from "@/lib/validations/avaliacao";
+import { parseArquivoTabular } from "@/lib/import/parse-tabular";
+import {
+  validarLinhasQuestao,
+  validarLinhasResultado,
+  commitQuestoesImportadas,
+  commitResultadosImportados,
+  type QuestaoImportada,
+  type ResultadoImportado,
+} from "@/lib/import/avaliacoes-import";
+
+export type { QuestaoImportada, ResultadoImportado };
 
 export interface FormState {
   error: string | null;
@@ -214,4 +225,90 @@ export async function deleteResultadoAction(avaliacaoId: string, resultadoId: st
   await requireSession(["ADMIN", "SECRETARIA"]);
   await prisma.avaliacaoResultadoAluno.delete({ where: { id: resultadoId } });
   revalidatePath(`/admin/avaliacoes/${avaliacaoId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Importação CSV/XLSX (ETAPA 10, rodada 2) — preview + commit em duas
+// chamadas separadas: a primeira só lê/valida o arquivo (nada é gravado),
+// a segunda recebe de volta as MESMAS linhas já validadas (o cliente
+// guarda o preview em estado local) e grava só as que estão "ok"/sem erro.
+// Isso evita reler o arquivo no commit e garante que só se grava o que o
+// usuário efetivamente viu no preview.
+// ---------------------------------------------------------------------------
+
+export interface PreviewQuestoesState {
+  error: string | null;
+  linhas: QuestaoImportada[];
+}
+
+export async function previewImportQuestoesAction(avaliacaoId: string, formData: FormData): Promise<PreviewQuestoesState> {
+  await requireSession(["ADMIN", "SECRETARIA"]);
+
+  const arquivo = formData.get("arquivo");
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    return { error: "Selecione um arquivo CSV ou XLSX.", linhas: [] };
+  }
+
+  let linhasBrutas;
+  try {
+    linhasBrutas = await parseArquivoTabular(arquivo);
+  } catch {
+    return { error: "Não foi possível ler o arquivo. Confirme que é um CSV ou XLSX válido.", linhas: [] };
+  }
+  if (linhasBrutas.length === 0) {
+    return { error: "Arquivo vazio ou sem linhas de dado (só cabeçalho).", linhas: [] };
+  }
+
+  return { error: null, linhas: validarLinhasQuestao(linhasBrutas) };
+}
+
+export interface CommitQuestoesState {
+  error: string | null;
+  criadas: number;
+  ignoradasPorDuplicidade: number[];
+}
+
+export async function commitImportQuestoesAction(avaliacaoId: string, linhas: QuestaoImportada[]): Promise<CommitQuestoesState> {
+  await requireSession(["ADMIN", "SECRETARIA"]);
+  const resultado = await commitQuestoesImportadas(avaliacaoId, linhas);
+  revalidatePath(`/admin/avaliacoes/${avaliacaoId}`);
+  return { error: null, ...resultado };
+}
+
+export interface PreviewResultadosState {
+  error: string | null;
+  linhas: ResultadoImportado[];
+}
+
+export async function previewImportResultadosAction(avaliacaoId: string, formData: FormData): Promise<PreviewResultadosState> {
+  await requireSession(["ADMIN", "SECRETARIA"]);
+
+  const arquivo = formData.get("arquivo");
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    return { error: "Selecione um arquivo CSV ou XLSX.", linhas: [] };
+  }
+
+  let linhasBrutas;
+  try {
+    linhasBrutas = await parseArquivoTabular(arquivo);
+  } catch {
+    return { error: "Não foi possível ler o arquivo. Confirme que é um CSV ou XLSX válido.", linhas: [] };
+  }
+  if (linhasBrutas.length === 0) {
+    return { error: "Arquivo vazio ou sem linhas de dado (só cabeçalho).", linhas: [] };
+  }
+
+  return { error: null, linhas: await validarLinhasResultado(linhasBrutas) };
+}
+
+export interface CommitResultadosState {
+  error: string | null;
+  gravados: number;
+}
+
+export async function commitImportResultadosAction(avaliacaoId: string, linhas: ResultadoImportado[]): Promise<CommitResultadosState> {
+  await requireSession(["ADMIN", "SECRETARIA"]);
+  const gravados = await commitResultadosImportados(avaliacaoId, linhas);
+  revalidatePath(`/admin/avaliacoes/${avaliacaoId}`);
+  return { error: null, gravados };
 }

@@ -12,6 +12,8 @@ import {
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { QuestaoForm } from "./questao-form";
 import { ResultadoForm } from "./resultado-form";
+import { ImportarQuestoesForm } from "./importar-questoes-form";
+import { ImportarResultadosForm } from "./importar-resultados-form";
 import { DeleteRowButton } from "./row-actions";
 import { deleteQuestaoAction, deleteResultadoAction, deleteAvaliacaoAction } from "../actions";
 import { PageHeader } from "@/components/ui/page-header";
@@ -43,6 +45,7 @@ const TABS = [
   { id: "questoes", label: "Questões" },
   { id: "resultados", label: "Resultados" },
   { id: "analise", label: "Análise" },
+  { id: "importar", label: "Importar" },
 ] as const;
 
 const STATUS_BADGE_VARIANT: Record<string, BadgeVariant> = {
@@ -419,6 +422,32 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
               )}
             </>
           )}
+        </div>
+      )}
+
+      {tab === "importar" && (
+        <div className="mt-6 space-y-10">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Importar questões</h2>
+            <p className="mt-1 text-xs text-foreground-muted/70">
+              Cadastra questões (gabarito) em lote — o mesmo resultado de usar o formulário da aba Questões várias
+              vezes.
+            </p>
+            <div className="mt-3">
+              <ImportarQuestoesForm avaliacaoId={avaliacaoBase.id} />
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-8">
+            <h2 className="text-sm font-semibold text-foreground">Importar resultados</h2>
+            <p className="mt-1 text-xs text-foreground-muted/70">
+              Lança resultados de estudantes em lote — mesma semântica de escrita do formulário da aba Resultados
+              (atualiza em vez de duplicar quando o estudante já tem resultado nesta avaliação).
+            </p>
+            <div className="mt-3">
+              <ImportarResultadosForm avaliacaoId={avaliacaoBase.id} />
+            </div>
+          </div>
         </div>
       )}
     </div>

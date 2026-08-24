@@ -1,6 +1,7 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 11 — rodada encerrada)
+**Última atualização:** 2026-08-24 (ETAPA 10, rodada 2 — importação real de
+avaliações concluída após o fechamento da ETAPA 11)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -20,22 +21,64 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 07 | Aluno P0 | **DONE** | 2026-08-24 |
 | 08 | Servidor Geral P0 | **DONE** | 2026-08-24 |
 | 09 | Avaliações Municipais | **DONE** | 2026-08-24 |
-| 10 | P1: evolução funcional | **DONE** (rodada 1 — ver resumo) | 2026-08-24 |
+| 10 | P1: evolução funcional | **DONE** (rodadas 1 e 2 — ver resumo) | 2026-08-24 |
 | 11 | Hardening, regressão e fechamento | **DONE** | 2026-08-24 |
 
 ## Estado final da rodada
 
-**As 12 etapas do master prompt (00-11) estão concluídas.** Não há etapa
-`PENDING` no roteiro obrigatório. O que resta é opcional e só entra
-mediante pedido explícito do usuário:
+**As 12 etapas do master prompt (00-11) estão concluídas**, incluindo uma
+2ª rodada da ETAPA 10 (Importação de avaliações) pedida explicitamente
+pelo usuário depois do fechamento inicial. Não há etapa `PENDING` no
+roteiro obrigatório. O que resta é opcional e só entra mediante pedido
+explícito do usuário:
 
-- Uma nova rodada da ETAPA 10 com um dos 3 blocos P1 ainda não
-  selecionados (importação de avaliações, comunicação/documentos, itens
-  específicos de Direção/Aluno).
+- Uma nova rodada da ETAPA 10 com um dos 2 blocos P1 ainda não
+  selecionados (comunicação/documentos, itens específicos de
+  Direção/Aluno).
 - Qualquer item do backlog P2 listado em
   [`etapas/11-hardening-regressao-e-fechamento.md`](etapas/11-hardening-regressao-e-fechamento.md#backlog-final--p1-não-selecionado-etapa-10--p2-master-prompt)
   — nenhum foi implementado, todos exigem migração de schema e/ou decisão
   de produto com a Secretaria.
+
+## Resumo da ETAPA 10 — rodada 2 (importação de avaliações)
+
+Pedida explicitamente pelo usuário depois do fechamento inicial da rodada
+(ETAPA 11 incluída), com um pedido concreto: importar avaliações reais que
+ele tinha em mãos. Duas entregas em paralelo:
+
+1. **Funcionalidade geral reaproveitável**: nova aba "Importar" em
+   `/admin/avaliacoes/[id]`, com fluxo de duas etapas (analisar → preview
+   com status por linha → confirmar) para questões (gabarito) e resultados
+   em lote, aceitando CSV ou XLSX (`lib/import/parse-tabular.ts` +
+   `lib/import/avaliacoes-import.ts`, 13 testes novos). Resultado identifica
+   o aluno por matrícula, CPF, ou nome (+ escola/turma para desambiguar).
+   Dependência nova `xlsx` (SheetJS) trocada pela build oficial corrigida
+   do CDN do próprio projeto depois do `npm install` acusar 2
+   vulnerabilidades altas na versão do registro npm.
+2. **Migração real de dois datasets externos**: o usuário forneceu dois
+   dumps Postgres (`.backup`) de sistemas próprios da rede — SPADEB 2026
+   (`barauna-edu-hub`, avaliação objetiva com gabarito por item) e Leitor
+   Fluente Rápido (avaliação de fluência leitora) — que ele restaurou
+   localmente. Inspecionados e migrados via `scripts/
+   migrar-avaliacoes-externas.ts`, reaproveitando as mesmas funções da
+   tela. Resultado: **9 avaliações, 320 questões, 1.831 resultados**
+   gravados na base real (taxa de match ~82% por nome+escola nos dois
+   datasets; 388 linhas sem correspondência clara ficaram de fora,
+   listadas em log, nunca adivinhadas).
+
+**Bug real encontrado e corrigido antes de fechar**: a primeira gravação
+populou `pontuacao` com um campo do SPADEB que estava zerado em 99% dos
+registros na origem (não calculado pelo sistema de origem, não uma nota
+real) — pego na verificação visual pós-commit, corrigido revertendo
+`pontuacao` para `null` nesses casos (a % de acerto real já é calculada
+pela Análise por item da ETAPA 09, a partir de `respostasJson` + gabarito).
+
+Baseline final: `npm test` 206/206 (193 + 13 novos), `typecheck`/`lint`/
+`build` limpos (66 rotas — sem rota nova, a importação vive dentro da rota
+já existente). Validação visual feita logada como Admin e como Diretor
+contra a base de produção real, com o próprio dado migrado.
+
+Detalhes completos: [`etapas/10-p1-evolucao-funcional.md`](etapas/10-p1-evolucao-funcional.md).
 
 ## Resumo da ETAPA 11
 
