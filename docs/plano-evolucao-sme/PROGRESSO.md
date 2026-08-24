@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 03)
+**Última atualização:** 2026-08-24 (ETAPA 04)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -14,7 +14,7 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 01 | Scopes e Capabilities | **DONE** | 2026-08-24 |
 | 02 | Contexto temporal e Data Freshness | **DONE** | 2026-08-24 |
 | 03 | Componentes acadêmicos compartilhados | **DONE** | 2026-08-24 |
-| 04 | Admin P0 | PENDING | — |
+| 04 | Admin P0 | **DONE** | 2026-08-24 |
 | 05 | Diretor P0 | PENDING | — |
 | 06 | Professor P0 | PENDING | — |
 | 07 | Aluno P0 | PENDING | — |
@@ -25,7 +25,51 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 04.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 05.**
+
+## Resumo da ETAPA 04
+
+Executada em 7 sub-lotes pequenos e testáveis (a pedido do usuário, dado o
+tamanho do documento de Admin), cada um commitado e enviado ao repositório
+separadamente:
+
+1. **Bugs P0 concretos**: janela de frequência da turma alinhada ao mesmo
+   ano de notas (`getTurmaDetalhe`); CPF mascarado por padrão em
+   `/admin/usuarios` e `/admin/servidores` (`maskCpf`, novo); permissão
+   visual Admin×Secretaria em `/admin/usuarios` via `CapabilityGate`
+   (ETAPA 01, até então sem uso).
+2. **Saúde da base no dashboard `/admin`**: bloco novo reaproveitando
+   `getStatusSincronizacao`/`DataFreshnessBadge` (ETAPA 02).
+3. **"Atenção agora"**: 4 regras dinâmicas explicáveis (frequência em
+   queda, desempenho abaixo da rede, distorção elevada, sincronização
+   atrasada) em `lib/analytics/atencao.ts` (puro, 16 testes) — sem
+   persistir nada, sem score opaco. Novo componente `InsightCard`.
+4. **Detecção de execução incompleta**: `execucaoIncompleta()` identifica
+   sincronização travada em "PROCESSANDO" sem SUCESSO final — cenário que
+   `classificarSituacaoSincronizacao` sozinha não detectava.
+5. **Nova rota `/admin/servidores/[id]`**: ficha funcional completa
+   (dados, papel explicado, contato, escola com distinção origem×manual,
+   turmas/disciplinas, acesso ao portal). Confirmada ausente na ETAPA 00.
+6. **Filtros analíticos** em estudantes (Escola/Ano), servidores
+   (Escola/Status) e avaliações (Tipo/Ano) — todos usando dados reais, sem
+   inventar categorias.
+7. **`SchoolOverview` inteligente**: `/admin/escolas/[id]` ganhou
+   comparação com a rede (reaproveitando `getComparativosPorEscola` e
+   `ComparisonDelta`) e seletor de ano.
+
+**Itens deliberadamente adiados, com justificativa registrada** (não
+esquecidos): filtros de `/admin/escolas` (lista pequena, filtros pedidos
+exigem dado derivado ainda não calculado); tabs completas de
+`SchoolOverview` e "Destaques da escola" (reestruturação maior, aguarda a
+ETAPA 05 dar um segundo caso de uso real para desenhar a API corretamente).
+
+Baseline final: `npm test` 177/177 (34 testes novos ao longo da etapa),
+`typecheck`/`lint`/`build` limpos em todos os 7 sub-lotes. Build final
+confirma 47 rotas (uma a mais que o baseline: `/admin/servidores/[id]`).
+Validação end-to-end logada não foi executada em nenhum sub-lote — mesma
+limitação de credenciais das etapas 01–03; fica pendente para a ETAPA 11.
+
+Detalhes completos: [`etapas/04-admin-p0.md`](etapas/04-admin-p0.md).
 
 ## Resumo da ETAPA 03
 

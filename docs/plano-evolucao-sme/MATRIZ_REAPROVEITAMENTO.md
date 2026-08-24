@@ -1,10 +1,8 @@
 # Matriz de Reaproveitamento — Núcleo x Perfil
 
-**Status:** preliminar (ETAPA 00, atualizada na ETAPA 01). Baseada em
-inspeção do código real (`app/`, `components/`, `lib/`,
-`prisma/schema.prisma`) e nos 5 DOCX em `base/`. Deve continuar sendo
-revisada nas etapas 02–03, à medida que contexto temporal/freshness e
-componentes acadêmicos compartilhados forem efetivamente implementados.
+**Status:** atualizada pela última vez na ETAPA 04. Baseada em inspeção do
+código real (`app/`, `components/`, `lib/`, `prisma/schema.prisma`) e nos 5
+DOCX em `base/`.
 
 ## 1. Scopes conceituais — implementados na ETAPA 01
 
@@ -45,18 +43,21 @@ lacuna a ser corrigida às pressas.
 
 ## 3. Componentes acadêmicos compartilhados citados no master prompt
 
-Estado desde a ETAPA 03 (ver `etapas/03-componentes-academicos-compartilhados.md`
-para o mapeamento completo de duplicação que motivou cada extração):
+Estado desde a ETAPA 04 (ver `etapas/03-componentes-academicos-compartilhados.md`
+e `etapas/04-admin-p0.md` para o mapeamento completo de duplicação/achados
+que motivou cada extração):
 
 | Componente | Estado |
 |---|---|
-| `CapabilityGate` | Existe (`components/ui/capability-gate.tsx`, ETAPA 01), sem uso em nenhuma tela ainda (aplicação visual é ETAPA 04). |
-| `DataFreshnessBadge` | Existe (`components/ui/data-freshness-badge.tsx`, ETAPA 02), usado em `/admin/indicadores/qualidade`. |
+| `CapabilityGate` | Existe desde a ETAPA 01 (`components/ui/capability-gate.tsx`); em uso desde a ETAPA 04 em `/admin/usuarios` (lista e detalhe), gate por `usuarios:manage`. |
+| `DataFreshnessBadge` | Existe desde a ETAPA 02 (`components/ui/data-freshness-badge.tsx`); usado em `/admin/indicadores/qualidade` e no dashboard `/admin` (ETAPA 04). |
 | `TurmaDetail` | Existe como `TurmaDetalheView` (`components/portal/turma-detalhe.tsx`, ETAPA 03), usado por Admin e Direção. |
 | `GradeTable` | Existe (`components/portal/grade-table.tsx`, ETAPA 03), usado por `AlunoDetalhe` (Admin/Direção/Professor) e pelo portal do Aluno. |
-| `ComparisonDelta` | Existe (`components/ui/comparison-delta.tsx`, ETAPA 03), usado pelas 2 telas de indicadores comparativos do Admin (a classificação de favorabilidade continua em cada página — só a apresentação é compartilhada). |
+| `ComparisonDelta` | Existe (`components/ui/comparison-delta.tsx`, ETAPA 03); consumido por `/admin/indicadores/frequencia`, `/admin/indicadores/comparativos` e, desde a ETAPA 04, por `/admin/escolas/[id]` — a classificação de favorabilidade continua em cada página, só a apresentação é compartilhada. |
+| `InsightCard` | Existe desde a ETAPA 04 (`components/ui/insight-card.tsx`), consumido pelo bloco "Atenção agora" do dashboard `/admin` (`lib/analytics/atencao.ts` + `lib/queries/atencao.ts`). |
 | `StudentAcademicDetail` | Já existia antes da ETAPA 03 como `AlunoDetalhe` (`components/portal/aluno-detalhe.tsx`), usado por Admin/Direção/Professor. |
-| `SchoolOverview`, `AttendanceSummary`, `AttendanceTable`, `AcademicContextBar`/`AnalysisScopeBar`, `InsightCard`, `CoverageCard`, `MethodologyNote`, `EvaluationSummary`, `FunctionalDataCard`, `AssignmentSummary` | Avaliados na ETAPA 02/03 e **deliberadamente não criados** — sem duplicação real hoje para consolidar, ou dependem de telas que ainda não existem (Home da Direção no formato de `SchoolOverview` é ETAPA 05; "Atenção agora"/`InsightCard` é ETAPA 04; cobertura de avaliação/`CoverageCard`/`EvaluationSummary` dependem da consolidação de Avaliações Municipais, ETAPA 09). |
+| `SchoolOverview` | Parcial desde a ETAPA 04: `/admin/escolas/[id]` ganhou uma seção "Comparação com a rede" (reaproveitando `getComparativosPorEscola` + `ComparisonDelta`) e seletor de ano. Ainda **sem** as tabs completas (Visão Geral/Turmas/Servidores/Estudantes/Indicadores/Avaliações) nem o bloco "Destaques da escola" do DOCX — decisão consciente de esperar a ETAPA 05 (Diretor reutilizando o mesmo núcleo com `SchoolScope`) para desenhar a API completa com um segundo caso de uso real, em vez de especular sozinho. |
+| `AttendanceSummary`, `AttendanceTable`, `AcademicContextBar`/`AnalysisScopeBar`, `CoverageCard`, `MethodologyNote`, `EvaluationSummary`, `FunctionalDataCard`, `AssignmentSummary` | Avaliados nas ETAPAs 02/03 e **deliberadamente não criados** — sem duplicação real hoje para consolidar, ou dependem de telas que ainda não existem (cobertura de avaliação/`CoverageCard`/`EvaluationSummary` dependem da consolidação de Avaliações Municipais, ETAPA 09). |
 
 As telas de Admin/Diretor/Professor/Aluno continuam, fora desses pontos já
 consolidados, implementando suas próprias views sobre `lib/queries/*`
