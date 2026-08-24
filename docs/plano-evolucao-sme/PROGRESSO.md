@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 07)
+**Última atualização:** 2026-08-24 (ETAPA 08)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -18,14 +18,52 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 05 | Diretor P0 | **DONE** | 2026-08-24 |
 | 06 | Professor P0 | **DONE** | 2026-08-24 |
 | 07 | Aluno P0 | **DONE** | 2026-08-24 |
-| 08 | Servidor Geral P0 | PENDING | — |
+| 08 | Servidor Geral P0 | **DONE** | 2026-08-24 |
 | 09 | Avaliações Municipais | PENDING | — |
 | 10 | P1: evolução funcional | PENDING | — |
 | 11 | Hardening, regressão e fechamento | PENDING | — |
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 08.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 09.**
+
+## Resumo da ETAPA 08
+
+Última etapa de perfil individual antes da consolidação transversal de
+Avaliações Municipais (ETAPA 09). Achado P0 central confirmado no código:
+a origem (SIGEduc) manda `turno`/`carga_trabalho` na própria linha do
+servidor, independente de haver turma — mas o sync só persistia esses
+valores em `ServidorTurma`, descartando-os silenciosamente para servidores
+sem turma (o caso típico de `SERVIDOR_GERAL`, cargos administrativos).
+
+1. **Migração pequena e aditiva** (autorizada explicitamente pelo
+   usuário): `Servidor.turno`/`Servidor.cargaTrabalho` (nullable, sem
+   backfill — dado nunca foi capturado antes). `lib/sync/sigeduc-sync.ts`
+   passa a gravar esses campos no `Servidor` só quando a linha não tem
+   turma, sem misturar com a atribuição pedagógica de `ServidorTurma`
+   (que pode variar por turma).
+2. **Ficha funcional reescrita**: usa o fallback quando não há turma;
+   "Não informado pela fonte" em vez de "-"; `DataFreshnessBadge` do
+   módulo SERVIDORES; seção "Contato cadastrado" (email/telefone, já
+   sincronizados mas nunca exibidos antes); aviso quando `escolaNome`
+   (texto da origem) diverge do vínculo estruturado; pendência
+   pedagógica com tom neutro (não mais alerta laranja) + transparência de
+   origem, em vez de inventar uma regra de aplicabilidade que só a
+   Secretaria pode confirmar.
+
+**Decisões deliberadas de não construir**: `ServidorLotacao` (o próprio
+documento classifica como P1/P2, sem evidência de múltiplas lotações que
+justifique agora); capabilities por tipo de função (nenhuma diferenciação
+real identificada ainda — mesma régua da ETAPA 01 para `CapabilityGate`).
+
+Baseline final: `npm test` 184/184 (sem testes novos — mudança de
+apresentação/fallback, `lib/sync/*` segue sem suíte própria por depender
+de I/O externo), `typecheck`/`lint`/`build` limpos (63 rotas, nenhuma
+nova). Validação end-to-end logada como SERVIDOR_GERAL real não foi
+executada — mesma limitação de credenciais das etapas anteriores; fica
+pendente para a ETAPA 11.
+
+Detalhes completos: [`etapas/08-servidor-geral-p0.md`](etapas/08-servidor-geral-p0.md).
 
 ## Resumo da ETAPA 07
 

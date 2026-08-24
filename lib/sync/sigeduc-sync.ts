@@ -154,6 +154,14 @@ export async function syncServidoresChunk(
           status: s.status,
           email: s.email,
           telefone: s.telefone,
+          // Fallback de lotação funcional (ETAPA 08) — só quando a linha não
+          // tem turma: com turma, a fonte de verdade é ServidorTurma (abaixo),
+          // que pode variar por turma; gravar aqui também poderia sobrescrever
+          // com o valor de uma única turma um servidor com várias. Omitido do
+          // objeto (não `undefined` explícito) quando há turma, para que o
+          // upsert não apague um fallback já gravado por uma linha anterior
+          // deste mesmo servidor sem turma.
+          ...(s.turma ? {} : { turno: s.turno, cargaTrabalho: s.carga_trabalho }),
         };
         // Cargos de direção/coordenação vêm sem escola na origem (lotados na
         // Secretaria) — a atribuição em /admin/servidores é a única fonte

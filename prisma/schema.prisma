@@ -91,6 +91,15 @@ model Servidor {
   pendenciaPedagogica String?
   email               String?
   telefone            String?
+  // Fallback de lotação funcional para quando a origem não traz turma
+  // (cargos administrativos) — a API manda turno/carga_trabalho na própria
+  // linha do servidor, mas antes da ETAPA 08 esses valores só eram
+  // persistidos em ServidorTurma, e portanto descartados quando não havia
+  // turma. Não usar para atribuição pedagógica: quando o servidor tem
+  // turma(s), a fonte de verdade continua sendo ServidorTurma.turno/
+  // cargaTrabalho (podem variar por turma).
+  turno               String?
+  cargaTrabalho       Int?
   escolaId            Int?
   escola              Escola?         @relation(fields: [escolaId], references: [id])
   escolaNome          String?

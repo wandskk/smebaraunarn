@@ -1,6 +1,6 @@
 # Matriz de Reaproveitamento — Núcleo x Perfil
 
-**Status:** atualizada pela última vez na ETAPA 07. Baseada em inspeção do
+**Status:** atualizada pela última vez na ETAPA 08. Baseada em inspeção do
 código real (`app/`, `components/`, `lib/`, `prisma/schema.prisma`) e nos 5
 DOCX em `base/`.
 
@@ -122,7 +122,14 @@ Pontos já confirmados como estruturalmente frágeis:
   API do SIGEduc antes de migrar de novo (ETAPA 10/P1).
 - `Servidor.pendenciaPedagogica` — campo existe no schema, mas seu
   significado/público de exibição ainda não foi validado (achado do DOCX de
-  Servidor Geral).
+  Servidor Geral; a ETAPA 08 amenizou a apresentação, não a semântica —
+  segue pendente de confirmação da Secretaria).
+- `Servidor.turno`/`Servidor.cargaTrabalho` — **adicionados na ETAPA 08**
+  como fallback funcional para servidores sem turma (a origem manda esses
+  campos por linha, independente de `turma`, mas antes só iam para
+  `ServidorTurma`). Não confundir com `ServidorTurma.turno`/`cargaTrabalho`
+  — aqueles são atribuição pedagógica (podem variar por turma), estes são
+  lotação funcional (um valor só, quando não há turma).
 
 ## 7. Próxima revisão desta matriz
 
@@ -135,7 +142,14 @@ corrigido na ETAPA 02, a ETAPA 07 tratou o restante do escopo (faltas
 abonadas, seletor de período/ano, completude do boletim, avaliações
 próprias) — já foram incorporados às seções 1, 3 e 6 acima. A coluna
 "Aluno" da matriz da seção 5 ganhou sua própria tela de Avaliações
-Municipais (antes só Admin/Diretor/Professor tinham visão de avaliação).
-Próxima revisão prevista ao final da ETAPA 08 (Servidor Geral P0), o
-último perfil individual antes da consolidação transversal de Avaliações
-Municipais (ETAPA 09).
+Municipais (antes só Admin/Diretor/Professor tinham visão de avaliação). A
+ETAPA 08 fechou o último perfil individual: fallback `Servidor.turno`/
+`cargaTrabalho` para lotação sem turma (seção 6) e ficha funcional com
+freshness/contato/divergência de escola (seção 5, coluna Servidor). Todos
+os 5 perfis (Admin, Diretor, Professor, Aluno, Servidor Geral) já tiveram
+sua rodada P0 individual. Próxima revisão prevista ao final da ETAPA 09
+(Avaliações Municipais) — primeira etapa transversal, que deve consolidar
+`AvaliacaoResultadoAluno`/`lib/queries/avaliacoes.ts` (hoje com 3
+consumidores: Admin, Diretor, Aluno) num núcleo único reaproveitado também
+por Professor, e é onde `CoverageCard`/`EvaluationSummary` (seção 3) têm o
+segundo caso de uso real para finalmente serem extraídos.
