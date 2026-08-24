@@ -415,10 +415,40 @@ export async function syncNotasChunk(
   }
 }
 
+type FrequenciaRow = {
+  estudanteMatricula: string;
+  data: string;
+  disciplina: string;
+  turma: string;
+  etapaEnsino: string;
+  escola: string;
+  serie: string;
+  falta: number;
+  quantidadeAula: number;
+  abonada: boolean;
+  motivoAbono: string | null;
+};
+
+/**
+ * Teto de linhas por transação. Uma página da API traz até 300 alunos, e
+ * cada aluno carrega uma linha por (dia x disciplina) dentro da janela
+ * pesquisada — numa janela larga (ex.: um mês inteiro) isso já passou de
+ * 100 mil linhas num createMany só, o que estourou a memória do Postgres
+ * (erro "out of memory" / "no space left on device" em produção, causado
+ * pelo backfill histórico de 2026-08-24). Acumular por aluno e fazer o
+ * flush ao cruzar este teto mantém o volume de cada transação previsível
+ * mesmo em janelas largas.
+ */
+const MAX_LINHAS_POR_TRANSACAO = 2_000;
+
 /**
  * Mesma ideia de `aplicarPaginaNotas`, para `consulta-frequencia`: delete+
  * insert na mesma transação, pra um insert que falha por falta de espaço
- * não deixar a janela [dataInicio, dataFim] apagada sem repor.
+ * não deixar a janela [dataInicio, dataFim] apagada sem repor. O delete é
+ * escopado às matrículas do lote (não da página inteira), então um lote
+ * não apaga frequência de alunos que ainda serão processados por outro lote
+ * — por isso a matrícula de cada aluno só pode aparecer em UM lote (ver
+ * agrupamento por matrícula abaixo antes do loteamento).
  */
 export async function aplicarPaginaFrequencia(
   dataInicio: string,
@@ -427,11 +457,40 @@ export async function aplicarPaginaFrequencia(
   dados: ConsultaFrequenciaAluno[],
 ): Promise<number> {
   const alunosValidos = dados.filter((aluno) => estudantesValidos.has(aluno.matricula));
-  const matriculas = alunosValidos.map((aluno) => aluno.matricula);
-  if (matriculas.length === 0) return 0;
+  if (alunosValidos.length === 0) return 0;
 
-  const rows = alunosValidos.flatMap((aluno) =>
-    aluno.frequencias.map((f) => ({
+  // A API documenta paginação por aluno (um objeto por matrícula por
+  // página), mas agrupar aqui é barato e garante isso mesmo que a API
+  // algum dia devolva a mesma matrícula duas vezes na mesma página — sem
+  // isso, se as duas ocorrências caíssem em lotes diferentes, o segundo
+  // lote apagaria (mesma matrícula + mesma janela) o que o primeiro lote
+  // acabou de inserir.
+  const porMatricula = new Map<string, ConsultaFrequenciaAluno>();
+  for (const aluno of alunosValidos) {
+    const existente = porMatricula.get(aluno.matricula);
+    if (existente) existente.frequencias.push(...aluno.frequencias);
+    else porMatricula.set(aluno.matricula, { ...aluno, frequencias: [...aluno.frequencias] });
+  }
+
+  let totalRows = 0;
+  let loteMatriculas: string[] = [];
+  let loteRows: FrequenciaRow[] = [];
+
+  const flush = async () => {
+    if (loteMatriculas.length === 0) return;
+    await prisma.$transaction([
+      prisma.frequenciaEstudante.deleteMany({
+        where: { estudanteMatricula: { in: loteMatriculas }, data: { gte: dataInicio, lte: dataFim } },
+      }),
+      prisma.frequenciaEstudante.createMany({ data: loteRows, skipDuplicates: true }),
+    ]);
+    totalRows += loteRows.length;
+    loteMatriculas = [];
+    loteRows = [];
+  };
+
+  for (const aluno of porMatricula.values()) {
+    const rows: FrequenciaRow[] = aluno.frequencias.map((f) => ({
       estudanteMatricula: aluno.matricula,
       data: f.data,
       disciplina: f.disciplina,
@@ -446,17 +505,27 @@ export async function aplicarPaginaFrequencia(
       quantidadeAula: f.quantidade_aula,
       abonada: f.abonada,
       motivoAbono: f.motivo_abono || null,
-    })),
-  );
-  if (rows.length === 0) return 0;
+    }));
 
-  await prisma.$transaction([
-    prisma.frequenciaEstudante.deleteMany({
-      where: { estudanteMatricula: { in: matriculas }, data: { gte: dataInicio, lte: dataFim } },
-    }),
-    prisma.frequenciaEstudante.createMany({ data: rows, skipDuplicates: true }),
-  ]);
-  return rows.length;
+    // Fecha o lote atual antes de somar este aluno, se ele sozinho já
+    // estourar o teto — sem isso, um aluno com histórico grande (janela
+    // larga) só somaria ao lote anterior e o teto vira só uma sugestão.
+    if (loteRows.length > 0 && loteRows.length + rows.length > MAX_LINHAS_POR_TRANSACAO) {
+      await flush();
+    }
+
+    // Mantém a matrícula no lote mesmo sem linhas novas (frequencias
+    // vazio): o comportamento original apagava a janela de qualquer aluno
+    // válido da página, mesmo sem repor nada, e isso preserva essa limpeza
+    // de dados obsoletos.
+    loteMatriculas.push(aluno.matricula);
+    loteRows.push(...rows);
+
+    if (loteRows.length >= MAX_LINHAS_POR_TRANSACAO) await flush();
+  }
+  await flush();
+
+  return totalRows;
 }
 
 /**
