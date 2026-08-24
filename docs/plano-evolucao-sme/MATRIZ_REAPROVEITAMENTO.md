@@ -1,28 +1,31 @@
 # Matriz de Reaproveitamento — Núcleo x Perfil
 
-**Status:** preliminar (ETAPA 00). Baseada em inspeção do código real
-(`app/`, `components/`, `lib/`, `prisma/schema.prisma`) e nos 5 DOCX em
-`base/`. Deve ser revisada e aprofundada nas etapas 01–03, à medida que
-scopes/capabilities e componentes compartilhados forem efetivamente
-implementados.
+**Status:** preliminar (ETAPA 00, atualizada na ETAPA 01). Baseada em
+inspeção do código real (`app/`, `components/`, `lib/`,
+`prisma/schema.prisma`) e nos 5 DOCX em `base/`. Deve continuar sendo
+revisada nas etapas 02–03, à medida que contexto temporal/freshness e
+componentes acadêmicos compartilhados forem efetivamente implementados.
 
-## 1. Scopes conceituais (ainda não implementados como código)
+## 1. Scopes conceituais — implementados na ETAPA 01
 
-O master prompt define 5 scopes conceituais. Hoje (ETAPA 00) a autorização do
-sistema é baseada **apenas em `role`** (`lib/roles.ts` classifica o cargo
-sincronizado do SIGEduc em `DIRETOR` / `PROFESSOR` / `SERVIDOR_GERAL`;
-`lib/require-session.ts` verifica só `session.role` contra uma lista de
-papéis permitidos). Não existe hoje nenhum objeto/helper `NetworkScope`,
-`SchoolScope`, `ProfessorScope`, `StudentSelfScope` ou `StaffSelfScope` no
-código — isso é o objeto da ETAPA 01, não algo já pronto.
+O master prompt define 5 scopes conceituais. Desde a ETAPA 01, eles existem
+como código central e testado em [`lib/authz/scope.ts`](../../lib/authz/scope.ts)
+(tipo `Scope`, união discriminada, e `scopeFromSession`) e
+[`lib/authz/authorize.ts`](../../lib/authz/authorize.ts) (predicados
+`canViewEscola`/`canViewTurma`/`canViewEstudante`/`canViewServidor`). A
+autorização por papel isolado (`lib/require-session.ts`) continua existindo
+como primeira camada (autenticação + prefixo de rota permitido); o scope
+central é a segunda camada, que decide *qual entidade* dentro da rota já
+permitida por papel. Ver [`etapas/01-scopes-e-capabilities.md`](etapas/01-scopes-e-capabilities.md)
+para o detalhamento completo.
 
-| Scope | Papel(éis) | Estado atual no código |
+| Scope | Papel(éis) | Estado no código (ETAPA 01) |
 |---|---|---|
-| `NetworkScope` | ADMIN, SECRETARIA | Implícito: rotas `/admin/*` não filtram por escola. Sem objeto de scope explícito. |
-| `SchoolScope` | DIRETOR | Implícito via `Servidor.escolaId`, mas não há checagem central que restrinja queries/rotas a essa escola em todos os pontos. |
-| `ProfessorScope` | PROFESSOR | Mais frágil: `ServidorTurma` não tem `escolaId` (só `turma` como string) e `@@unique([servidorId, turma])` não modela disciplina — ver riscos na seção 8 do master prompt e em `etapas/00-auditoria-e-baseline.md`. |
-| `StudentSelfScope` | ALUNO | Implícito via sessão vinculada ao próprio `Estudante`. |
-| `StaffSelfScope` | SERVIDOR_GERAL | Implícito via sessão vinculada ao próprio `Servidor`. |
+| `NetworkScope` | ADMIN, SECRETARIA | `{ kind: "network" }` — vê qualquer escola/turma/estudante/servidor. Ainda não há distinção de capability entre ADMIN e SECRETARIA na autorização por entidade (só existe para a ação `usuarios:manage`, em `lib/authz/capabilities.ts`). |
+| `SchoolScope` | DIRETOR | `{ kind: "school", escolaId }`. Aplicado em `app/portal/direcao/alunos/[id]/page.tsx` via `canViewEstudante`. Outras rotas de Direção (`turmas/[turma]`, `estudantes`, `servidores`) ainda filtram por `escolaId` direto na query, não via o módulo — consolidação prevista para a ETAPA 03. |
+| `ProfessorScope` | PROFESSOR | `{ kind: "professor", escolaId, turmas }`. Aplicado em `app/portal/professor/turma/[id]/page.tsx`. Turmas vêm de `ServidorTurma` (sem `escolaId` próprio — a checagem de escola usa `Servidor.escolaId`, não a turma). Ainda **não** resolve o caso de um professor com mais de uma disciplina na mesma turma (`ServidorTurma` não modela isso) — decisão explícita de adiar a migração de schema para a ETAPA 06. O bug conhecido "professor sem turma recebe contagem de todos os alunos da escola" (`app/portal/professor/page.tsx`) **não foi corrigido** na ETAPA 01 — está reservado para a ETAPA 06 (Professor P0), que é onde o master prompt o lista. |
+| `StudentSelfScope` | ALUNO | `{ kind: "student-self", estudanteId }`. Definido no módulo; ainda não há nenhum ponto no código do Aluno onde um `estudanteId` de outrem precisaria ser bloqueado (o portal do Aluno hoje só busca o próprio registro via `getEstudanteBySession`), então não houve refatoração de página nesta etapa. |
+| `StaffSelfScope` | SERVIDOR_GERAL | `{ kind: "staff-self", servidorId }`. `canViewEstudante` retorna sempre `false` para este scope — reforça em código a regra 7.7 do master prompt (Servidor Geral não recebe dados acadêmicos por lotação). |
 
 ## 2. Componentes de design system já existentes (`components/ui/`)
 

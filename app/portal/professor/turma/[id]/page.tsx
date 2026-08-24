@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireSession } from "@/lib/require-session";
 import { getServidorBySession } from "@/lib/queries/portal";
 import { getAlunoDetalheCompleto } from "@/lib/queries/academico";
+import { scopeFromSession } from "@/lib/authz/scope";
+import { canViewEstudante } from "@/lib/authz/authorize";
 import { AlunoDetalhe } from "@/components/portal/aluno-detalhe";
 
 interface PageProps {
@@ -14,16 +16,15 @@ export default async function ProfessorAlunoDetalhePage({ params }: PageProps) {
   const servidor = await getServidorBySession(session);
   if (!servidor) return null;
 
+  // Escopo travado: professor só pode ver alunos da própria escola e de
+  // alguma das suas turmas. Sem turma vinculada, nenhum aluno fica visível —
+  // evita liberar a escola inteira quando o servidor ainda não tem
+  // ServidorTurma sincronizado.
+  const scope = scopeFromSession(session, { professorTurmas: servidor.turmas.map((t) => t.turma) });
   const anoAtual = new Date().getFullYear();
   const dados = await getAlunoDetalheCompleto(Number(params.id), anoAtual);
 
-  // Escopo travado: professor só pode ver alunos da própria escola e de
-  // alguma das suas turmas (mesma regra de filtro usada em turma/page.tsx).
-  // Sem turma vinculada, nenhum aluno fica visível — evita liberar a escola
-  // inteira quando o servidor ainda não tem ServidorTurma sincronizado.
-  const nomesTurma = servidor.turmas.map((t) => t.turma);
-  const turmaPermitida = nomesTurma.includes(dados?.estudante.turmaSerie ?? "");
-  if (!dados || dados.estudante.escolaId !== servidor.escolaId || !turmaPermitida) notFound();
+  if (!dados || !canViewEstudante(scope, dados.estudante)) notFound();
 
   return (
     <div>
