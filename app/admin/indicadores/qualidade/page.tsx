@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
-import {
-  getStatusSincronizacao,
-  getColisoesCodigoTurma,
-  type StatusModuloSincronizacao,
-} from "@/lib/queries/qualidade-dados";
+import { getStatusSincronizacao, getColisoesCodigoTurma } from "@/lib/queries/qualidade-dados";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 
@@ -27,28 +24,6 @@ function formatarData(data: Date | null): string {
 function formatarDuracao(ms: number | null): string {
   if (ms === null) return "-";
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
-}
-
-function SituacaoBadge({ situacao }: { situacao: StatusModuloSincronizacao["situacao"] }) {
-  if (situacao === "em-dia") {
-    return (
-      <Badge variant="success" icon={CheckCircle2}>
-        Em dia
-      </Badge>
-    );
-  }
-  if (situacao === "atrasado") {
-    return (
-      <Badge variant="warning" icon={Clock}>
-        Atrasado
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="danger" icon={XCircle}>
-      Sem sincronização
-    </Badge>
-  );
 }
 
 const STATUS_LOG_VARIANT: Record<string, BadgeVariant> = {
@@ -99,7 +74,7 @@ export default async function QualidadeDadosPage() {
               <TableRow key={m.modulo}>
                 <TableCell className="font-medium text-foreground">{ROTULO_MODULO[m.modulo] ?? m.modulo}</TableCell>
                 <TableCell>
-                  <SituacaoBadge situacao={m.situacao} />
+                  <DataFreshnessBadge situacao={m.situacao} />
                 </TableCell>
                 <TableCell className="text-foreground-muted">
                   {m.ultimoLog ? (

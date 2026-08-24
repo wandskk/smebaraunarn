@@ -1,6 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
+import { calcularJanelaDias, calcularPercentualFrequencia, type JanelaDias } from "@/lib/analytics/frequencia";
+
+/** Janela padrão de frequência exibida na ficha do estudante — ver ETAPA 02. */
+export const DIAS_FREQUENCIA_FICHA_ALUNO = 90;
 
 export interface TurmaResumo {
   turma: string;
@@ -130,15 +133,26 @@ export interface AlunoDetalheCompleto {
   estudante: Prisma.EstudanteGetPayload<{ include: { escola: true } }>;
   notas: Awaited<ReturnType<typeof prisma.notaEstudante.findMany>>;
   frequencias: Awaited<ReturnType<typeof prisma.frequenciaEstudante.findMany>>;
+  /** Janela de calendário (não "N registros") usada para buscar `frequencias` acima. */
+  janelaFrequencia: JanelaDias;
 }
 
-/** Ficha completa de um aluno: dados, boletim do ano corrente e frequência recente. */
+/**
+ * Ficha completa de um aluno: dados, boletim do ano corrente e frequência
+ * dos últimos `DIAS_FREQUENCIA_FICHA_ALUNO` dias corridos — um período de
+ * calendário real, não "os 90 registros mais recentes" (que antes podia
+ * cobrir semanas ou meses dependendo da regularidade de lançamento da
+ * escola de origem — achado do master prompt, ETAPA 02).
+ */
 export async function getAlunoDetalheCompleto(
   alunoId: number,
   ano: number,
+  referencia: Date = new Date(),
 ): Promise<AlunoDetalheCompleto | null> {
   const estudante = await prisma.estudante.findUnique({ where: { id: alunoId }, include: { escola: true } });
   if (!estudante) return null;
+
+  const janelaFrequencia = calcularJanelaDias(referencia, DIAS_FREQUENCIA_FICHA_ALUNO);
 
   const [notas, frequencias] = await Promise.all([
     prisma.notaEstudante.findMany({
@@ -146,11 +160,13 @@ export async function getAlunoDetalheCompleto(
       orderBy: [{ disciplina: "asc" }, { unidade: "asc" }],
     }),
     prisma.frequenciaEstudante.findMany({
-      where: { estudanteMatricula: estudante.matricula },
+      where: {
+        estudanteMatricula: estudante.matricula,
+        data: { gte: janelaFrequencia.inicio, lte: janelaFrequencia.fim },
+      },
       orderBy: { data: "desc" },
-      take: 90,
     }),
   ]);
 
-  return { estudante, notas, frequencias };
+  return { estudante, notas, frequencias, janelaFrequencia };
 }

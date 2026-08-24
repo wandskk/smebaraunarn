@@ -7,10 +7,34 @@ import {
   classificarGravidadeFaltasConsecutivas,
   classificarFaixaFrequencia,
   calcularPercentualFrequencia,
+  calcularJanelaDias,
   FAIXAS_PADRAO_FREQUENCIA,
   LIMIARES_PADRAO_FALTAS_CONSECUTIVAS,
   type RegistroDiario,
 } from "./frequencia";
+
+describe("calcularJanelaDias", () => {
+  test("janela de 90 dias inclui hoje e os 89 dias anteriores (não 90 registros)", () => {
+    const referencia = new Date("2026-08-24T12:00:00Z");
+    const janela = calcularJanelaDias(referencia, 90);
+    assert.equal(janela.fim, "2026-08-24");
+    assert.equal(janela.inicio, "2026-05-27"); // 89 dias antes de 24/08
+  });
+
+  test("janela de 1 dia é só a data de referência (início === fim)", () => {
+    const referencia = new Date("2026-08-24T12:00:00Z");
+    const janela = calcularJanelaDias(referencia, 1);
+    assert.equal(janela.inicio, "2026-08-24");
+    assert.equal(janela.fim, "2026-08-24");
+  });
+
+  test("datas retornadas são strings ISO comparáveis lexicograficamente (compatível com FrequenciaEstudante.data)", () => {
+    const janela = calcularJanelaDias(new Date("2026-01-05T00:00:00Z"), 10);
+    assert.match(janela.inicio, /^\d{4}-\d{2}-\d{2}$/);
+    assert.match(janela.fim, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(janela.inicio < janela.fim || janela.inicio === janela.fim);
+  });
+});
 
 describe("calcularVariacaoFrequencia", () => {
   test("detecta queda além do limiar de estabilidade", () => {

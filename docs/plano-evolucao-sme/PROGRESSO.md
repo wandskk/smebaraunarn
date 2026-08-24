@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 01)
+**Última atualização:** 2026-08-24 (ETAPA 02)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -12,7 +12,7 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 |---|---|---|---|
 | 00 | Auditoria, baseline e documentação | **DONE** | 2026-08-24 |
 | 01 | Scopes e Capabilities | **DONE** | 2026-08-24 |
-| 02 | Contexto temporal e Data Freshness | PENDING | — |
+| 02 | Contexto temporal e Data Freshness | **DONE** | 2026-08-24 |
 | 03 | Componentes acadêmicos compartilhados | PENDING | — |
 | 04 | Admin P0 | PENDING | — |
 | 05 | Diretor P0 | PENDING | — |
@@ -25,7 +25,46 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 02.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 03.**
+
+## Resumo da ETAPA 02
+
+- Novo utilitário puro `calcularJanelaDias(referencia, dias)` em
+  `lib/analytics/frequencia.ts` (janela de calendário real em ISO, testado)
+  — `calcularJanelaComparativaPadrao` (já existente em
+  `lib/queries/frequencia.ts`) foi refatorada para reaproveitá-lo em vez de
+  duplicar a matemática de datas.
+- Novo componente `components/ui/data-freshness-badge.tsx`
+  (`DataFreshnessBadge`), extraído do que era uma função local duplicada em
+  `/admin/indicadores/qualidade` — agora reutilizado por essa página.
+- 3 bugs concretos de período/freshness corrigidos, todos previamente
+  mapeados por grep (nenhuma tela tocada "por via das dúvidas"):
+  1. `lib/queries/academico.ts` (`getAlunoDetalheCompleto`) e
+     `app/portal/aluno/frequencia/page.tsx`: `take: 90` **registros** →
+     janela real de 90 **dias** corridos.
+  2. `app/portal/aluno/frequencia/page.tsx`: fallback perigoso
+     `totalAulas > 0 ? ... : 100` (frequência sem dado virando 100%) →
+     `calcularPercentualFrequencia` (retorna `null`) + estado explícito
+     "Sem dados no período". Também corrigido em
+     `components/portal/aluno-detalhe.tsx` (componente compartilhado por
+     Aluno/Direção/Professor), que tinha uma segunda implementação local
+     da mesma fórmula.
+  3. `app/admin/indicadores/page.tsx`: freshness "de qualquer módulo"
+     (`logSincronizacao.findFirst` sem filtro) usada para todos os
+     indicadores → `getStatusSincronizacao()`, com cada indicador citando a
+     data de atualização do módulo correto (Frequência/Notas/Estudantes).
+     Os 4 links de drill-down passaram a propagar `?ano=`.
+- `AcademicContextBar`/`AnalysisScopeBar` e `MethodologyNote` **não foram
+  criados** — decisão deliberada de não construir componente novo sem um
+  segundo caso de uso real para validar a API (mesmo critério já usado para
+  `CapabilityGate` na ETAPA 01); ver decisões técnicas 4 e 5 em
+  `etapas/02-contexto-temporal-e-freshness.md`.
+- Baseline pós-mudança: `npm test` 143/143 (140 pré-existentes + 3 novos),
+  `typecheck` limpo, `lint` limpo, `build` com sucesso (mesmas 46 rotas).
+- Validação end-to-end logada **não foi executada** — mesma limitação de
+  credenciais já registrada na ETAPA 01; pendência para a ETAPA 11.
+
+Detalhes completos: [`etapas/02-contexto-temporal-e-freshness.md`](etapas/02-contexto-temporal-e-freshness.md).
 
 ## Resumo da ETAPA 01
 

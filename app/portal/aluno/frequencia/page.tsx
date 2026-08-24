@@ -4,34 +4,46 @@ import { CalendarCheck, CalendarX, FileCheck } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { getEstudanteBySession } from "@/lib/queries/portal";
 import { prisma } from "@/lib/prisma";
+import { calcularJanelaDias, calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
+import { DIAS_FREQUENCIA_FICHA_ALUNO } from "@/lib/queries/academico";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+
+function formatarDataIso(data: string): string {
+  return format(new Date(`${data}T00:00:00`), "dd/MM/yyyy", { locale: ptBR });
+}
 
 export default async function FrequenciaPage() {
   const session = await requireSession(["ALUNO"]);
   const estudante = await getEstudanteBySession(session);
   if (!estudante) return null;
 
+  const janela = calcularJanelaDias(new Date(), DIAS_FREQUENCIA_FICHA_ALUNO);
+  const periodoLabel = `${formatarDataIso(janela.inicio)} a ${formatarDataIso(janela.fim)}`;
+
   const registros = await prisma.frequenciaEstudante.findMany({
-    where: { estudanteMatricula: estudante.matricula },
+    where: { estudanteMatricula: estudante.matricula, data: { gte: janela.inicio, lte: janela.fim } },
     orderBy: { data: "desc" },
-    take: 90,
   });
 
   const totalAulas = registros.reduce((sum, r) => sum + r.quantidadeAula, 0);
   const totalFaltas = registros.reduce((sum, r) => sum + r.falta, 0);
   const totalAbonadas = registros.filter((r) => r.abonada).length;
-  const percentualPresenca = totalAulas > 0 ? ((totalAulas - totalFaltas) / totalAulas) * 100 : 100;
+  // Sem aula registrada no período não é "100% de frequência" — é ausência de
+  // dado. calcularPercentualFrequencia já retorna null nesse caso (ver
+  // lib/analytics/frequencia.ts); renderizado abaixo como "Sem dados no
+  // período", nunca como um percentual inventado.
+  const percentualPresenca = calcularPercentualFrequencia(totalAulas, totalFaltas);
 
   return (
     <div>
-      <PageHeader title="Frequência" description="Últimos registros de presença e falta." />
+      <PageHeader title="Frequência" description={`Período: ${periodoLabel} (últimos ${DIAS_FREQUENCIA_FICHA_ALUNO} dias).`} />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <MetricCard
           label="Frequência no período"
-          value={`${percentualPresenca.toFixed(1)}%`}
+          value={percentualPresenca !== null ? `${percentualPresenca.toFixed(1)}%` : "Sem dados no período"}
           icon={CalendarCheck}
           accent="attendance"
         />
@@ -41,7 +53,7 @@ export default async function FrequenciaPage() {
 
       {registros.length === 0 ? (
         <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhum registro de frequência encontrado.
+          Sem dados no período — nenhum registro de frequência entre {periodoLabel}.
         </p>
       ) : (
         <div className="mt-6">

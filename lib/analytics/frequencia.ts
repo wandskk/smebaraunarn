@@ -138,6 +138,30 @@ export function calcularPercentualFrequencia(totalAulas: number, totalFaltas: nu
   return ((totalAulas - totalFaltas) / totalAulas) * 100;
 }
 
+export interface JanelaDias {
+  /** Data inicial da janela, formato ISO (YYYY-MM-DD), inclusive. */
+  inicio: string;
+  /** Data final da janela, formato ISO (YYYY-MM-DD), inclusive. */
+  fim: string;
+}
+
+/**
+ * Janela de `dias` dias corridos terminando em `referencia` (inclusive nas
+ * duas pontas — ex.: `dias=90` a partir de hoje cobre hoje e os 89 dias
+ * anteriores). Existe para que um recorte "últimos N dias" seja sempre um
+ * período de calendário real, nunca "os N registros mais recentes" — ver
+ * achado do master prompt: "'últimos 90 registros' tratados como se fossem
+ * 'últimos 90 dias'" (docs/plano-evolucao-sme/etapas/02-contexto-temporal-e-freshness.md).
+ * `FrequenciaEstudante.data` é armazenada como string ISO (YYYY-MM-DD), por
+ * isso o retorno já vem no formato pronto para comparação lexicográfica em
+ * `where: { data: { gte, lte } }`.
+ */
+export function calcularJanelaDias(referencia: Date, dias: number): JanelaDias {
+  const paraIso = (data: Date) => data.toISOString().slice(0, 10);
+  const inicio = new Date(referencia.getTime() - (dias - 1) * 24 * 60 * 60 * 1000);
+  return { inicio: paraIso(inicio), fim: paraIso(referencia) };
+}
+
 export type FaixaFrequencia = "adequada" | "atencao" | "critica";
 
 export interface FaixasFrequencia {

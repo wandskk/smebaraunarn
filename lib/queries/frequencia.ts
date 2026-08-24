@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
+  calcularJanelaDias,
   calcularPercentualFrequencia,
   calcularVariacaoFrequencia,
   classificarFaixaFrequencia,
@@ -149,18 +150,16 @@ export function resolverDataReferenciaJanela(anoLetivo: number, hoje: Date = new
 }
 
 export function calcularJanelaComparativaPadrao(hoje: Date, diasPorJanela = 30): JanelaComparativa {
-  const paraIso = (data: Date) => data.toISOString().slice(0, 10);
   const subDias = (data: Date, dias: number) => new Date(data.getTime() - dias * 24 * 60 * 60 * 1000);
 
-  const atualFim = hoje;
-  const atualInicio = subDias(atualFim, diasPorJanela - 1);
-  const anteriorFim = subDias(atualInicio, 1);
-  const anteriorInicio = subDias(anteriorFim, diasPorJanela - 1);
+  const atual = calcularJanelaDias(hoje, diasPorJanela);
+  const anteriorFim = subDias(new Date(`${atual.inicio}T00:00:00Z`), 1);
+  const anterior = calcularJanelaDias(anteriorFim, diasPorJanela);
 
   return {
-    atualInicio: paraIso(atualInicio),
-    atualFim: paraIso(atualFim),
-    anteriorInicio: paraIso(anteriorInicio),
-    anteriorFim: paraIso(anteriorFim),
+    atualInicio: atual.inicio,
+    atualFim: atual.fim,
+    anteriorInicio: anterior.inicio,
+    anteriorFim: anterior.fim,
   };
 }

@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { AlunoDetalheCompleto } from "@/lib/queries/academico";
+import { calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
@@ -10,8 +11,12 @@ interface AlunoDetalheProps {
   ano: number;
 }
 
+function formatarDataIso(data: string): string {
+  return format(new Date(`${data}T00:00:00`), "dd/MM/yyyy", { locale: ptBR });
+}
+
 export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
-  const { estudante, notas, frequencias } = dados;
+  const { estudante, notas, frequencias, janelaFrequencia } = dados;
 
   const porDisciplina = notas.reduce<Record<string, typeof notas>>((acc, nota) => {
     (acc[nota.disciplina] ??= []).push(nota);
@@ -21,7 +26,10 @@ export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
   const totalAulas = frequencias.reduce((sum, r) => sum + r.quantidadeAula, 0);
   const totalFaltas = frequencias.reduce((sum, r) => sum + r.falta, 0);
   const totalAbonadas = frequencias.filter((r) => r.abonada).length;
-  const percentualPresenca = totalAulas > 0 ? ((totalAulas - totalFaltas) / totalAulas) * 100 : null;
+  // Reaproveita a mesma fórmula usada por Admin/Diretor/Professor (lib/analytics/frequencia.ts)
+  // em vez de uma segunda implementação local — garante o mesmo resultado para a mesma entidade.
+  const percentualPresenca = calcularPercentualFrequencia(totalAulas, totalFaltas);
+  const periodoFrequenciaLabel = `${formatarDataIso(janelaFrequencia.inicio)} a ${formatarDataIso(janelaFrequencia.fim)}`;
 
   return (
     <div>
@@ -42,9 +50,9 @@ export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
           <dd className="text-sm font-medium text-foreground">{estudante.dataNascimento ?? "-"}</dd>
         </Card>
         <Card>
-          <dt className="text-xs text-foreground-muted">Frequência ({frequencias.length} registro(s))</dt>
+          <dt className="text-xs text-foreground-muted">Frequência ({periodoFrequenciaLabel})</dt>
           <dd className="text-sm font-medium text-foreground">
-            {percentualPresenca !== null ? `${percentualPresenca.toFixed(1)}%` : "-"}
+            {percentualPresenca !== null ? `${percentualPresenca.toFixed(1)}%` : "Sem dados no período"}
           </dd>
         </Card>
         <Card>
@@ -94,10 +102,10 @@ export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
         </div>
       )}
 
-      <h2 className="mt-8 text-sm font-semibold text-foreground">Frequência recente</h2>
+      <h2 className="mt-8 text-sm font-semibold text-foreground">Frequência — {periodoFrequenciaLabel}</h2>
       {frequencias.length === 0 ? (
         <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-          Nenhum registro de frequência encontrado.
+          Sem dados no período — nenhum registro de frequência entre {periodoFrequenciaLabel}.
         </p>
       ) : (
         <div className="mt-3">
