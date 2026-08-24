@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 10)
+**Última atualização:** 2026-08-24 (ETAPA 11 — rodada encerrada)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -21,13 +21,52 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 08 | Servidor Geral P0 | **DONE** | 2026-08-24 |
 | 09 | Avaliações Municipais | **DONE** | 2026-08-24 |
 | 10 | P1: evolução funcional | **DONE** (rodada 1 — ver resumo) | 2026-08-24 |
-| 11 | Hardening, regressão e fechamento | PENDING | — |
+| 11 | Hardening, regressão e fechamento | **DONE** | 2026-08-24 |
 
-## Próxima etapa autorizada a iniciar
+## Estado final da rodada
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 11**
-(ou para abrir uma nova rodada da ETAPA 10 com um dos blocos P1 ainda não
-selecionados — ver resumo abaixo).
+**As 12 etapas do master prompt (00-11) estão concluídas.** Não há etapa
+`PENDING` no roteiro obrigatório. O que resta é opcional e só entra
+mediante pedido explícito do usuário:
+
+- Uma nova rodada da ETAPA 10 com um dos 3 blocos P1 ainda não
+  selecionados (importação de avaliações, comunicação/documentos, itens
+  específicos de Direção/Aluno).
+- Qualquer item do backlog P2 listado em
+  [`etapas/11-hardening-regressao-e-fechamento.md`](etapas/11-hardening-regressao-e-fechamento.md#backlog-final--p1-não-selecionado-etapa-10--p2-master-prompt)
+  — nenhum foi implementado, todos exigem migração de schema e/ou decisão
+  de produto com a Secretaria.
+
+## Resumo da ETAPA 11
+
+Varredura de fechamento — sem feature nova, só auditoria e documentação.
+Principais achados:
+
+- **Autorização por URL direta**: auditoria completa de todas as rotas
+  dinâmicas + testes manuais reais com as 5 contas fornecidas pelo
+  usuário. Nenhum gap encontrado — todo acesso a entidade por ID já é
+  escopado (via `canView*`/`scopeFromSession` ou filtro direto na query
+  por `session.escolaId`/atribuições).
+- **PII**: CPF mascarado por padrão em listas desde a ETAPA 04; revelado
+  só em fichas de detalhe (padrão deliberado, não um achado novo); nenhum
+  CPF/senha em log de runtime.
+- **Mobile/estados vazio-loading-erro**: verificados nas telas das ETAPAS
+  09/10 — sem quebra de layout, tabelas rolam horizontalmente dentro do
+  próprio container.
+- **Instabilidade de ambiente durante a etapa** (não é bug de código):
+  processos `next dev` remanescentes bloquearam `npm run build`
+  (`EPERM` no engine do Prisma) e um `rm -rf .next` concorrente com um
+  servidor de dev ativo corrompeu o cache, gerando um erro de runtime que
+  o usuário reportou em `/admin/sincronizacao`. Resolvido limpando
+  processos + cache; build de produção limpo confirmou 66 rotas e a tela
+  voltou a renderizar normalmente.
+- Backlog final consolidado num único lugar (P1 não escolhido da ETAPA 10
+  + P2 do master prompt) — ver link acima.
+
+Baseline final: `npm test` 193/193, `typecheck`/`lint`/`build` limpos (66
+rotas — nenhuma nova nesta etapa).
+
+Detalhes completos: [`etapas/11-hardening-regressao-e-fechamento.md`](etapas/11-hardening-regressao-e-fechamento.md).
 
 ## Resumo da ETAPA 10
 

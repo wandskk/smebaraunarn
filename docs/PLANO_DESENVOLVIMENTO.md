@@ -1,7 +1,15 @@
 # Plano de Desenvolvimento — Centro de Inteligência e Indicadores Educacionais
 
-**Status:** documento vivo — atualizado a cada etapa concluída.
-**Última atualização:** 2026-08-18.
+**Status:** documento histórico — cobre as etapas E0-E10 (Fase 1, Central de
+Indicadores), concluídas até 2026-08-18. A partir de 2026-08-24, a evolução
+do sistema passou a ser conduzida por
+[`docs/plano-evolucao-sme/`](plano-evolucao-sme/README.md) (ETAPAS 00-11,
+escopo mais amplo — todos os 5 perfis, não só indicadores). Este arquivo
+permanece como registro do trabalho já feito nas etapas E0-E10 e do backlog
+de Fase 2 (que hoje também aparece consolidado no P2 da ETAPA 11 do roteiro
+novo); não é mais atualizado a cada etapa.
+**Última atualização:** 2026-08-18 (conteúdo); nota de status acima
+adicionada em 2026-08-24 (ETAPA 11 do roteiro `plano-evolucao-sme`).
 **Origem:** consolida `centro_indicadores_educacionais.md` (visão/escopo funcional) e `implementation_plan.md`
 (diagnóstico técnico e cronograma de 60 dias) em um roteiro de etapas pequenas, validáveis e
 independentes. Este arquivo é a referência de trabalho — os dois documentos originais continuam
@@ -49,7 +57,17 @@ Confirmado lendo o código, não apenas o plano anexado:
 | Testes automatizados | **Não existiam antes desta etapa.** Não havia Jest/Vitest nem `node:test` configurado. |
 | Banco de dados | Postgres remoto (Neon/Vercel Postgres pelo formato de `DATABASE_URL`/`DATABASE_URL_UNPOOLED`). Não há `.env` neste ambiente de desenvolvimento — logo, **este ambiente não tem acesso ao banco real** (nem de produção, nem de um banco de dev separado). |
 
-### 2.1 Restrição operacional importante
+### 2.1 Restrição operacional importante (histórico — superada em 2026-08-24)
+
+*Nota (ETAPA 11 do roteiro `plano-evolucao-sme`): a restrição abaixo não
+vale mais. O `.env` local passou a ter um `DATABASE_URL` funcional, e
+desde a ETAPA 06 do roteiro novo já foram aplicadas migrações reais em
+produção com autorização explícita do usuário (ver
+`plano-evolucao-sme/etapas/06-professor-p0.md`). Login/navegação logada
+contra o banco real também já foi validada (ver
+`plano-evolucao-sme/decisoes/10-validacao-e2e-turmas-rede.md`). Texto
+original preservado abaixo como registro histórico do estado em
+2026-08-18.*
 
 O agente que está executando este plano **não tem credenciais de banco de dados** neste ambiente
 (`.env` não existe localmente). Isso significa:
