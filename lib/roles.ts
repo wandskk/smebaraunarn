@@ -26,3 +26,24 @@ export function classifyServidorRole(cargo?: string | null, funcao?: string | nu
   }
   return "SERVIDOR_GERAL";
 }
+
+/**
+ * Explica em texto por que `classifyServidorRole` chegou naquele papel —
+ * cita a palavra-chave encontrada em cargo/função, para permitir auditoria
+ * (achado do DOCX de Admin: "explicar a classificação de papel
+ * ('Professor porque cargo contém PROF…')").
+ */
+export function explicarClassificacaoServidorRole(cargo?: string | null, funcao?: string | null): string {
+  const haystack = `${cargo ?? ""} ${funcao ?? ""}`.toUpperCase();
+  const role = classifyServidorRole(cargo, funcao);
+
+  if (role === "DIRETOR") {
+    const keyword = DIRECAO_KEYWORDS.find((k) => haystack.includes(k));
+    return `Direção porque cargo/função contém "${keyword}".`;
+  }
+  if (role === "PROFESSOR") {
+    const keyword = DOCENTE_KEYWORDS.find((k) => haystack.includes(k));
+    return `Professor(a) porque cargo/função contém "${keyword}".`;
+  }
+  return "Servidor Geral — nenhuma palavra-chave de Direção ou Professor encontrada em cargo/função (papel de fallback).";
+}

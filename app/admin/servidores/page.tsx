@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { maskCpf } from "@/lib/utils";
 import { classifyServidorRole } from "@/lib/roles";
@@ -58,6 +59,7 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
               <TableHeadCell>Papel no portal</TableHeadCell>
               <TableHeadCell>Escola</TableHeadCell>
               <TableHeadCell>Status</TableHeadCell>
+              <TableHeadCell></TableHeadCell>
             </tr>
           </TableHeader>
           <TableBody>
@@ -73,9 +75,14 @@ export default async function AdminServidoresPage({ searchParams }: PageProps) {
                   <EscolaSelect servidorId={s.id} escolaId={s.escolaId} escolas={escolas} />
                 </TableCell>
                 <TableCell className="text-foreground-muted">{s.status ?? "-"}</TableCell>
+                <TableCell className="text-right">
+                  <Link href={`/admin/servidores/${s.id}`} className="text-primary hover:underline">
+                    Ver detalhes
+                  </Link>
+                </TableCell>
               </TableRow>
             ))}
-            {servidores.length === 0 && <TableEmptyState colSpan={6} title="Nenhum servidor encontrado." />}
+            {servidores.length === 0 && <TableEmptyState colSpan={7} title="Nenhum servidor encontrado." />}
           </TableBody>
         </DataTable>
       </div>

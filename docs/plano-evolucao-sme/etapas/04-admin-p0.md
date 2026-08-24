@@ -66,8 +66,8 @@ adiados com justificativa, como já é o padrão nas etapas anteriores).
       ETAPA 02.
 - [x] Mascarar CPF por padrão em listagens (`/admin/usuarios`, `/admin/servidores`).
 - [x] Permissão visual Admin×Secretaria em `/admin/usuarios` (lista e detalhe).
-- [ ] `/admin/servidores/[id]` (confirmado ausente — sub-lote futuro, é uma
-      página nova relativamente grande).
+- [x] `/admin/servidores/[id]` (confirmado ausente na ETAPA 00, criada
+      no sub-lote 5).
 - [ ] Filtros analíticos em escolas/estudantes/servidores/avaliações. *(sub-lote futuro)*
 - [x] Sincronização: saúde por módulo (sub-lote 2) e detecção de execução
       incompleta (sub-lote 4).
@@ -230,6 +230,36 @@ uma execução mais recente travada.
   (que também ganhou um banner explicando o que aconteceu e a ação
   recomendada — executar a sincronização novamente).
 
+### Sub-lote 5 — nova rota `/admin/servidores/[id]`
+
+Achado do DOCX (seção 6.7 e Tabela 21): "Nova rota /admin/servidores/[id]
+com dados funcionais, contato, escola, turmas/disciplinas/turno/carga e
+status de acesso ao portal". Confirmada ausente na ETAPA 00; a lista em
+`/admin/servidores` não linkava para nenhum detalhe.
+
+- [`app/admin/servidores/[id]/page.tsx`](<../../../app/admin/servidores/[id]/page.tsx>)
+  (novo): ficha funcional com CPF completo (drill-down intencional, mesma
+  regra do sub-lote 1), matrícula, tipo de vínculo, status; papel no
+  portal com explicação de por que foi classificado assim; contato
+  (e-mail/telefone); escola atribuída, com aviso quando a "escola na
+  origem" (`Servidor.escolaNome`, o que o SIGEduc informou) diverge da
+  atribuição manual (`Servidor.escola`) — achado explícito do DOCX
+  ("diferenciar 'escola da origem' de 'escola atribuída manualmente'"),
+  incluindo uma nota específica para Direção/Coordenação (que costuma vir
+  sem escola na origem); tabela de turmas/disciplinas/turno/carga a partir
+  de `ServidorTurma`; e status de acesso ao portal (busca `User` por
+  `servidorId` — mostra papel/ativo e link para gerenciar em
+  `/admin/usuarios/[id]`, ou explica como provisionar se não houver conta
+  ainda).
+- `explicarClassificacaoServidorRole` (novo, em
+  [`lib/roles.ts`](../../../lib/roles.ts), puro, 8 novos testes junto com
+  `classifyServidorRole` que também não tinha teste antes): DOCX pede
+  literalmente "explicar a classificação de papel ('Professor porque
+  cargo contém PROF…')" — a função cita a palavra-chave real encontrada
+  em cargo/função, não só o resultado.
+- `/admin/servidores` (lista) ganhou a coluna "Ver detalhes" linkando para
+  a nova rota.
+
 ## Decisões técnicas
 
 1. **Máscara de CPF só nas listas, não no detalhe.** `/admin/usuarios/[id]`
@@ -311,6 +341,11 @@ npm run build
 - Sub-lote 4: `npm test` **169/169** (162 pré-existentes + 7 novos em
   `lib/analytics/qualidade-dados.test.ts` para `execucaoIncompleta`),
   `typecheck`/`lint`/`build` limpos.
+- Sub-lote 5: `npm test` **177/177** (169 pré-existentes + 8 novos em
+  `lib/roles.test.ts`, novo arquivo — cobrindo `classifyServidorRole`,
+  que ainda não tinha teste, e `explicarClassificacaoServidorRole`),
+  `typecheck`/`lint`/`build` limpos. Build confirma a rota nova:
+  `/admin/servidores/[id]` (47 rotas no total, uma a mais que o baseline).
 
 Validação visual via browser (conferir que SECRETARIA de fato não vê os
 controles administrativos, que o CPF aparece mascarado, que o bloco de
@@ -337,8 +372,8 @@ executada** — mesma limitação de credenciais já registrada nas etapas
    (ex.: API do SIGEduc lenta em horário de pico), pode gerar falso
    positivo; fácil de ajustar (é parâmetro com default).
 4. **Restante do escopo desta etapa ainda pendente** (ver checklist):
-   `/admin/servidores/[id]` e filtros analíticos. Continuam em sub-lotes
-   futuros dentro desta mesma etapa.
+   filtros analíticos em escolas/estudantes/servidores/avaliações.
+   Continua em sub-lote futuro dentro desta mesma etapa.
 
 ## Critérios de aceite
 
