@@ -113,11 +113,11 @@ describe("gerarInsightsDistorcao", () => {
 });
 
 describe("gerarInsightSincronizacao", () => {
-  test("nenhum insight quando todos os módulos estão em dia", () => {
+  test("nenhum insight quando todos os módulos estão em dia e sem execução travada", () => {
     assert.deepEqual(
       gerarInsightSincronizacao([
-        { situacao: "em-dia", rotulo: "Frequência" },
-        { situacao: "em-dia", rotulo: "Notas" },
+        { situacao: "em-dia", rotulo: "Frequência", execucaoIncompleta: false },
+        { situacao: "em-dia", rotulo: "Notas", execucaoIncompleta: false },
       ]),
       [],
     );
@@ -125,9 +125,9 @@ describe("gerarInsightSincronizacao", () => {
 
   test("um insight agregando todos os módulos com problema", () => {
     const insights = gerarInsightSincronizacao([
-      { situacao: "atrasado", rotulo: "Frequência" },
-      { situacao: "sem-sincronizacao", rotulo: "Notas" },
-      { situacao: "em-dia", rotulo: "Escolas" },
+      { situacao: "atrasado", rotulo: "Frequência", execucaoIncompleta: false },
+      { situacao: "sem-sincronizacao", rotulo: "Notas", execucaoIncompleta: false },
+      { situacao: "em-dia", rotulo: "Escolas", execucaoIncompleta: false },
     ]);
     assert.equal(insights.length, 1);
     assert.match(insights[0]!.titulo, /Frequência/);
@@ -136,9 +136,19 @@ describe("gerarInsightSincronizacao", () => {
     assert.equal(insights[0]!.severidade, "critico"); // sem-sincronizacao presente
   });
 
-  test("severidade 'atencao' quando nenhum módulo está totalmente sem sincronização", () => {
-    const insights = gerarInsightSincronizacao([{ situacao: "atrasado", rotulo: "Frequência" }]);
+  test("severidade 'atencao' quando nenhum módulo está totalmente sem sincronização nem travado", () => {
+    const insights = gerarInsightSincronizacao([{ situacao: "atrasado", rotulo: "Frequência", execucaoIncompleta: false }]);
     assert.equal(insights[0]!.severidade, "atencao");
+  });
+
+  test("módulo 'em-dia' mas com execução travada ainda gera insight crítico", () => {
+    const insights = gerarInsightSincronizacao([
+      { situacao: "em-dia", rotulo: "Frequência", execucaoIncompleta: true },
+    ]);
+    assert.equal(insights.length, 1);
+    assert.equal(insights[0]!.severidade, "critico");
+    assert.match(insights[0]!.motivo, /travada/);
+    assert.match(insights[0]!.motivo, /Frequência/);
   });
 });
 

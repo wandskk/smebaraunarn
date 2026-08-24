@@ -69,7 +69,8 @@ adiados com justificativa, como já é o padrão nas etapas anteriores).
 - [ ] `/admin/servidores/[id]` (confirmado ausente — sub-lote futuro, é uma
       página nova relativamente grande).
 - [ ] Filtros analíticos em escolas/estudantes/servidores/avaliações. *(sub-lote futuro)*
-- [ ] Sincronização: saúde por módulo e detecção de execução incompleta. *(sub-lote futuro)*
+- [x] Sincronização: saúde por módulo (sub-lote 2) e detecção de execução
+      incompleta (sub-lote 4).
 
 ## Alterações realizadas
 
@@ -196,6 +197,39 @@ regras antes de criar um modelo `AlertaAnalitico`.
   sub-lote futuro se for pedido; hoje sempre mostra o ano mais recente,
   coerente com a ideia de "agora").
 
+### Sub-lote 4 — detecção de execução incompleta na sincronização
+
+Achado do DOCX (seção 8.4): "Comparar registros antes/depois e detectar
+finalização incompleta (PROCESSANDO sem SUCESSO final)". Confirmado em
+[`lib/sync/sigeduc-sync.ts`](../../../lib/sync/sigeduc-sync.ts) que módulos
+grandes (Estudantes/Notas/Frequência) gravam um log por lote, com status
+`"PROCESSANDO" | "SUCESSO" | "ERRO"` — se a execução for interrompida no
+meio (timeout serverless, ou o painel manual em
+`frequencia-sync-panel.tsx` com a aba fechada no meio do laço), o último
+log fica preso em `"PROCESSANDO"` para sempre. `classificarSituacaoSincronizacao`
+só olha para o último **SUCESSO**, então esse cenário passava
+completamente despercebido — um módulo podia aparecer "em dia" mesmo com
+uma execução mais recente travada.
+
+- [`lib/analytics/qualidade-dados.ts`](../../../lib/analytics/qualidade-dados.ts):
+  nova função pura `execucaoIncompleta(ultimoLog, agora, limiarMinutos=10)`
+  — verdadeiro quando o log mais recente do módulo está em `"PROCESSANDO"`
+  há mais de 10 minutos (folga generosa sobre o tempo real de um lote,
+  45–120s conforme `maxDuration` das rotas de cron). 7 novos testes.
+- [`lib/queries/qualidade-dados.ts`](../../../lib/queries/qualidade-dados.ts):
+  `StatusModuloSincronizacao` ganhou o campo `execucaoIncompleta`, calculado
+  dentro de `getStatusSincronizacao()`.
+- [`lib/analytics/atencao.ts`](../../../lib/analytics/atencao.ts): a regra 4
+  de "Atenção agora" (`gerarInsightSincronizacao`) agora também considera
+  módulos com execução travada, mesmo que a situação normal seja "em dia"
+  — vira insight crítico, com o motivo citando explicitamente "execução
+  travada em PROCESSANDO sem SUCESSO final".
+- UI: badge "Travado" ao lado da situação do módulo em
+  [`app/admin/page.tsx`](../../../app/admin/page.tsx) (Saúde da base) e em
+  [`app/admin/indicadores/qualidade/page.tsx`](../../../app/admin/indicadores/qualidade/page.tsx)
+  (que também ganhou um banner explicando o que aconteceu e a ação
+  recomendada — executar a sincronização novamente).
+
 ## Decisões técnicas
 
 1. **Máscara de CPF só nas listas, não no detalhe.** `/admin/usuarios/[id]`
@@ -236,7 +270,14 @@ regras antes de criar um modelo `AlertaAnalitico`.
    `combinarInsightsAtencao` já evita mostrar de uma vez — não construído
    por falta de necessidade real ainda. "Ver sync atrasado" continua
    coberto pelo link "Ir para Sincronização" do bloco de Saúde da base.
-6. **Avaliações não entraram em nenhuma regra de "Atenção agora".** O DOCX
+6. **Limiar de 10 minutos para "execução travada" é conservador de
+   propósito.** Cada lote real leva 45–120s (limite das rotas de cron); 10
+   minutos dá folga de sobra para não marcar como travada uma execução que
+   só está um pouco mais lenta que o normal (ex.: API do SIGEduc
+   respondendo devagar). Prefere um falso negativo ocasional (travamento
+   real que demora a aparecer) a um falso positivo (aviso incômodo para
+   uma execução que ainda está rodando normalmente).
+7. **Avaliações não entraram em nenhuma regra de "Atenção agora".** O DOCX
    cita "avaliação pendente" como fonte de atenção, mas cobertura de
    avaliação (esperado vs. realizado) ainda não existe em nenhuma query —
    é o objeto da ETAPA 09 (Avaliações Municipais). Adicionar uma 5ª regra
@@ -267,6 +308,9 @@ npm run build
   `lib/analytics/atencao.test.ts`, cobrindo cada uma das 4 regras
   isoladamente e a combinação/priorização), `typecheck`/`lint`/`build`
   limpos.
+- Sub-lote 4: `npm test` **169/169** (162 pré-existentes + 7 novos em
+  `lib/analytics/qualidade-dados.test.ts` para `execucaoIncompleta`),
+  `typecheck`/`lint`/`build` limpos.
 
 Validação visual via browser (conferir que SECRETARIA de fato não vê os
 controles administrativos, que o CPF aparece mascarado, que o bloco de
@@ -287,10 +331,14 @@ executada** — mesma limitação de credenciais já registrada nas etapas
    Decisões técnicas item 4) — podem gerar falsos positivos/negativos até
    serem ajustados com feedback real de uso. Fáceis de recalibrar (são
    parâmetros com default, não constantes espalhadas pelo código).
-3. **Restante do escopo desta etapa ainda pendente** (ver checklist):
-   `/admin/servidores/[id]`, filtros analíticos, sincronização com
-   detecção de execução incompleta. Continuam em sub-lotes futuros dentro
-   desta mesma etapa.
+3. **Limiar de execução travada (10 min) nunca foi observado contra uma
+   execução real interrompida** — só testado com dados sintéticos. Se o
+   tempo real de um lote em produção variar muito mais que o esperado
+   (ex.: API do SIGEduc lenta em horário de pico), pode gerar falso
+   positivo; fácil de ajustar (é parâmetro com default).
+4. **Restante do escopo desta etapa ainda pendente** (ver checklist):
+   `/admin/servidores/[id]` e filtros analíticos. Continuam em sub-lotes
+   futuros dentro desta mesma etapa.
 
 ## Critérios de aceite
 

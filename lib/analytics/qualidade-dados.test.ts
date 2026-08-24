@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { classificarSituacaoSincronizacao, possuiDivergenciaDeSerie } from "./qualidade-dados";
+import { classificarSituacaoSincronizacao, execucaoIncompleta, possuiDivergenciaDeSerie } from "./qualidade-dados";
 
 describe("classificarSituacaoSincronizacao", () => {
   const agora = new Date("2026-08-18T12:00:00Z");
@@ -32,6 +32,39 @@ describe("classificarSituacaoSincronizacao", () => {
   test("timestamp no futuro (relógio/fuso) não gera falso atraso", () => {
     const ultimoSucesso = new Date(agora.getTime() + 60 * 60 * 1000);
     assert.equal(classificarSituacaoSincronizacao(ultimoSucesso, agora), "em-dia");
+  });
+});
+
+describe("execucaoIncompleta", () => {
+  const agora = new Date("2026-08-18T12:00:00Z");
+
+  test("sem log nenhum não é execução incompleta", () => {
+    assert.equal(execucaoIncompleta(null, agora), false);
+  });
+
+  test("último log SUCESSO não é execução incompleta, mesmo antigo", () => {
+    const log = { status: "SUCESSO", createdAt: new Date("2026-08-01T00:00:00Z") };
+    assert.equal(execucaoIncompleta(log, agora), false);
+  });
+
+  test("último log ERRO não é execução incompleta (falhou, mas terminou)", () => {
+    const log = { status: "ERRO", createdAt: new Date(agora.getTime() - 60 * 60 * 1000) };
+    assert.equal(execucaoIncompleta(log, agora), false);
+  });
+
+  test("PROCESSANDO recente (dentro do limiar) não é considerado travado", () => {
+    const log = { status: "PROCESSANDO", createdAt: new Date(agora.getTime() - 2 * 60 * 1000) };
+    assert.equal(execucaoIncompleta(log, agora, 10), false);
+  });
+
+  test("PROCESSANDO além do limiar é considerado execução travada", () => {
+    const log = { status: "PROCESSANDO", createdAt: new Date(agora.getTime() - 15 * 60 * 1000) };
+    assert.equal(execucaoIncompleta(log, agora, 10), true);
+  });
+
+  test("limiar customizado é respeitado", () => {
+    const log = { status: "PROCESSANDO", createdAt: new Date(agora.getTime() - 3 * 60 * 1000) };
+    assert.equal(execucaoIncompleta(log, agora, 2), true);
   });
 });
 

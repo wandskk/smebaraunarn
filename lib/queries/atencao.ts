@@ -45,7 +45,11 @@ export async function getInsightsAtencao(anoLetivo: number, limite = 5): Promise
       distorcaoDiferencaRede: e.distorcaoDiferencaRede,
     }));
 
-  const modulosInput = modulos.map((m) => ({ situacao: m.situacao, rotulo: ROTULO_MODULO[m.modulo] }));
+  const modulosInput = modulos.map((m) => ({
+    situacao: m.situacao,
+    rotulo: ROTULO_MODULO[m.modulo],
+    execucaoIncompleta: m.execucaoIncompleta,
+  }));
 
   return combinarInsightsAtencao(
     [

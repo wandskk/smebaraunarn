@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { classificarSituacaoSincronizacao, possuiDivergenciaDeSerie } from "@/lib/analytics/qualidade-dados";
+import {
+  classificarSituacaoSincronizacao,
+  execucaoIncompleta,
+  possuiDivergenciaDeSerie,
+} from "@/lib/analytics/qualidade-dados";
 
 /** Módulos disparados pelos crons diários (`vercel.json`) e pelo painel de sincronização manual. */
 export const MODULOS_SINCRONIZACAO = ["ESCOLAS", "CARGOS", "SERVIDORES", "ESTUDANTES", "NOTAS", "FREQUENCIA"] as const;
@@ -35,6 +39,8 @@ export interface StatusModuloSincronizacao {
   ultimoSucessoEm: Date | null;
   errosUltimos7Dias: number;
   situacao: ReturnType<typeof classificarSituacaoSincronizacao>;
+  /** `true` quando o log mais recente ficou "PROCESSANDO" tempo demais — indício de execução travada/abandonada. */
+  execucaoIncompleta: boolean;
 }
 
 export interface HistoricoSincronizacaoItem {
@@ -93,6 +99,10 @@ export async function getStatusSincronizacao(): Promise<{
       ultimoSucessoEm: ultimoSucesso?.createdAt ?? null,
       errosUltimos7Dias: errosPorModulo.get(modulo) ?? 0,
       situacao: classificarSituacaoSincronizacao(ultimoSucesso?.createdAt ?? null, agora),
+      execucaoIncompleta: execucaoIncompleta(
+        ultimoLog ? { status: ultimoLog.status, createdAt: ultimoLog.createdAt } : null,
+        agora,
+      ),
     };
   });
 

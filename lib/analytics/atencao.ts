@@ -38,6 +38,8 @@ export interface EscolaAtencaoInput {
 export interface ModuloSincronizacaoInput {
   situacao: SituacaoSincronizacao;
   rotulo: string;
+  /** Log mais recente ficou "PROCESSANDO" tempo demais — ver lib/analytics/qualidade-dados.ts:execucaoIncompleta. */
+  execucaoIncompleta: boolean;
 }
 
 function hrefEscola(escolaId: number, anoLetivo: number): string {
@@ -122,18 +124,29 @@ export function gerarInsightsDistorcao(
   return insights;
 }
 
-/** Regra 4: módulo(s) de sincronização atrasado(s) ou nunca sincronizados — dados podem estar incompletos. */
+/**
+ * Regra 4: módulo(s) de sincronização atrasado(s), nunca sincronizados, ou
+ * com execução travada (log mais recente preso em "PROCESSANDO") — dados
+ * podem estar desatualizados ou incompletos mesmo que o último SUCESSO
+ * pareça recente.
+ */
 export function gerarInsightSincronizacao(modulos: ModuloSincronizacaoInput[]): InsightAtencao[] {
-  const comProblema = modulos.filter((m) => m.situacao !== "em-dia");
+  const comProblema = modulos.filter((m) => m.situacao !== "em-dia" || m.execucaoIncompleta);
   if (comProblema.length === 0) return [];
 
+  const travados = comProblema.filter((m) => m.execucaoIncompleta);
   const nomes = comProblema.map((m) => m.rotulo).join(", ");
+  const motivo =
+    travados.length > 0
+      ? `Execução travada em "PROCESSANDO" sem SUCESSO final: ${travados.map((m) => m.rotulo).join(", ")}. Indicadores dependentes podem estar incompletos.`
+      : "Indicadores que dependem desses módulos podem estar desatualizados.";
+
   return [
     {
       id: "sincronizacao",
-      severidade: comProblema.some((m) => m.situacao === "sem-sincronizacao") ? "critico" : "atencao",
+      severidade: travados.length > 0 || comProblema.some((m) => m.situacao === "sem-sincronizacao") ? "critico" : "atencao",
       titulo: `Sincronização com atraso: ${nomes}`,
-      motivo: "Indicadores que dependem desses módulos podem estar desatualizados ou incompletos.",
+      motivo,
       periodo: "Agora",
       href: "/admin/sincronizacao",
     },

@@ -23,6 +23,31 @@ export function classificarSituacaoSincronizacao(
 }
 
 /**
+ * Detecta uma execução de sincronização travada: o último log do módulo
+ * ficou em "PROCESSANDO" (sincronizações grandes gravam um log por
+ * lote/página, terminando com SUCESSO no último) há mais tempo do que uma
+ * execução legítima levaria para avançar para o próximo lote. Sem isso, uma
+ * sincronização manual abandonada com a aba fechada, ou um timeout de
+ * função serverless no meio de um cron, fica marcada como "em dia" para
+ * sempre — porque `classificarSituacaoSincronizacao` só olha para o último
+ * SUCESSO, não para o log mais recente (achado do master prompt: "detectar
+ * execução incompleta (PROCESSANDO sem SUCESSO final)").
+ *
+ * `limiarMinutos` (default 10) é generoso frente ao tempo real de um lote
+ * (ver `maxDuration` das rotas de cron, 45–120s) — uma folga grande evita
+ * marcar como travada uma execução que só está demorando um pouco mais.
+ */
+export function execucaoIncompleta(
+  ultimoLog: { status: string; createdAt: Date } | null,
+  agora: Date,
+  limiarMinutos = 10,
+): boolean {
+  if (ultimoLog === null || ultimoLog.status !== "PROCESSANDO") return false;
+  const diffMinutos = (agora.getTime() - ultimoLog.createdAt.getTime()) / (1000 * 60);
+  return diffMinutos >= limiarMinutos;
+}
+
+/**
  * Um código de turma é usado por mais de uma escola (achado confirmado em
  * produção: 34 códigos em 2026-08-18 — ver docs/PLANO_DESENVOLVIMENTO.md §8
  * item 6). Isso por si só não é um erro: pode ser coincidência de

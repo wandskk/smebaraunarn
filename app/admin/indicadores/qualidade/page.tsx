@@ -48,6 +48,18 @@ export default async function QualidadeDadosPage() {
       />
 
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">Saúde da sincronização</h2>
+      {modulos.some((m) => m.execucaoIncompleta) && (
+        <p className="mt-3 max-w-2xl rounded-lg bg-danger-subtle px-3 py-2 text-sm text-danger-subtle-foreground">
+          <strong>Execução travada:</strong>{" "}
+          {modulos
+            .filter((m) => m.execucaoIncompleta)
+            .map((m) => ROTULO_MODULO[m.modulo])
+            .join(", ")}{" "}
+          ficou em &quot;PROCESSANDO&quot; sem terminar com SUCESSO — provavelmente uma sincronização manual
+          interrompida (aba fechada) ou um timeout no meio de um lote. Dados desse módulo podem estar incompletos;
+          execute a sincronização novamente.
+        </p>
+      )}
       <div className="mt-3">
         <DataTable>
           <TableHeader>
@@ -65,7 +77,10 @@ export default async function QualidadeDadosPage() {
               <TableRow key={m.modulo}>
                 <TableCell className="font-medium text-foreground">{ROTULO_MODULO[m.modulo] ?? m.modulo}</TableCell>
                 <TableCell>
-                  <DataFreshnessBadge situacao={m.situacao} />
+                  <div className="flex items-center gap-1.5">
+                    <DataFreshnessBadge situacao={m.situacao} />
+                    {m.execucaoIncompleta && <Badge variant="danger">Travado</Badge>}
+                  </div>
                 </TableCell>
                 <TableCell className="text-foreground-muted">
                   {m.ultimoLog ? (

@@ -7,6 +7,7 @@ import { getInsightsAtencao } from "@/lib/queries/atencao";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { InsightCard } from "@/components/ui/insight-card";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,7 +25,7 @@ export default async function AdminDashboardPage() {
     getInsightsAtencao(anoLetivo),
   ]);
 
-  const modulosComProblema = modulos.filter((m) => m.situacao !== "em-dia");
+  const modulosComProblema = modulos.filter((m) => m.situacao !== "em-dia" || m.execucaoIncompleta);
 
   const cards = [
     { label: "Publicações no CMS", value: totalPosts, href: "/admin/posts", icon: FileText, accent: "warning" as const },
@@ -92,7 +93,10 @@ export default async function AdminDashboardPage() {
         <div className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-3 lg:grid-cols-6">
           {modulos.map((m) => (
             <div key={m.modulo} className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-foreground-muted">{ROTULO_MODULO[m.modulo]}</span>
+              <span className="flex items-center gap-1.5 text-foreground-muted">
+                {ROTULO_MODULO[m.modulo]}
+                {m.execucaoIncompleta && <Badge variant="danger">Travado</Badge>}
+              </span>
               <DataFreshnessBadge situacao={m.situacao} />
             </div>
           ))}
