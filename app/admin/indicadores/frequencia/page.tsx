@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getFrequenciaPorEscola, calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
 import type { VariacaoFrequencia } from "@/lib/analytics/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 
@@ -13,31 +14,15 @@ interface PageProps {
   searchParams: { ano?: string };
 }
 
+/** Frequência mais alta é sempre favorável — variação temporal, não espacial (ver ComparisonDelta). */
 function TendenciaCell({ variacao }: { variacao: VariacaoFrequencia | null }) {
   if (!variacao) return <span className="text-xs text-foreground-muted/60">sem dado no período anterior</span>;
 
   const { diferencaPontosPercentuais, tendencia } = variacao;
   const texto = `${diferencaPontosPercentuais > 0 ? "+" : ""}${diferencaPontosPercentuais.toFixed(1)} p.p.`;
+  const favoravel = tendencia === "estavel" ? null : tendencia === "alta";
 
-  if (tendencia === "alta") {
-    return (
-      <span className="inline-flex items-center gap-1 text-success">
-        <TrendingUp className="h-3.5 w-3.5" /> {texto}
-      </span>
-    );
-  }
-  if (tendencia === "queda") {
-    return (
-      <span className="inline-flex items-center gap-1 text-danger">
-        <TrendingDown className="h-3.5 w-3.5" /> {texto}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-foreground-muted/60">
-      <Minus className="h-3.5 w-3.5" /> {texto}
-    </span>
-  );
+  return <ComparisonDelta diferenca={diferencaPontosPercentuais} texto={texto} favoravel={favoravel} />;
 }
 
 export default async function FrequenciaPorEscolaPage({ searchParams }: PageProps) {

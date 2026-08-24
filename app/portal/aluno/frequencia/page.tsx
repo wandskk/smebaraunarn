@@ -1,18 +1,13 @@
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { CalendarCheck, CalendarX, FileCheck } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { getEstudanteBySession } from "@/lib/queries/portal";
 import { prisma } from "@/lib/prisma";
 import { calcularJanelaDias, calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
 import { DIAS_FREQUENCIA_FICHA_ALUNO } from "@/lib/queries/academico";
+import { formatarDataIso } from "@/lib/format-date";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
-
-function formatarDataIso(data: string): string {
-  return format(new Date(`${data}T00:00:00`), "dd/MM/yyyy", { locale: ptBR });
-}
 
 export default async function FrequenciaPage() {
   const session = await requireSession(["ALUNO"]);
@@ -70,9 +65,7 @@ export default async function FrequenciaPage() {
             <TableBody>
               {registros.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="text-foreground">
-                    {format(new Date(r.data), "dd/MM/yyyy", { locale: ptBR })}
-                  </TableCell>
+                  <TableCell className="text-foreground">{formatarDataIso(r.data)}</TableCell>
                   <TableCell className="text-foreground-muted">{r.disciplina ?? "-"}</TableCell>
                   <TableCell className="text-foreground-muted">{r.quantidadeAula}</TableCell>
                   <TableCell className="text-foreground-muted">{r.falta}</TableCell>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
@@ -7,6 +7,7 @@ import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
+import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 
@@ -40,22 +41,9 @@ function DiferencaRede({
 
   const estavel = Math.abs(diferenca) < 0.05;
   const favoravel = estavel ? null : maiorEhMelhor ? diferenca > 0 : diferenca < 0;
-  const texto = `${diferenca > 0 ? "+" : ""}${diferenca.toFixed(1)} ${unidade}`;
+  const texto = `${diferenca > 0 ? "+" : ""}${diferenca.toFixed(1)} ${unidade} da rede`;
 
-  if (estavel) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-foreground-muted/60">
-        <Minus className="h-3.5 w-3.5" /> {texto} da rede
-      </span>
-    );
-  }
-
-  return (
-    <span className={`inline-flex items-center gap-1 text-xs ${favoravel ? "text-success" : "text-danger"}`}>
-      {diferenca > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-      {texto} da rede
-    </span>
-  );
+  return <ComparisonDelta diferenca={diferenca} texto={texto} favoravel={favoravel} />;
 }
 
 export default async function ComparativosPage({ searchParams }: PageProps) {

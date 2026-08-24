@@ -1,27 +1,18 @@
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import type { AlunoDetalheCompleto } from "@/lib/queries/academico";
 import { calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { GradeTable } from "@/components/portal/grade-table";
+import { formatarDataIso } from "@/lib/format-date";
 
 interface AlunoDetalheProps {
   dados: AlunoDetalheCompleto;
   ano: number;
 }
 
-function formatarDataIso(data: string): string {
-  return format(new Date(`${data}T00:00:00`), "dd/MM/yyyy", { locale: ptBR });
-}
-
 export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
   const { estudante, notas, frequencias, janelaFrequencia } = dados;
-
-  const porDisciplina = notas.reduce<Record<string, typeof notas>>((acc, nota) => {
-    (acc[nota.disciplina] ??= []).push(nota);
-    return acc;
-  }, {});
 
   const totalAulas = frequencias.reduce((sum, r) => sum + r.quantidadeAula, 0);
   const totalFaltas = frequencias.reduce((sum, r) => sum + r.falta, 0);
@@ -64,43 +55,9 @@ export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
       </div>
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Boletim — {ano}</h2>
-      {Object.keys(porDisciplina).length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-          Nenhuma nota lançada para {ano} ainda.
-        </p>
-      ) : (
-        <div className="mt-3">
-          <DataTable>
-            <TableHeader>
-              <tr>
-                <TableHeadCell>Disciplina</TableHeadCell>
-                <TableHeadCell>1ª Un.</TableHeadCell>
-                <TableHeadCell>2ª Un.</TableHeadCell>
-                <TableHeadCell>3ª Un.</TableHeadCell>
-                <TableHeadCell>4ª Un.</TableHeadCell>
-                <TableHeadCell>Média</TableHeadCell>
-              </tr>
-            </TableHeader>
-            <TableBody>
-              {Object.entries(porDisciplina).map(([disciplina, unidades]) => {
-                const porUnidade = new Map(unidades.map((u) => [u.unidade, u.nota]));
-                const media = unidades.reduce((sum, u) => sum + u.nota, 0) / (unidades.length || 1);
-                return (
-                  <TableRow key={disciplina}>
-                    <TableCell className="font-medium text-foreground">{disciplina}</TableCell>
-                    {[1, 2, 3, 4].map((u) => (
-                      <TableCell key={u} className="text-foreground-muted">
-                        {porUnidade.get(u) ?? "-"}
-                      </TableCell>
-                    ))}
-                    <TableCell className="font-semibold text-foreground">{media.toFixed(1)}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </DataTable>
-        </div>
-      )}
+      <div className="mt-3">
+        <GradeTable notas={notas} emptyMessage={`Nenhuma nota lançada para ${ano} ainda.`} />
+      </div>
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Frequência — {periodoFrequenciaLabel}</h2>
       {frequencias.length === 0 ? (
@@ -121,9 +78,7 @@ export function AlunoDetalhe({ dados, ano }: AlunoDetalheProps) {
             <TableBody>
               {frequencias.map((f) => (
                 <TableRow key={f.id}>
-                  <TableCell className="text-foreground">
-                    {format(new Date(f.data), "dd/MM/yyyy", { locale: ptBR })}
-                  </TableCell>
+                  <TableCell className="text-foreground">{formatarDataIso(f.data)}</TableCell>
                   <TableCell className="text-foreground-muted">{f.disciplina ?? "-"}</TableCell>
                   <TableCell className="text-foreground-muted">{f.falta > 0 ? "Falta" : "Presente"}</TableCell>
                   <TableCell className="text-foreground-muted">

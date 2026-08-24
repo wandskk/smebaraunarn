@@ -43,19 +43,25 @@ distribuído entre os layouts de `app/admin/` e `app/portal/*` — a
 consolidação (se fizer sentido) é decisão a avaliar na ETAPA 03, não uma
 lacuna a ser corrigida às pressas.
 
-## 3. Componentes acadêmicos compartilhados citados no master prompt — nenhum existe ainda como componente isolado
+## 3. Componentes acadêmicos compartilhados citados no master prompt
 
-`SchoolOverview`, `TurmaDetail`, `StudentAcademicDetail`, `GradeTable`,
-`AttendanceSummary`, `AttendanceTable`, `AcademicContextBar`/`AnalysisScopeBar`,
-`DataFreshnessBadge`, `InsightCard`, `ComparisonDelta`, `CoverageCard`,
-`MethodologyNote`, `EvaluationSummary`, `FunctionalDataCard`,
-`AssignmentSummary`, `CapabilityGate` — **nenhum destes existe hoje como
-componente nomeado** em `components/`. As telas de Admin/Diretor/Professor/Aluno
-(`app/admin/estudantes/[id]`, `app/portal/direcao/*`, `app/portal/professor/*`,
-`app/portal/aluno/*`) hoje implementam suas próprias views, cada uma
-consumindo `lib/queries/*` diretamente. A ETAPA 03 deve avaliar, tela a tela,
-qual lógica já está duplicada (ex.: cálculo de frequência exibido em mais de
-um portal) antes de extrair qualquer componente novo.
+Estado desde a ETAPA 03 (ver `etapas/03-componentes-academicos-compartilhados.md`
+para o mapeamento completo de duplicação que motivou cada extração):
+
+| Componente | Estado |
+|---|---|
+| `CapabilityGate` | Existe (`components/ui/capability-gate.tsx`, ETAPA 01), sem uso em nenhuma tela ainda (aplicação visual é ETAPA 04). |
+| `DataFreshnessBadge` | Existe (`components/ui/data-freshness-badge.tsx`, ETAPA 02), usado em `/admin/indicadores/qualidade`. |
+| `TurmaDetail` | Existe como `TurmaDetalheView` (`components/portal/turma-detalhe.tsx`, ETAPA 03), usado por Admin e Direção. |
+| `GradeTable` | Existe (`components/portal/grade-table.tsx`, ETAPA 03), usado por `AlunoDetalhe` (Admin/Direção/Professor) e pelo portal do Aluno. |
+| `ComparisonDelta` | Existe (`components/ui/comparison-delta.tsx`, ETAPA 03), usado pelas 2 telas de indicadores comparativos do Admin (a classificação de favorabilidade continua em cada página — só a apresentação é compartilhada). |
+| `StudentAcademicDetail` | Já existia antes da ETAPA 03 como `AlunoDetalhe` (`components/portal/aluno-detalhe.tsx`), usado por Admin/Direção/Professor. |
+| `SchoolOverview`, `AttendanceSummary`, `AttendanceTable`, `AcademicContextBar`/`AnalysisScopeBar`, `InsightCard`, `CoverageCard`, `MethodologyNote`, `EvaluationSummary`, `FunctionalDataCard`, `AssignmentSummary` | Avaliados na ETAPA 02/03 e **deliberadamente não criados** — sem duplicação real hoje para consolidar, ou dependem de telas que ainda não existem (Home da Direção no formato de `SchoolOverview` é ETAPA 05; "Atenção agora"/`InsightCard` é ETAPA 04; cobertura de avaliação/`CoverageCard`/`EvaluationSummary` dependem da consolidação de Avaliações Municipais, ETAPA 09). |
+
+As telas de Admin/Diretor/Professor/Aluno continuam, fora desses pontos já
+consolidados, implementando suas próprias views sobre `lib/queries/*`
+diretamente — a extração é incremental, dirigida por duplicação real
+encontrada, não por completar a lista de nomes do master prompt de uma vez.
 
 ## 4. Camada analítica (`lib/analytics/`) — já compartilhada e testada
 
@@ -115,6 +121,9 @@ apenas registrar):
 
 ## 7. Próxima revisão desta matriz
 
-Esta matriz deve ser revisada ao final da ETAPA 01 (scopes reais) e da ETAPA 03
-(componentes acadêmicos reais), substituindo as seções "implícito"/"nenhum
-existe ainda" por referências a código concreto.
+Scopes reais (ETAPA 01) e componentes acadêmicos reais (ETAPA 03) já foram
+incorporados às seções 1 e 3 acima. Próxima revisão prevista ao final da
+ETAPA 05 (Diretor P0), quando a Home da Direção deve passar a reaproveitar
+`SchoolOverview`/o núcleo do Admin com `SchoolScope` — o que deve mudar o
+estado de "implícito" para "código concreto" também na linha Escola/Turma
+da matriz da seção 5.

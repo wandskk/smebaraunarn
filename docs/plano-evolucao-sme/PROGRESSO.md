@@ -1,6 +1,6 @@
 # Progresso — Evolução Incremental do SME Baraúna
 
-**Última atualização:** 2026-08-24 (ETAPA 02)
+**Última atualização:** 2026-08-24 (ETAPA 03)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento, bloqueada ou concluída. Ao final de cada etapa, este arquivo deve
@@ -13,7 +13,7 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 | 00 | Auditoria, baseline e documentação | **DONE** | 2026-08-24 |
 | 01 | Scopes e Capabilities | **DONE** | 2026-08-24 |
 | 02 | Contexto temporal e Data Freshness | **DONE** | 2026-08-24 |
-| 03 | Componentes acadêmicos compartilhados | PENDING | — |
+| 03 | Componentes acadêmicos compartilhados | **DONE** | 2026-08-24 |
 | 04 | Admin P0 | PENDING | — |
 | 05 | Diretor P0 | PENDING | — |
 | 06 | Professor P0 | PENDING | — |
@@ -25,7 +25,41 @@ ser atualizado junto com o Markdown correspondente em `etapas/`.
 
 ## Próxima etapa autorizada a iniciar
 
-Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 03.**
+Nenhuma. **Aguardando autorização explícita do usuário para iniciar a ETAPA 04.**
+
+## Resumo da ETAPA 03
+
+- 4 pontos reais de duplicação de fórmula/tela entre perfis, todos
+  mapeados por leitura de código antes de extrair qualquer componente:
+  1. `TurmaDetalheView` (`components/portal/turma-detalhe.tsx`, novo):
+     consolida a ficha de turma do Admin e da Direção (~145 linhas cada →
+     ~30), padronizando em `MetricCard`.
+  2. `GradeTable` (`components/portal/grade-table.tsx`, novo): consolida a
+     tabela de boletim de `AlunoDetalhe` e de `/portal/aluno/boletim`.
+  3. `ComparisonDelta` (`components/ui/comparison-delta.tsx`, novo):
+     consolida a apresentação (seta+cor+texto) de variação entre
+     `/admin/indicadores/frequencia` e `/admin/indicadores/comparativos` —
+     a classificação de favorabilidade continua em cada página, só a
+     renderização foi compartilhada.
+  4. `app/portal/direcao/frequencia/page.tsx` tinha uma terceira
+     implementação inline do percentual de frequência — trocada por
+     `calcularPercentualFrequencia`.
+- `lib/format-date.ts` (`formatarDataIso`, novo) consolida uma duplicação
+  que eu mesmo introduzi na ETAPA 02. Efeito colateral verificado (não
+  planejado): corrige um viés de fuso horário de até 1 dia na exibição de
+  datas (`new Date("YYYY-MM-DD")` é UTC pela spec; `T00:00:00` sem `Z` é
+  local) — ver detalhes em `etapas/03-componentes-academicos-compartilhados.md`.
+- `SchoolOverview`, `AttendanceTable`, `InsightCard`, `CoverageCard`,
+  `EvaluationSummary` **não foram extraídos** — avaliados e descartados
+  com justificativa (não há duplicação real hoje, ou dependem de telas que
+  ainda não existem), não esquecidos.
+- Baseline pós-mudança: `npm test` 143/143 (sem testes novos — mudanças são
+  apresentacionais), `typecheck` limpo, `lint` limpo, `build` com sucesso
+  (mesmas 46 rotas).
+- Validação visual via browser **não foi executada** — mesma limitação de
+  credenciais já registrada nas etapas 01/02.
+
+Detalhes completos: [`etapas/03-componentes-academicos-compartilhados.md`](etapas/03-componentes-academicos-compartilhados.md).
 
 ## Resumo da ETAPA 02
 

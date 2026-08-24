@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarCheck, CalendarX, LayoutGrid } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
@@ -23,15 +24,14 @@ export default async function DirecaoFrequenciaPage() {
     .map((item) => {
       const totalAulas = item._sum.quantidadeAula ?? 0;
       const totalFaltas = item._sum.falta ?? 0;
-      const percentual = totalAulas > 0 ? ((totalAulas - totalFaltas) / totalAulas) * 100 : null;
+      const percentual = calcularPercentualFrequencia(totalAulas, totalFaltas);
       return { turma: item.turma ?? "Sem turma", totalAulas, totalFaltas, percentual };
     })
     .sort((a, b) => a.turma.localeCompare(b.turma));
 
   const totalAulasEscola = linhas.reduce((sum, l) => sum + l.totalAulas, 0);
   const totalFaltasEscola = linhas.reduce((sum, l) => sum + l.totalFaltas, 0);
-  const percentualEscola =
-    totalAulasEscola > 0 ? ((totalAulasEscola - totalFaltasEscola) / totalAulasEscola) * 100 : null;
+  const percentualEscola = calcularPercentualFrequencia(totalAulasEscola, totalFaltasEscola);
 
   return (
     <div>
