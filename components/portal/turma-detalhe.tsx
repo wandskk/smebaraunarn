@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { GraduationCap, CalendarCheck, CalendarX, AlertTriangle } from "lucide-react";
+import { GraduationCap, CalendarCheck, CalendarX, AlertTriangle, Users2 } from "lucide-react";
 import { formatTurmaLabel, getTurmaDetalhe } from "@/lib/queries/academico";
 import { getEstudantesEmSequenciaDeFaltas } from "@/lib/queries/frequencia";
 import { PageHeader } from "@/components/ui/page-header";
@@ -8,6 +8,8 @@ import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
@@ -81,24 +83,30 @@ export async function TurmaDetalheView({
       />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          label={`Frequência da turma (${anoAtual})`}
-          value={detalhe.frequencia.percentual !== null ? `${detalhe.frequencia.percentual.toFixed(1)}%` : "Sem dados no período"}
-          icon={CalendarCheck}
-          accent="attendance"
-        />
-        <MetricCard
-          label={`Faltas registradas (${anoAtual})`}
-          value={String(detalhe.frequencia.totalFaltas)}
-          icon={CalendarX}
-          accent="attendance"
-        />
-        <MetricCard
-          label={`Disciplinas com notas (${anoAtual})`}
-          value={String(detalhe.notasPorDisciplina.length)}
-          icon={GraduationCap}
-          accent="education"
-        />
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "0ms" } as React.CSSProperties}>
+          <MetricCard
+            label={`Frequência da turma (${anoAtual})`}
+            value={detalhe.frequencia.percentual !== null ? `${detalhe.frequencia.percentual.toFixed(1)}%` : "Sem dados no período"}
+            icon={CalendarCheck}
+            accent="attendance"
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "60ms" } as React.CSSProperties}>
+          <MetricCard
+            label={`Faltas registradas (${anoAtual})`}
+            value={<AnimatedNumber value={detalhe.frequencia.totalFaltas} />}
+            icon={CalendarX}
+            accent="attendance"
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "120ms" } as React.CSSProperties}>
+          <MetricCard
+            label={`Disciplinas com notas (${anoAtual})`}
+            value={<AnimatedNumber value={detalhe.notasPorDisciplina.length} />}
+            icon={GraduationCap}
+            accent="education"
+          />
+        </div>
       </div>
 
       {emSequenciaDeFaltas.length > 0 && (
@@ -172,16 +180,12 @@ export async function TurmaDetalheView({
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Alunos</h2>
       {detalhe.alunos.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-          Nenhum aluno enturmado nesta turma.
-        </p>
+        <EmptyState className="mt-3" icon={Users2} title="Nenhum aluno enturmado nesta turma" />
       ) : (
         <>
           <ListToolbar searchPlaceholder="Buscar por nome ou matrícula..." />
           {alunosPagina.length === 0 ? (
-            <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-              Nenhum aluno encontrado.
-            </p>
+            <EmptyState className="mt-3" icon={Users2} title="Nenhum aluno encontrado" description="Ajuste a busca acima." />
           ) : (
             <div className="mt-3">
               <DataTable>

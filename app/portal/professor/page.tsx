@@ -1,9 +1,11 @@
-import { Users } from "lucide-react";
+import { Users2, Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { getServidorBySession } from "@/lib/queries/portal";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 export default async function ProfessorHomePage() {
@@ -32,9 +34,12 @@ export default async function ProfessorHomePage() {
       />
 
       {servidor.turmas.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-foreground-muted">
-          Nenhuma turma vinculada ainda.
-        </p>
+        <EmptyState
+          className="mt-6"
+          icon={Users2}
+          title="Nenhuma turma vinculada ainda"
+          description="Assim que uma turma for atribuída na sincronização, ela aparece aqui."
+        />
       ) : (
         <div className="mt-6">
           <DataTable>
@@ -64,7 +69,11 @@ export default async function ProfessorHomePage() {
         <MetricCard
           href="/portal/professor/turmas"
           label="Ver minhas turmas"
-          value={`${totalAlunos} aluno(s)`}
+          value={
+            <>
+              <AnimatedNumber value={totalAlunos} /> aluno(s)
+            </>
+          }
           icon={Users}
           accent="primary"
         />

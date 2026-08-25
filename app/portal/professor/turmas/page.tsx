@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { Users, Users2 } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { getServidorBySession } from "@/lib/queries/portal";
 import { formatTurmaLabel } from "@/lib/queries/academico";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function ProfessorTurmasPage() {
   const session = await requireSession(["PROFESSOR"]);
@@ -37,17 +38,20 @@ export default async function ProfessorTurmasPage() {
       />
 
       {servidor.turmas.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Você ainda não tem nenhuma turma vinculada. Assim que a Secretaria confirmar sua atribuição no SIGEduc, suas
-          turmas aparecerão aqui.
-        </p>
+        <EmptyState
+          className="mt-8"
+          icon={Users2}
+          title="Nenhuma turma vinculada ainda"
+          description="Assim que a Secretaria confirmar sua atribuição no SIGEduc, suas turmas aparecerão aqui."
+        />
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {servidor.turmas.map((t) => (
+          {servidor.turmas.map((t, index) => (
             <Link
               key={t.id}
               href={`/portal/professor/turmas/${encodeURIComponent(t.turma)}`}
-              className="flex items-start gap-3 rounded-xl border border-border bg-surface p-5 transition hover:border-primary/40 hover:shadow-card"
+              className="flex items-start gap-3 rounded-xl border border-border bg-surface p-5 transition hover:border-primary/40 hover:shadow-card animate-fade-in-up"
+              style={{ "--stagger-delay": `${index * 50}ms` } as React.CSSProperties}
             >
               <Users className="h-6 w-6 shrink-0 text-primary" />
               <div>

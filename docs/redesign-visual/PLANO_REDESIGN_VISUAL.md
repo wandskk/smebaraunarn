@@ -253,7 +253,7 @@ se pedido explicitamente depois.
 | V1 — Dashboard Admin | **DONE** | 2026-08-25 |
 | V2 — Central de Indicadores | **DONE** | 2026-08-25 |
 | V3 — Home Direção | **DONE** | 2026-08-25 |
-| V4 — Home/turmas Professor | PENDING | — |
+| V4 — Home/turmas Professor | **DONE** | 2026-08-25 |
 | V5 — Home/frequência/boletim Aluno | PENDING | — |
 | V6 — Home Servidor Geral | PENDING | — |
 | V7 — Listagens e fichas | PENDING | — |
@@ -448,6 +448,34 @@ repetidas vezes em `docs/plano-evolucao-sme/PROGRESSO.md` para os outros
 (EmptyState/stagger/AnimatedNumber) usa exatamente os mesmos componentes
 já validados visualmente na V1/V2, mas não foi vista renderizada como
 DIRETOR de fato.
+
+Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
+limpo (66 rotas).
+
+## Resumo da ETAPA V4
+
+`/portal/professor` (home + turmas) e `TurmaDetalheView`
+(`components/portal/turma-detalhe.tsx` — compartilhado com Admin e
+Direção desde a ETAPA 03 do plano funcional), sem mudar dado/query:
+
+- **`TurmaDetalheView`**: stagger + `AnimatedNumber` nos 3 `MetricCard` do
+  topo (frequência continua texto — é `%` formatado, não inteiro
+  animável); os 2 "Nenhum aluno..." viraram `EmptyState`. Maior alcance
+  desta etapa — usado por `/admin/escolas/[id]/turmas/[turma]`,
+  `/portal/direcao/turmas/[turma]` e `/portal/professor/turmas/[turma]`
+  ao mesmo tempo.
+- **`/portal/professor/page.tsx`**: "Nenhuma turma vinculada" virou
+  `EmptyState`; contador de alunos no card de atalho usa `AnimatedNumber`.
+- **`/portal/professor/turmas/page.tsx`**: mesmo `EmptyState`; grid de
+  turmas entra em stagger.
+
+**Validação parcial** (mesma limitação da V3 — só há credencial ADMIN
+nesta sessão): `TurmaDetalheView` validado de verdade via
+`/admin/escolas/[id]/turmas/[turma]` (números corretos, stagger ok, sem
+erro de console). As duas telas específicas de Professor
+(`page.tsx`/`turmas/page.tsx`) não foram vistas renderizadas como
+PROFESSOR de fato — usam componentes já validados visualmente noutras
+etapas.
 
 Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
 limpo (66 rotas).
