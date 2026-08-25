@@ -1,7 +1,7 @@
 # Plano de Redesign Visual — Dashboards do SME Baraúna
 
 **Criado em:** 2026-08-25
-**Status geral:** PENDING (nenhuma etapa iniciada — aguardando autorização para a ETAPA V0)
+**Status geral:** DONE — roteiro V0-V9 concluído em 2026-08-25 (ver tabela abaixo e linha 477)
 
 Este documento existe para **não precisar repetir a pesquisa de inspiração a
 cada tela**. Ele registra: (1) o que já foi pesquisado e onde reaproveitar
