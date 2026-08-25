@@ -4,6 +4,8 @@ import {
   calcularPercentil,
   calcularAmplitude,
   calcularProporcaoAbaixoDe,
+  calcularHistograma,
+  type BucketHistograma,
 } from "@/lib/analytics/estatistica";
 
 /**
@@ -91,6 +93,45 @@ export async function getDesempenhoPorEscola(filtro: FiltroDesempenhoPorEscola):
   }
 
   return resultado.sort((a, b) => (a.media ?? 10) - (b.media ?? 10));
+}
+
+/**
+ * Faixas de agrupamento visual do histograma de notas (seção 10 do plano
+ * MVP) — só para mostrar concentração/dispersão, não uma classificação
+ * pedagógica de aluno.
+ */
+export const FAIXAS_HISTOGRAMA_NOTAS_PADRAO = [
+  { min: 0, max: 2, label: "0–2" },
+  { min: 2, max: 4, label: "2–4" },
+  { min: 4, max: 6, label: "4–6" },
+  { min: 6, max: 8, label: "6–8" },
+  { min: 8, max: 10, label: "8–10" },
+];
+
+/**
+ * Distribuição de notas da rede em faixas (histograma) — mesmo recorte
+ * (ano/disciplina/unidade) de `getDesempenhoPorEscola`, mas sem quebrar por
+ * escola. Busca os valores brutos separadamente (não reaproveita
+ * `getDesempenhoPorEscola`) porque aquela função só expõe estatísticas já
+ * agregadas por escola, não os valores individuais que o histograma
+ * precisa — mesmo filtro, então o custo é o mesmo `findMany` já
+ * considerado barato no volume atual da rede (ver nota em
+ * `getDesempenhoPorEscola`).
+ */
+export async function getDistribuicaoNotasRede(filtro: FiltroDesempenhoPorEscola): Promise<BucketHistograma[]> {
+  const notas = await prisma.notaEstudante.findMany({
+    where: {
+      ano: filtro.anoLetivo,
+      ...(filtro.disciplina ? { disciplina: filtro.disciplina } : {}),
+      ...(filtro.unidade ? { unidade: filtro.unidade } : {}),
+    },
+    select: { nota: true },
+  });
+
+  return calcularHistograma(
+    notas.map((n) => n.nota),
+    FAIXAS_HISTOGRAMA_NOTAS_PADRAO,
+  );
 }
 
 /** Disciplinas com nota lançada no ano — alimenta o filtro de `/admin/indicadores/aprendizagem`, sem inventar uma lista fixa. */

@@ -49,3 +49,28 @@ export function calcularProporcaoAbaixoDe(valores: number[], limite: number): nu
   const abaixo = valores.filter((v) => v < limite).length;
   return (abaixo / valores.length) * 100;
 }
+
+export interface FaixaHistograma {
+  min: number;
+  max: number;
+  label: string;
+}
+
+export interface BucketHistograma extends FaixaHistograma {
+  quantidade: number;
+}
+
+/**
+ * Agrupamento visual (não classificação de aluno): conta quantos valores
+ * caem em cada faixa `[min, max)`, exceto a última faixa da lista, que
+ * inclui `max` (senão o valor máximo possível nunca entraria em nenhum
+ * bucket). Faixas devem vir ordenadas pelo chamador — esta função não
+ * ordena nem valida sobreposição.
+ */
+export function calcularHistograma(valores: number[], faixas: FaixaHistograma[]): BucketHistograma[] {
+  return faixas.map((faixa, indice) => {
+    const ultimaFaixa = indice === faixas.length - 1;
+    const quantidade = valores.filter((v) => v >= faixa.min && (ultimaFaixa ? v <= faixa.max : v < faixa.max)).length;
+    return { ...faixa, quantidade };
+  });
+}

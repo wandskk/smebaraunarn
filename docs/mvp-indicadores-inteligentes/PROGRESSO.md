@@ -1,6 +1,6 @@
 # Progresso — MVP de Indicadores Inteligentes
 
-**Última atualização:** 2026-08-25 (ETAPA 04 concluída)
+**Última atualização:** 2026-08-25 (ETAPA 05 concluída)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -15,7 +15,7 @@ com o Markdown correspondente em `etapas/`.
 | 02 | Tendência temporal de frequência | **DONE** | 2026-08-25 |
 | 03 | Atenção Agora + Panorama | **DONE** | 2026-08-25 |
 | 04 | Frequência e Permanência | **DONE** | 2026-08-25 |
-| 05 | Aprendizagem e Desempenho | PENDING | — |
+| 05 | Aprendizagem e Desempenho | **DONE** | 2026-08-25 |
 | 06 | Fluxo e Trajetória + Comparativos | PENDING | — |
 | 07 | Avaliações Municipais | PENDING | — |
 | 08 | Hardening e roteiro de demonstração | PENDING | — |
@@ -91,6 +91,19 @@ preservavam `?ano=` nos drill-downs (achado durante a etapa, regra 11 do
 master prompt). Verificado com dados reais em 2026 (ano corrente) e 2025
 (ano sem histórico de 30 dias, exercitando os estados vazios). Detalhe
 completo em [`etapas/04-frequencia.md`](etapas/04-frequencia.md).
+
+## Resumo da ETAPA 05
+
+`/admin/indicadores/aprendizagem` renomeada para "Aprendizagem e
+Desempenho", com 4 KPIs (desempenho médio, notas lançadas, % abaixo do
+parâmetro, escolas com sinal de atenção — reaproveitando
+`getPainelAtencaoEscolas` da ETAPA 03), histograma de distribuição de
+notas (nova `getDistribuicaoNotasRede` + `calcularHistograma` pura) e
+gráfico de barras horizontais por escola com referência de rede (novo
+componente `HorizontalBarChart`, já pensado para reuso na ETAPA 07). Rede
+com 18-28 escolas conforme filtro → mostra as 10 menores médias + tabela
+completa abaixo, nunca "piores escolas". Detalhe completo em
+[`etapas/05-aprendizagem.md`](etapas/05-aprendizagem.md).
 
 ## Regra de avanço
 
