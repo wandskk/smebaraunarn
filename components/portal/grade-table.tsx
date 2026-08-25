@@ -1,5 +1,7 @@
+import { BookOpen } from "lucide-react";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /** Total de unidades/bimestres do ano letivo — mesmo valor usado para julgar completude do boletim. */
 export const TOTAL_UNIDADES_ANO = 4;
@@ -39,11 +41,7 @@ export function GradeTable({ notas, emptyMessage, mostrarCompletude = false }: G
   }, {});
 
   if (Object.keys(porDisciplina).length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-        {emptyMessage}
-      </p>
-    );
+    return <EmptyState icon={BookOpen} title={emptyMessage} />;
   }
 
   return (

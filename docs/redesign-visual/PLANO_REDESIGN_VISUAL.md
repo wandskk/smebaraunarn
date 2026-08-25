@@ -254,7 +254,7 @@ se pedido explicitamente depois.
 | V2 — Central de Indicadores | **DONE** | 2026-08-25 |
 | V3 — Home Direção | **DONE** | 2026-08-25 |
 | V4 — Home/turmas Professor | **DONE** | 2026-08-25 |
-| V5 — Home/frequência/boletim Aluno | PENDING | — |
+| V5 — Home/frequência/boletim Aluno | **DONE** | 2026-08-25 |
 | V6 — Home Servidor Geral | PENDING | — |
 | V7 — Listagens e fichas | PENDING | — |
 | V8 — Avaliações Municipais | PENDING | — |
@@ -448,6 +448,48 @@ repetidas vezes em `docs/plano-evolucao-sme/PROGRESSO.md` para os outros
 (EmptyState/stagger/AnimatedNumber) usa exatamente os mesmos componentes
 já validados visualmente na V1/V2, mas não foi vista renderizada como
 DIRETOR de fato.
+
+Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
+limpo (66 rotas).
+
+## Resumo da ETAPA V5
+
+O `AttendanceHeatmap` finalmente ganha um uso real — e revelou um defeito
+de design da V0 antes de virar produção, corrigido nesta etapa:
+
+- **Correção de API do `AttendanceHeatmap`** (`components/ui/charts/attendance-heatmap.tsx`):
+  a V0 assumia `dias: AttendanceHeatmapDay[]` sequenciais sem lacuna, mas
+  frequência real tem fim de semana/feriado sem registro — plotar
+  sequencialmente sem contar essas lacunas desalinhava a coluna de dia da
+  semana. Trocado por `{ inicio, fim, dados: Record<isoDate, ...> }`: o
+  componente agora itera dia a dia (aritmética em UTC, mesma convenção de
+  `calcularJanelaDias`) e preenche "vazio" onde não há dado — alinhamento
+  sempre correto, venha o dado com ou sem lacuna.
+- **`app/portal/aluno/frequencia/page.tsx`**: heatmap de calendário
+  (agrupa os `registros` já buscados por dia — sem query nova); os 3
+  `MetricCard` ganham `AnimatedNumber`/stagger; "Frequência no período"
+  ganha `trend` (sparkline da série diária) — primeiro uso real do prop
+  `trend` criado na V0; `EmptyState` no lugar da caixa tracejada.
+- **`components/portal/aluno-detalhe.tsx`** (ficha do estudante,
+  compartilhada por Admin/Direção/Professor): mesmo heatmap, mesmo
+  `EmptyState`. Segundo uso real do heatmap — confirma que valia a pena
+  como componente reutilizável (regra 5).
+- **`components/portal/grade-table.tsx`** (boletim, compartilhado por
+  Admin/Direção/Professor/Aluno): `EmptyState` no lugar da caixa
+  tracejada.
+- **`/portal/aluno/page.tsx`**: stagger nos 3 cards de resumo e nos 4
+  atalhos; `AnimatedNumber` em "Disciplinas com nota lançada".
+
+Validado via `/admin/estudantes/[id]` (usa `AlunoDetalhe`): heatmap
+alinhado corretamente por dia da semana, dias vermelhos (falta total)
+visualmente agrupados de forma legível, `EmptyState` do boletim
+renderizando com ícone, sem erro de console. `/portal/aluno/*` em si não
+foi visto renderizado como ALUNO (mesma limitação de credencial das
+etapas V3/V4) — mas usa exatamente o mesmo componente já validado.
+
+`npm test`: 206/206 (sem teste novo — mudança é de agregação/apresentação
+sobre dado já validado por `lib/analytics/frequencia.ts`, mesmo padrão de
+granularidade das mudanças análogas do plano funcional).
 
 Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
 limpo (66 rotas).

@@ -9,6 +9,7 @@ import { getStatusSincronizacao } from "@/lib/queries/qualidade-dados";
 import { formatarDataIso } from "@/lib/format-date";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 
 const DIAS_RESUMO_HOME = 30;
@@ -83,28 +84,34 @@ export default async function AlunoHomePage() {
         Resumo dos últimos {DIAS_RESUMO_HOME} dias
       </h2>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          href="/portal/aluno/frequencia"
-          label="Frequência"
-          value={percentualFrequencia !== null ? `${percentualFrequencia.toFixed(1)}%` : "Sem dados no período"}
-          icon={CalendarCheck}
-          accent="attendance"
-        />
-        <MetricCard
-          href="/portal/aluno/boletim"
-          label={`Disciplinas com nota lançada (${anoAtual})`}
-          value={String(disciplinasComNota)}
-          icon={BookOpen}
-          accent="education"
-        />
-        <MetricCard
-          href="/portal/aluno/avaliacoes"
-          label="Última avaliação municipal"
-          value={ultimaAvaliacao ? TIPO_AVALIACAO_LABEL[ultimaAvaliacao.tipo] : "Nenhuma ainda"}
-          icon={ClipboardList}
-          accent="info"
-          helpText={ultimaAvaliacao ? `${ultimaAvaliacao.nome} · ${ultimaAvaliacao.ano}` : undefined}
-        />
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "0ms" } as React.CSSProperties}>
+          <MetricCard
+            href="/portal/aluno/frequencia"
+            label="Frequência"
+            value={percentualFrequencia !== null ? `${percentualFrequencia.toFixed(1)}%` : "Sem dados no período"}
+            icon={CalendarCheck}
+            accent="attendance"
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "60ms" } as React.CSSProperties}>
+          <MetricCard
+            href="/portal/aluno/boletim"
+            label={`Disciplinas com nota lançada (${anoAtual})`}
+            value={<AnimatedNumber value={disciplinasComNota} />}
+            icon={BookOpen}
+            accent="education"
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "120ms" } as React.CSSProperties}>
+          <MetricCard
+            href="/portal/aluno/avaliacoes"
+            label="Última avaliação municipal"
+            value={ultimaAvaliacao ? TIPO_AVALIACAO_LABEL[ultimaAvaliacao.tipo] : "Nenhuma ainda"}
+            icon={ClipboardList}
+            accent="info"
+            helpText={ultimaAvaliacao ? `${ultimaAvaliacao.nome} · ${ultimaAvaliacao.ano}` : undefined}
+          />
+        </div>
       </div>
 
       {(freshnessFrequencia || freshnessNotas) && (
@@ -124,11 +131,12 @@ export default async function AlunoHomePage() {
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Atalhos</h2>
       <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => (
+        {cards.map((card, index) => (
           <Link
             key={card.href}
             href={card.href}
-            className="rounded-xl border border-border bg-surface p-5 transition hover:border-primary/40 hover:shadow-card"
+            className="rounded-xl border border-border bg-surface p-5 transition hover:border-primary/40 hover:shadow-card animate-fade-in-up"
+            style={{ "--stagger-delay": `${index * 50}ms` } as React.CSSProperties}
           >
             <card.icon className="mb-3 h-6 w-6 text-primary" />
             <div className="font-semibold text-foreground">{card.label}</div>

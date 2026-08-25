@@ -1,9 +1,12 @@
+import { Inbox } from "lucide-react";
 import type { AlunoDetalheCompleto } from "@/lib/queries/academico";
 import { calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { GradeTable } from "@/components/portal/grade-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AttendanceHeatmap, type AttendanceHeatmapDatum } from "@/components/ui/charts/attendance-heatmap";
 import { formatarDataIso } from "@/lib/format-date";
 
 interface AlunoDetalheProps {
@@ -33,6 +36,23 @@ export function AlunoDetalhe({ dados, ano, disciplinasVisiveis }: AlunoDetalhePr
   // em vez de uma segunda implementação local — garante o mesmo resultado para a mesma entidade.
   const percentualPresenca = calcularPercentualFrequencia(totalAulas, totalFaltas);
   const periodoFrequenciaLabel = `${formatarDataIso(janelaFrequencia.inicio)} a ${formatarDataIso(janelaFrequencia.fim)}`;
+
+  // Mesmo agrupamento por dia de app/portal/aluno/frequencia/page.tsx —
+  // alimenta o heatmap de calendário a partir dos mesmos `frequencias` já
+  // carregados, sem query nova.
+  const porDia = new Map<string, { aulas: number; faltas: number }>();
+  for (const f of frequencias) {
+    const atual = porDia.get(f.data) ?? { aulas: 0, faltas: 0 };
+    atual.aulas += f.quantidadeAula;
+    atual.faltas += f.falta;
+    porDia.set(f.data, atual);
+  }
+  const heatmapDados: Record<string, AttendanceHeatmapDatum> = {};
+  for (const [data, v] of porDia.entries()) {
+    if (v.aulas === 0) continue;
+    const intensidade = v.faltas === 0 ? "boa" : v.faltas >= v.aulas ? "critica" : "atencao";
+    heatmapDados[data] = { intensidade, tooltip: `${formatarDataIso(data)} — ${v.faltas} falta(s) de ${v.aulas} aula(s)` };
+  }
 
   return (
     <div>
@@ -79,34 +99,42 @@ export function AlunoDetalhe({ dados, ano, disciplinasVisiveis }: AlunoDetalhePr
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Frequência — {periodoFrequenciaLabel}</h2>
       {frequencias.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-          Sem dados no período — nenhum registro de frequência entre {periodoFrequenciaLabel}.
-        </p>
+        <EmptyState
+          className="mt-3"
+          icon={Inbox}
+          title="Sem dados no período"
+          description={`Nenhum registro de frequência entre ${periodoFrequenciaLabel}.`}
+        />
       ) : (
-        <div className="mt-3">
-          <DataTable>
-            <TableHeader>
-              <tr>
-                <TableHeadCell>Data</TableHeadCell>
-                <TableHeadCell>Disciplina</TableHeadCell>
-                <TableHeadCell>Situação</TableHeadCell>
-                <TableHeadCell>Abonada</TableHeadCell>
-              </tr>
-            </TableHeader>
-            <TableBody>
-              {frequencias.map((f) => (
-                <TableRow key={f.id}>
-                  <TableCell className="text-foreground">{formatarDataIso(f.data)}</TableCell>
-                  <TableCell className="text-foreground-muted">{f.disciplina ?? "-"}</TableCell>
-                  <TableCell className="text-foreground-muted">{f.falta > 0 ? "Falta" : "Presente"}</TableCell>
-                  <TableCell className="text-foreground-muted">
-                    {f.abonada ? `Sim${f.motivoAbono ? ` (${f.motivoAbono})` : ""}` : "Não"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </DataTable>
-        </div>
+        <>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-surface p-5">
+            <AttendanceHeatmap inicio={janelaFrequencia.inicio} fim={janelaFrequencia.fim} dados={heatmapDados} />
+          </div>
+          <div className="mt-3">
+            <DataTable>
+              <TableHeader>
+                <tr>
+                  <TableHeadCell>Data</TableHeadCell>
+                  <TableHeadCell>Disciplina</TableHeadCell>
+                  <TableHeadCell>Situação</TableHeadCell>
+                  <TableHeadCell>Abonada</TableHeadCell>
+                </tr>
+              </TableHeader>
+              <TableBody>
+                {frequencias.map((f) => (
+                  <TableRow key={f.id}>
+                    <TableCell className="text-foreground">{formatarDataIso(f.data)}</TableCell>
+                    <TableCell className="text-foreground-muted">{f.disciplina ?? "-"}</TableCell>
+                    <TableCell className="text-foreground-muted">{f.falta > 0 ? "Falta" : "Presente"}</TableCell>
+                    <TableCell className="text-foreground-muted">
+                      {f.abonada ? `Sim${f.motivoAbono ? ` (${f.motivoAbono})` : ""}` : "Não"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </DataTable>
+          </div>
+        </>
       )}
     </div>
   );
