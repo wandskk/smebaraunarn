@@ -251,7 +251,7 @@ se pedido explicitamente depois.
 |---|---|---|
 | V0 — Fundação (biblioteca de componentes) | **DONE** | 2026-08-25 |
 | V1 — Dashboard Admin | **DONE** | 2026-08-25 |
-| V2 — Central de Indicadores | PENDING | — |
+| V2 — Central de Indicadores | **DONE** | 2026-08-25 |
 | V3 — Home Direção | PENDING | — |
 | V4 — Home/turmas Professor | PENDING | — |
 | V5 — Home/frequência/boletim Aluno | PENDING | — |
@@ -368,3 +368,51 @@ limpo (66 rotas, mesma contagem — só mudança de apresentação).
 Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
 limpo (parei o `next dev` que travava o Prisma, rodei o build, e subi o
 dev de novo pela config `dev` de `.claude/launch.json`).
+
+## Resumo da ETAPA V2
+
+As 5 subpáginas da Central de Indicadores (`/admin/indicadores` + 4
+drill-downs), sem mudar nenhuma query/dado — só reaproveitando o que cada
+página já buscava do banco:
+
+- **`/admin/indicadores` (index)**: só stagger `animate-fade-in-up` nos 7
+  `MetricCard` (mesmo tratamento da V1). Decisão deliberada de **não**
+  adicionar gráfico novo aqui — são 7 KPIs agregados de rede (um número
+  cada), sem lista por escola nesta página para derivar uma distribuição
+  real sem query nova (proibido pela regra 2 do plano).
+- **`/admin/indicadores/frequencia`**: `DonutChart` novo resumindo escolas
+  por faixa (Adequada/Atenção/Crítica — direto de `escola.faixa`, já
+  calculado) + `RingProgress` por linha na coluna "Frequência atual",
+  colorido pela mesma faixa (reaproveita `FaixaFrequencia`, não inventa
+  classificação nova).
+- **`/admin/indicadores/aprendizagem`**: `RingProgress` por linha na coluna
+  "Abaixo de X" — accent fixo `education` (cor de domínio já estabelecida,
+  sem inventar limiar de severidade que não existe no código).
+- **`/admin/indicadores/comparativos`**: `RingProgress` nos cards de
+  Frequência e Distorção da rede (Desempenho fica só texto — não é
+  percentual); `DonutChart` novo "Escolas × rede — frequência" agrupando
+  acima/estável/abaixo, reaproveitando literalmente a mesma regra de
+  favorabilidade (`Math.abs(diferenca) < 0.05`) já usada em `DiferencaRede`
+  nesta mesma página — não uma classificação nova.
+- **`/admin/indicadores/fluxo-trajetoria`**: `RingProgress` por linha na
+  coluna "% distorção" — accent fixo `warning` (mesma cor que a barra por
+  série já usava). A barra horizontal por série existente **não foi
+  trocada** por `MiniBarChart` — já cumpria bem o papel e criar uma
+  variante horizontal do componente só para esta tela violaria a regra
+  "2 usos reais antes de criar componente novo".
+
+**Bug real encontrado e corrigido, fora do escopo original mas achado ao
+navegar `/admin/indicadores` durante a etapa**: `PageHeader`
+(`components/ui/page-header.tsx`) — o container de ações (`shrink-0`) ao
+lado do título/descrição (`min-w-0`, sem `flex-grow`) fazia com que, em
+páginas com muitas ações (esta tinha 4: seletor de ano + 3 botões), 100%
+do espaço faltante fosse absorvido pelo título/descrição, colapsando o
+texto pra uma palavra por linha. Corrigido com `flex-wrap` no container
+externo (ações agora quebram para uma segunda linha quando não cabem, em
+vez de espremer o texto) + `flex-1` no bloco de título. Afeta **todas** as
+páginas que usam `PageHeader` — corrigido uma vez, na origem.
+
+Validado logado como ADMIN nas 5 páginas contra a base real (números e
+cores batendo com os dados, incluindo o caso "Estável" com 0 escolas
+corretamente omitido do donut de comparativos). `npm run build` limpo (66
+rotas, mesma contagem).

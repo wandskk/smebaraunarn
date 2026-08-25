@@ -7,6 +7,7 @@ import type { SerieEnsino } from "@/lib/analytics/distorcao";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -110,8 +111,15 @@ export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
                 </TableCell>
                 <TableCell className="text-foreground-muted">{formatNumber(escola.totalElegiveis)}</TableCell>
                 <TableCell className="text-foreground-muted">{formatNumber(escola.emDistorcao)}</TableCell>
-                <TableCell className="font-semibold text-foreground">
-                  {formatarPercentual(escola.percentualDistorcao)}
+                <TableCell>
+                  {escola.percentualDistorcao === null ? (
+                    <span className="text-foreground-muted/60">-</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <RingProgress value={escola.percentualDistorcao} accent="warning" size={36} strokeWidth={5} valueLabel="" />
+                      <span className="font-semibold text-foreground">{escola.percentualDistorcao.toFixed(1)}%</span>
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="text-foreground-muted">{formatNumber(escola.intensidadeSevera)}</TableCell>
                 <TableCell className="text-foreground-muted/60">{formatNumber(escola.totalForaDoEscopo)}</TableCell>

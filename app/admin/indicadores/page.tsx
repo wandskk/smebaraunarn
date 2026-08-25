@@ -109,57 +109,71 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
       />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          label="Estudantes matriculados"
-          value={formatNumber(indicadores.totalEstudantes)}
-          icon={GraduationCap}
-          href="/admin/estudantes"
-        />
-        <MetricCard
-          label="Escolas ativas"
-          value={formatNumber(indicadores.escolasAtivas)}
-          icon={School}
-          href="/admin/escolas"
-          explicacao={descreverContexto(DICIONARIO_INDICADORES.escolasAtivas, contextoEstudantes)}
-        />
-        <MetricCard label="Turmas" value={formatNumber(indicadores.totalTurmas)} icon={Users2} />
-        <MetricCard
-          label="Frequência média da rede"
-          value={formatarPercentual(indicadores.frequenciaMediaRede)}
-          icon={Percent}
-          tone={toneFrequencia}
-          accent="attendance"
-          href={comAno("/admin/indicadores/frequencia")}
-          helpText="Ver por escola →"
-          explicacao={descreverContexto(DICIONARIO_INDICADORES.frequenciaMedia, contextoFrequencia)}
-        />
-        <MetricCard
-          label="Estudantes abaixo da faixa adequada de frequência"
-          value={formatNumber(indicadores.estudantesAbaixoFaixaFrequencia)}
-          icon={AlertTriangle}
-          tone={toneAbaixoFaixa}
-          accent="attendance"
-          explicacao={descreverContexto(DICIONARIO_INDICADORES.estudantesAbaixoFaixaFrequencia, contextoFrequencia)}
-        />
-        <MetricCard
-          label="Desempenho médio"
-          value={indicadores.desempenhoMedioRede === null ? "-" : indicadores.desempenhoMedioRede.toFixed(1)}
-          icon={Award}
-          accent="education"
-          href={comAno("/admin/indicadores/aprendizagem")}
-          helpText="Ver por escola →"
-          explicacao={descreverContexto(DICIONARIO_INDICADORES.desempenhoMedio, contextoNotas)}
-        />
-        <MetricCard
-          label="Estudantes em distorção idade-série"
-          value={formatNumber(indicadores.estudantesEmDistorcaoIdadeSerie)}
-          icon={TrendingDown}
-          tone={toneDistorcao}
-          accent="warning"
-          href={comAno("/admin/indicadores/fluxo-trajetoria")}
-          helpText="Não é o total da rede (ver nota abaixo) — ver por escola/série →"
-          explicacao={descreverContexto(DICIONARIO_INDICADORES.distorcaoIdadeSerie, contextoEstudantes)}
-        />
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "0ms" } as React.CSSProperties}>
+          <MetricCard
+            label="Estudantes matriculados"
+            value={formatNumber(indicadores.totalEstudantes)}
+            icon={GraduationCap}
+            href="/admin/estudantes"
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "50ms" } as React.CSSProperties}>
+          <MetricCard
+            label="Escolas ativas"
+            value={formatNumber(indicadores.escolasAtivas)}
+            icon={School}
+            href="/admin/escolas"
+            explicacao={descreverContexto(DICIONARIO_INDICADORES.escolasAtivas, contextoEstudantes)}
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "100ms" } as React.CSSProperties}>
+          <MetricCard label="Turmas" value={formatNumber(indicadores.totalTurmas)} icon={Users2} />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "150ms" } as React.CSSProperties}>
+          <MetricCard
+            label="Frequência média da rede"
+            value={formatarPercentual(indicadores.frequenciaMediaRede)}
+            icon={Percent}
+            tone={toneFrequencia}
+            accent="attendance"
+            href={comAno("/admin/indicadores/frequencia")}
+            helpText="Ver por escola →"
+            explicacao={descreverContexto(DICIONARIO_INDICADORES.frequenciaMedia, contextoFrequencia)}
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "200ms" } as React.CSSProperties}>
+          <MetricCard
+            label="Estudantes abaixo da faixa adequada de frequência"
+            value={formatNumber(indicadores.estudantesAbaixoFaixaFrequencia)}
+            icon={AlertTriangle}
+            tone={toneAbaixoFaixa}
+            accent="attendance"
+            explicacao={descreverContexto(DICIONARIO_INDICADORES.estudantesAbaixoFaixaFrequencia, contextoFrequencia)}
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "250ms" } as React.CSSProperties}>
+          <MetricCard
+            label="Desempenho médio"
+            value={indicadores.desempenhoMedioRede === null ? "-" : indicadores.desempenhoMedioRede.toFixed(1)}
+            icon={Award}
+            accent="education"
+            href={comAno("/admin/indicadores/aprendizagem")}
+            helpText="Ver por escola →"
+            explicacao={descreverContexto(DICIONARIO_INDICADORES.desempenhoMedio, contextoNotas)}
+          />
+        </div>
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "300ms" } as React.CSSProperties}>
+          <MetricCard
+            label="Estudantes em distorção idade-série"
+            value={formatNumber(indicadores.estudantesEmDistorcaoIdadeSerie)}
+            icon={TrendingDown}
+            tone={toneDistorcao}
+            accent="warning"
+            href={comAno("/admin/indicadores/fluxo-trajetoria")}
+            helpText="Não é o total da rede (ver nota abaixo) — ver por escola/série →"
+            explicacao={descreverContexto(DICIONARIO_INDICADORES.distorcaoIdadeSerie, contextoEstudantes)}
+          />
+        </div>
       </div>
 
       <p className="mt-4 text-xs text-foreground-muted/70">

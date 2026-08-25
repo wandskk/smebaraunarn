@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 
 interface PageProps {
   searchParams: { ano?: string; disciplina?: string; unidade?: string };
@@ -124,8 +125,21 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
                   {formatarNota(escola.percentil25)} – {formatarNota(escola.percentil75)}
                 </TableCell>
                 <TableCell className="text-foreground-muted">{formatarNota(escola.amplitude)}</TableCell>
-                <TableCell className="text-foreground-muted">
-                  {escola.percentualAbaixoDoEsperado === null ? "-" : `${escola.percentualAbaixoDoEsperado.toFixed(1)}%`}
+                <TableCell>
+                  {escola.percentualAbaixoDoEsperado === null ? (
+                    <span className="text-foreground-muted/60">-</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <RingProgress
+                        value={escola.percentualAbaixoDoEsperado}
+                        accent="education"
+                        size={36}
+                        strokeWidth={5}
+                        valueLabel=""
+                      />
+                      <span className="text-foreground-muted">{escola.percentualAbaixoDoEsperado.toFixed(1)}%</span>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

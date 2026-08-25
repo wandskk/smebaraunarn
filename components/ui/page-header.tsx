@@ -14,8 +14,8 @@ export interface PageHeaderProps {
 /** Cabeçalho padrão de página administrativa: título, descrição, metadados e ações. */
 export function PageHeader({ title, description, metadata, actions, breadcrumbs, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between", className)}>
-      <div className="min-w-0">
+    <div className={cn("flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between", className)}>
+      <div className="min-w-0 flex-1">
         {breadcrumbs && <div className="mb-2 text-sm">{breadcrumbs}</div>}
         <h1 className="text-xl font-semibold text-foreground">{title}</h1>
         {description && <p className="mt-1 text-sm text-foreground-muted">{description}</p>}

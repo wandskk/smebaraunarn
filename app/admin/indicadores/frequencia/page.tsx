@@ -8,12 +8,18 @@ import {
   resolverDataReferenciaJanela,
   getContagemFaltasConsecutivasPorEscola,
 } from "@/lib/queries/frequencia";
-import type { VariacaoFrequencia } from "@/lib/analytics/frequencia";
+import type { FaixaFrequencia, VariacaoFrequencia } from "@/lib/analytics/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
+import { DonutChart, type DonutChartDatum } from "@/components/ui/charts/donut-chart";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
+import type { ChartAccent } from "@/components/ui/charts/accent-colors";
+
+const FAIXA_DONUT_LABEL: Record<FaixaFrequencia, string> = { adequada: "Adequada", atencao: "Atenção", critica: "Crítica" };
+const FAIXA_RING_ACCENT: Record<FaixaFrequencia, ChartAccent> = { adequada: "success", atencao: "warning", critica: "danger" };
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -38,6 +44,16 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
   const escolas = await getFrequenciaPorEscola({ anoLetivo, ...janela });
   const semHistoricoParaTendencia = escolas.length > 0 && escolas.every((e) => e.variacao === null);
+
+  const faixaDonutData: DonutChartDatum[] = (
+    Object.entries(
+      escolas.reduce<Record<string, number>>((acc, e) => {
+        if (!e.faixa) return acc;
+        acc[e.faixa] = (acc[e.faixa] ?? 0) + 1;
+        return acc;
+      }, {}),
+    ) as [FaixaFrequencia, number][]
+  ).map(([faixa, value]) => ({ label: FAIXA_DONUT_LABEL[faixa], value, accent: FAIXA_RING_ACCENT[faixa] }));
 
   // Sinal de "agora" (sequência de faltas em andamento) só faz sentido para o ano corrente — ver decisão técnica na ETAPA 10.
   const anoCorrente = anoLetivo === new Date().getFullYear();
@@ -70,6 +86,21 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
         </p>
       )}
 
+      {faixaDonutData.length > 0 && (
+        <div className="mt-4 rounded-xl border border-border bg-surface p-5">
+          <div className="text-xs font-medium uppercase tracking-wide text-foreground-muted">Escolas por faixa</div>
+          <div className="mt-3">
+            <DonutChart
+              data={faixaDonutData}
+              size={128}
+              thickness={18}
+              centerValue={String(escolas.length)}
+              centerLabel="escolas"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="mt-6">
         <DataTable>
           <TableHeader>
@@ -96,8 +127,21 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
                     </Link>
                   </TableCell>
                   <TableCell className="text-foreground-muted">{formatNumber(escola.totalEstudantes)}</TableCell>
-                  <TableCell className="font-semibold text-foreground">
-                    {escola.percentualAtual === null ? "-" : `${escola.percentualAtual.toFixed(1)}%`}
+                  <TableCell>
+                    {escola.percentualAtual === null ? (
+                      <span className="text-foreground-muted/60">-</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <RingProgress
+                          value={escola.percentualAtual}
+                          accent={escola.faixa ? FAIXA_RING_ACCENT[escola.faixa] : "primary"}
+                          size={36}
+                          strokeWidth={5}
+                          valueLabel=""
+                        />
+                        <span className="font-semibold text-foreground">{escola.percentualAtual.toFixed(1)}%</span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <TendenciaCell variacao={escola.variacao} />

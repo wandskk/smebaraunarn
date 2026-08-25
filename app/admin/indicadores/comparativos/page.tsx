@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
+import { DonutChart, type DonutChartDatum } from "@/components/ui/charts/donut-chart";
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -54,6 +56,26 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
   const { escolas, rede } = await getComparativosPorEscola({ anoLetivo, ...janela });
 
+  // Mesma leitura de favorabilidade de DiferencaRede (abaixo) — só reagrupada em
+  // contagem para o donut, sem inventar critério novo.
+  const situacaoFrequenciaRede = escolas.reduce(
+    (acc, e) => {
+      if (e.frequenciaDiferencaRede === null) acc.semReferencia += 1;
+      else if (Math.abs(e.frequenciaDiferencaRede) < 0.05) acc.estavel += 1;
+      else if (e.frequenciaDiferencaRede > 0) acc.acima += 1;
+      else acc.abaixo += 1;
+      return acc;
+    },
+    { acima: 0, estavel: 0, abaixo: 0, semReferencia: 0 },
+  );
+  const situacaoFrequenciaDonutData: DonutChartDatum[] = (
+    [
+      { label: "Acima da rede", value: situacaoFrequenciaRede.acima, accent: "success" },
+      { label: "Estável", value: situacaoFrequenciaRede.estavel, accent: "info" },
+      { label: "Abaixo da rede", value: situacaoFrequenciaRede.abaixo, accent: "danger" },
+    ] satisfies DonutChartDatum[]
+  ).filter((d) => d.value > 0);
+
   return (
     <div>
       <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
@@ -77,7 +99,12 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <Card>
           <div className="text-xs uppercase text-foreground-muted">Frequência da rede</div>
-          <div className="mt-1 text-xl font-semibold text-foreground">{formatarPercentual(rede.frequenciaPercentual)}</div>
+          <div className="mt-2 flex items-center gap-3">
+            {rede.frequenciaPercentual !== null && (
+              <RingProgress value={rede.frequenciaPercentual} accent="attendance" size={44} strokeWidth={6} />
+            )}
+            <div className="text-xl font-semibold text-foreground">{formatarPercentual(rede.frequenciaPercentual)}</div>
+          </div>
         </Card>
         <Card>
           <div className="text-xs uppercase text-foreground-muted">Desempenho médio da rede</div>
@@ -85,9 +112,31 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <div className="text-xs uppercase text-foreground-muted">Distorção idade-série da rede</div>
-          <div className="mt-1 text-xl font-semibold text-foreground">{formatarPercentual(rede.distorcaoPercentual)}</div>
+          <div className="mt-2 flex items-center gap-3">
+            {rede.distorcaoPercentual !== null && (
+              <RingProgress value={rede.distorcaoPercentual} accent="warning" size={44} strokeWidth={6} />
+            )}
+            <div className="text-xl font-semibold text-foreground">{formatarPercentual(rede.distorcaoPercentual)}</div>
+          </div>
         </Card>
       </div>
+
+      {situacaoFrequenciaDonutData.length > 0 && (
+        <div className="mt-4 rounded-xl border border-border bg-surface p-5">
+          <div className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+            Escolas × rede — frequência
+          </div>
+          <div className="mt-3">
+            <DonutChart
+              data={situacaoFrequenciaDonutData}
+              size={128}
+              thickness={18}
+              centerValue={String(escolas.length)}
+              centerLabel="escolas"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="mt-6">
         <DataTable>
