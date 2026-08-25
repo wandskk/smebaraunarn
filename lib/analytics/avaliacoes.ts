@@ -119,3 +119,67 @@ export function calcularAnalisePorItem(
 
   return { porQuestao, porDescritor };
 }
+
+export interface ResultadoFluenciaInput {
+  nivelDesempenho: string | null;
+  palavrasPorMin: number | null;
+}
+
+export interface DistribuicaoNivelFluencia {
+  nivel: string;
+  quantidade: number;
+}
+
+export interface EstatisticasPalavrasPorMinuto {
+  media: number | null;
+  minimo: number | null;
+  maximo: number | null;
+  /** Quantos resultados têm palavras/minuto registrado — nem toda aplicação mede isso. */
+  totalComDado: number;
+}
+
+export interface DistribuicaoFluencia {
+  porNivel: DistribuicaoNivelFluencia[];
+  /** Resultados com nível não preenchido — não descartados silenciosamente. */
+  semNivel: number;
+  palavrasPorMinuto: EstatisticasPalavrasPorMinuto;
+}
+
+/**
+ * Distribuição de resultados de Fluência Leitora por nível + estatísticas
+ * de palavras/minuto — agregado, nunca lista/ranking de estudante (seção
+ * 14 do plano). `niveisOrdenados` vem do chamador (mesmo padrão de
+ * `calcularHistograma`: a função pura não conhece o enum `NivelFluencia`
+ * do Prisma, só recebe a ordem já pronta).
+ */
+export function calcularDistribuicaoFluencia(
+  resultados: ResultadoFluenciaInput[],
+  niveisOrdenados: string[],
+): DistribuicaoFluencia {
+  const contagemPorNivel = new Map<string, number>();
+  let semNivel = 0;
+  const valoresPalavrasPorMin: number[] = [];
+
+  for (const r of resultados) {
+    if (r.nivelDesempenho) {
+      contagemPorNivel.set(r.nivelDesempenho, (contagemPorNivel.get(r.nivelDesempenho) ?? 0) + 1);
+    } else {
+      semNivel += 1;
+    }
+    if (r.palavrasPorMin !== null) valoresPalavrasPorMin.push(r.palavrasPorMin);
+  }
+
+  const porNivel = niveisOrdenados.map((nivel) => ({ nivel, quantidade: contagemPorNivel.get(nivel) ?? 0 }));
+
+  const palavrasPorMinuto: EstatisticasPalavrasPorMinuto =
+    valoresPalavrasPorMin.length > 0
+      ? {
+          media: valoresPalavrasPorMin.reduce((acc, v) => acc + v, 0) / valoresPalavrasPorMin.length,
+          minimo: Math.min(...valoresPalavrasPorMin),
+          maximo: Math.max(...valoresPalavrasPorMin),
+          totalComDado: valoresPalavrasPorMin.length,
+        }
+      : { media: null, minimo: null, maximo: null, totalComDado: 0 };
+
+  return { porNivel, semNivel, palavrasPorMinuto };
+}

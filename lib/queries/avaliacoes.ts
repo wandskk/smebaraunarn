@@ -3,9 +3,11 @@ import type { NivelFluencia, TipoAvaliacao } from "@prisma/client";
 import {
   deriveStatusAvaliacao,
   calcularAnalisePorItem,
+  calcularDistribuicaoFluencia,
   type StatusAvaliacao,
   type AnaliseItemResultado,
   type AnaliseDescritorResultado,
+  type DistribuicaoFluencia,
 } from "@/lib/analytics/avaliacoes";
 
 export { STATUS_AVALIACAO_LABEL, type StatusAvaliacao } from "@/lib/analytics/avaliacoes";
@@ -491,4 +493,20 @@ export async function getAnaliseItensAvaliacao(
   const { porQuestao, porDescritor } = calcularAnalisePorItem(questoes, respostas);
 
   return { porQuestao, porDescritor, totalRespondentes: resultados.length };
+}
+
+/**
+ * Distribuição de resultados de Fluência Leitora por nível + estatísticas
+ * de palavras/minuto, agregado (nunca lista de estudante) — usa TODOS os
+ * resultados do escopo, não a página atual de `getAvaliacaoDetalhe`.
+ */
+export async function getDistribuicaoFluencia(avaliacaoId: string, scope: AvaliacaoScope): Promise<DistribuicaoFluencia | null> {
+  if (scope.kind === "professor" && scope.atribuicoes.length === 0) return null;
+
+  const resultados = await prisma.avaliacaoResultadoAluno.findMany({
+    where: { avaliacaoId, ...whereResultadoPorScope(scope) },
+    select: { nivelDesempenho: true, palavrasPorMin: true },
+  });
+
+  return calcularDistribuicaoFluencia(resultados, Object.keys(NIVEL_FLUENCIA_LABEL));
 }

@@ -8,6 +8,7 @@ import {
   STATUS_AVALIACAO_LABEL,
   getAvaliacaoDetalhe,
   getAnaliseItensAvaliacao,
+  getDistribuicaoFluencia,
 } from "@/lib/queries/avaliacoes";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { QuestaoForm } from "./questao-form";
@@ -27,8 +28,12 @@ import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell }
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RingProgress } from "@/components/ui/charts/ring-progress";
+import { HorizontalBarChart, type HorizontalBarDatum } from "@/components/ui/charts/horizontal-bar-chart";
+import { MiniBarChart, type MiniBarDatum } from "@/components/ui/charts/mini-bar-chart";
 import { ClipboardCheck, ClipboardList, Pencil, Percent, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const MAXIMO_ITENS_NO_GRAFICO = 10;
 
 interface PageProps {
   params: { id: string };
@@ -79,6 +84,49 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
   const analise = tab === "analise" && avaliacaoBase.questoes.length > 0
     ? await getAnaliseItensAvaliacao(params.id, { kind: "rede" })
     : null;
+  const distribuicaoFluencia =
+    tab === "analise" && avaliacaoBase.tipo === "FLUENCIA_LEITORA"
+      ? await getDistribuicaoFluencia(params.id, { kind: "rede" })
+      : null;
+
+  // "Menor % de acerto primeiro" — o mesmo objetivo do exemplo da seção 14
+  // do plano ("aponta onde investigar", nunca prescreve intervenção).
+  // .reverse() no final porque o HorizontalBarChart (layout="vertical" do
+  // Recharts) desenha o primeiro item embaixo — sem isso, o pior item
+  // apareceria no rodapé do gráfico em vez do topo.
+  const itensComMenorAcerto: HorizontalBarDatum[] = analise
+    ? [...analise.porQuestao]
+        .filter((q): q is typeof q & { percentualAcerto: number } => q.percentualAcerto !== null)
+        .sort((a, b) => a.percentualAcerto - b.percentualAcerto)
+        .slice(0, MAXIMO_ITENS_NO_GRAFICO)
+        .reverse()
+        .map((q) => ({
+          label: `Questão ${q.numero}${q.descritor ? ` — ${q.descritor}` : ""}`,
+          value: q.percentualAcerto,
+          valueLabel: `${q.percentualAcerto.toFixed(0)}% de acerto`,
+          accent: "danger",
+        }))
+    : [];
+
+  const descritoresComMenorAcerto: HorizontalBarDatum[] = analise
+    ? [...analise.porDescritor]
+        .filter((d): d is typeof d & { percentualAcerto: number } => d.percentualAcerto !== null)
+        .sort((a, b) => a.percentualAcerto - b.percentualAcerto)
+        .slice(0, MAXIMO_ITENS_NO_GRAFICO)
+        .reverse()
+        .map((d) => ({
+          label: d.descritor,
+          value: d.percentualAcerto,
+          valueLabel: `${d.percentualAcerto.toFixed(0)}% de acerto`,
+          accent: "danger",
+        }))
+    : [];
+
+  const distribuicaoFluenciaData: MiniBarDatum[] =
+    distribuicaoFluencia?.porNivel.map((n) => ({ label: NIVEL_LABEL[n.nivel as keyof typeof NIVEL_LABEL], value: n.quantidade, accent: "education" })) ?? [];
+  const totalResultadosFluencia = distribuicaoFluencia
+    ? distribuicaoFluencia.porNivel.reduce((acc, n) => acc + n.quantidade, 0) + distribuicaoFluencia.semNivel
+    : 0;
 
   const questaoEmEdicao = searchParams.editarQuestao
     ? avaliacaoBase.questoes.find((q) => q.id === searchParams.editarQuestao)
@@ -126,6 +174,13 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
 
       {tab === "visao-geral" && (
         <div className="mt-6 space-y-8">
+          {avaliacao.cobertura.percentual !== null && (
+            <p className="text-sm text-foreground-muted">
+              {avaliacao.cobertura.percentual.toFixed(0)}% dos estudantes esperados nas turmas já iniciadas possuem
+              resultado registrado.
+            </p>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-3">
             <MetricCard
               label="Realizado / Esperado (rede)"
@@ -357,12 +412,65 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
 
       {tab === "analise" && (
         <div className="mt-6 space-y-8">
+          {avaliacaoBase.tipo === "FLUENCIA_LEITORA" && (
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Fluência leitora — distribuição por nível</h2>
+              <p className="mt-1 text-xs text-foreground-muted/70">
+                Distribuição agregada dos resultados por nível de fluência — nunca uma lista ou ranking de estudante.
+              </p>
+              {totalResultadosFluencia === 0 ? (
+                <EmptyState
+                  className="mt-3"
+                  icon={ClipboardList}
+                  title="Nenhum resultado de fluência registrado ainda."
+                  description="Lance resultados na aba Resultados, informando o nível de fluência, para alimentar esta distribuição."
+                />
+              ) : (
+                <div className="mt-3 grid gap-4 lg:grid-cols-[2fr_1fr]">
+                  <div className="rounded-xl border border-border bg-surface p-5">
+                    <MiniBarChart data={distribuicaoFluenciaData} accent="education" height={200} />
+                    {distribuicaoFluencia!.semNivel > 0 && (
+                      <p className="mt-2 text-xs text-foreground-muted/70">
+                        {distribuicaoFluencia!.semNivel} resultado(s) sem nível de fluência informado (não entram no
+                        gráfico acima).
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-border bg-surface p-5">
+                    <div className="text-xs font-medium uppercase tracking-wide text-foreground-muted">Palavras por minuto</div>
+                    {distribuicaoFluencia!.palavrasPorMinuto.totalComDado === 0 ? (
+                      <p className="mt-3 text-sm text-foreground-muted/60">Sem dado de palavras/minuto registrado.</p>
+                    ) : (
+                      <div className="mt-3 space-y-1 text-sm">
+                        <div>
+                          <span className="text-foreground-muted">Média: </span>
+                          <span className="font-semibold text-foreground">{distribuicaoFluencia!.palavrasPorMinuto.media!.toFixed(0)}</span>
+                        </div>
+                        <div>
+                          <span className="text-foreground-muted">Faixa: </span>
+                          <span className="font-semibold text-foreground">
+                            {distribuicaoFluencia!.palavrasPorMinuto.minimo} – {distribuicaoFluencia!.palavrasPorMinuto.maximo}
+                          </span>
+                        </div>
+                        <div className="text-xs text-foreground-muted/70">
+                          {distribuicaoFluencia!.palavrasPorMinuto.totalComDado} resultado(s) com esse dado.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {avaliacaoBase.questoes.length === 0 ? (
-            <EmptyState
-              icon={ClipboardList}
-              title="Nenhuma questão cadastrada"
-              description="Cadastre questões (aba Questões) para habilitar a análise por item/descritor."
-            />
+            avaliacaoBase.tipo !== "FLUENCIA_LEITORA" && (
+              <EmptyState
+                icon={ClipboardList}
+                title="Nenhuma questão cadastrada"
+                description="Cadastre questões (aba Questões) para habilitar a análise por item/descritor."
+              />
+            )
           ) : !analise || analise.totalRespondentes === 0 ? (
             <EmptyState
               icon={ClipboardList}
@@ -374,8 +482,27 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
               <p className="text-xs text-foreground-muted/70">
                 % de acerto calculado sobre os resultados que informaram resposta para cada questão (
                 {analise.totalRespondentes} resultado(s) com ao menos uma resposta registrada). Questões sem gabarito
-                cadastrado não entram no cálculo.
+                cadastrado não entram no cálculo. Estes são os itens/descritores com menor percentual de acerto nesta
+                avaliação. O painel não prescreve intervenção pedagógica; ele aponta onde investigar.
               </p>
+
+              {itensComMenorAcerto.length > 0 && (
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Itens com menor percentual de acerto</h2>
+                  <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+                    <HorizontalBarChart data={itensComMenorAcerto} accent="danger" />
+                  </div>
+                </div>
+              )}
+
+              {descritoresComMenorAcerto.length > 0 && (
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Descritores com menor percentual de acerto</h2>
+                  <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+                    <HorizontalBarChart data={descritoresComMenorAcerto} accent="danger" />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Por questão</h2>

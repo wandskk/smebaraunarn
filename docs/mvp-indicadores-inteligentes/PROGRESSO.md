@@ -1,6 +1,6 @@
 # Progresso — MVP de Indicadores Inteligentes
 
-**Última atualização:** 2026-08-25 (ETAPA 06 concluída)
+**Última atualização:** 2026-08-25 (ETAPA 07 concluída)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -17,7 +17,7 @@ com o Markdown correspondente em `etapas/`.
 | 04 | Frequência e Permanência | **DONE** | 2026-08-25 |
 | 05 | Aprendizagem e Desempenho | **DONE** | 2026-08-25 |
 | 06 | Fluxo e Trajetória + Comparativos | **DONE** | 2026-08-25 |
-| 07 | Avaliações Municipais | PENDING | — |
+| 07 | Avaliações Municipais | **DONE** | 2026-08-25 |
 | 08 | Hardening e roteiro de demonstração | PENDING | — |
 
 ## Resumo da ETAPA 00
@@ -116,6 +116,18 @@ e Rede", com novo filtro "Só com sinal de atenção" (reaproveita
 `getPainelAtencaoEscolas`). Nenhum item "fora do MVP" (scatter, radar,
 índice composto, ranking) foi adicionado. Detalhe completo em
 [`etapas/06-fluxo-comparativos.md`](etapas/06-fluxo-comparativos.md).
+
+## Resumo da ETAPA 07
+
+`app/admin/avaliacoes/[id]/page.tsx`: resumo executivo da aplicação na
+Visão Geral, gráficos "Itens/Descritores com menor percentual de acerto"
+(novo 3º uso do `HorizontalBarChart`) com o texto obrigatório de não
+prescrição pedagógica, e uma nova seção de distribuição de fluência leitora
+por nível (nova `calcularDistribuicaoFluencia` pura + `getDistribuicaoFluencia`),
+sem ranking de estudante. A seção de avaliações recentes na Central já
+tinha sido entregue na ETAPA 01. Testado com uma avaliação de Fluência
+Leitora e uma SPADEB reais. Detalhe completo em
+[`etapas/07-avaliacoes.md`](etapas/07-avaliacoes.md).
 
 ## Regra de avanço
 
