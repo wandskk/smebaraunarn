@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
+import { formatNumber, resolverAnoLetivo, cn } from "@/lib/utils";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
+import { getPainelAtencaoEscolas } from "@/lib/queries/atencao";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { PageHeader } from "@/components/ui/page-header";
@@ -14,7 +15,7 @@ import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { DonutChart, type DonutChartDatum } from "@/components/ui/charts/donut-chart";
 
 interface PageProps {
-  searchParams: { ano?: string };
+  searchParams: { ano?: string; sinal?: string };
 }
 
 function formatarPercentual(valor: number | null): string {
@@ -52,9 +53,18 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
   const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
   const anosDisponiveis = anosRows.map((r) => r.ano);
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+  const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
+  const somenteComSinal = searchParams.sinal === "1";
 
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
-  const { escolas, rede } = await getComparativosPorEscola({ anoLetivo, ...janela });
+  const [{ escolas: todasEscolas, rede }, painelEscolas] = await Promise.all([
+    getComparativosPorEscola({ anoLetivo, ...janela }),
+    getPainelAtencaoEscolas(anoLetivo),
+  ]);
+  const sinaisPorEscola = new Map(painelEscolas.map((e) => [e.escolaId, e.sinais]));
+  const escolas = somenteComSinal
+    ? todasEscolas.filter((e) => e.escolaId !== null && Object.keys(sinaisPorEscola.get(e.escolaId) ?? {}).length > 0)
+    : todasEscolas;
 
   // Mesma leitura de favorabilidade de DiferencaRede (abaixo) — só reagrupada em
   // contagem para o donut, sem inventar critério novo.
@@ -78,23 +88,44 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+      <Link href={comAno("/admin/indicadores")} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
         <ArrowLeft className="h-4 w-4" />
         Central de Indicadores
       </Link>
 
       <PageHeader
         className="mt-3"
-        title="Comparativos — Escola × Rede"
+        title="Comparação entre Escolas e Rede"
         description={
           <>
-            Cada escola comparada com a referência de rede no mesmo recorte, em vez do número isolado. A referência de
-            rede é uma média ponderada pelo tamanho de cada escola no indicador (aulas dadas, notas lançadas ou
-            estudantes elegíveis) — não a média simples das escolas, que daria peso igual a uma escola pequena e a uma
-            grande. Frequência: {janela.atualInicio} a {janela.atualFim}. Ano letivo {anoLetivo}.
+            Veja cada escola em relação à referência municipal no mesmo recorte, sem usar média simples entre
+            unidades de tamanhos diferentes. A referência de rede é ponderada pelo tamanho de cada escola no
+            indicador (aulas dadas, notas lançadas ou estudantes elegíveis). Frequência: {janela.atualInicio} a{" "}
+            {janela.atualFim}. Ano letivo {anoLetivo}.
           </>
         }
       />
+
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        <Link
+          href={comAno("/admin/indicadores/comparativos")}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition",
+            !somenteComSinal ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground-muted hover:text-foreground",
+          )}
+        >
+          Todas as escolas
+        </Link>
+        <Link
+          href={`${comAno("/admin/indicadores/comparativos")}&sinal=1`}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium transition",
+            somenteComSinal ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground-muted hover:text-foreground",
+          )}
+        >
+          Só com sinal de atenção
+        </Link>
+      </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <Card>
@@ -155,7 +186,7 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
                 <TableCell>
                   {escola.escolaId !== null ? (
                     <Link
-                      href={`/admin/escolas/${escola.escolaId}`}
+                      href={comAno(`/admin/escolas/${escola.escolaId}`)}
                       className="font-medium text-foreground hover:text-primary hover:underline"
                     >
                       {escola.nomeEscola}
@@ -181,7 +212,12 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {escolas.length === 0 && <TableEmptyState colSpan={5} title="Nenhuma escola com dado neste ano letivo." />}
+            {escolas.length === 0 && (
+              <TableEmptyState
+                colSpan={5}
+                title={somenteComSinal ? "Nenhuma escola com sinal de atenção neste recorte." : "Nenhuma escola com dado neste ano letivo."}
+              />
+            )}
           </TableBody>
         </DataTable>
       </div>

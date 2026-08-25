@@ -1,6 +1,6 @@
 # Progresso — MVP de Indicadores Inteligentes
 
-**Última atualização:** 2026-08-25 (ETAPA 05 concluída)
+**Última atualização:** 2026-08-25 (ETAPA 06 concluída)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -16,7 +16,7 @@ com o Markdown correspondente em `etapas/`.
 | 03 | Atenção Agora + Panorama | **DONE** | 2026-08-25 |
 | 04 | Frequência e Permanência | **DONE** | 2026-08-25 |
 | 05 | Aprendizagem e Desempenho | **DONE** | 2026-08-25 |
-| 06 | Fluxo e Trajetória + Comparativos | PENDING | — |
+| 06 | Fluxo e Trajetória + Comparativos | **DONE** | 2026-08-25 |
 | 07 | Avaliações Municipais | PENDING | — |
 | 08 | Hardening e roteiro de demonstração | PENDING | — |
 
@@ -104,6 +104,18 @@ componente `HorizontalBarChart`, já pensado para reuso na ETAPA 07). Rede
 com 18-28 escolas conforme filtro → mostra as 10 menores médias + tabela
 completa abaixo, nunca "piores escolas". Detalhe completo em
 [`etapas/05-aprendizagem.md`](etapas/05-aprendizagem.md).
+
+## Resumo da ETAPA 06
+
+`/admin/indicadores/fluxo-trajetoria` renomeada para "Fluxo e Trajetória
+Escolar", com 4 KPIs, gráfico por série migrado para `HorizontalBarChart`
+(reuso do componente da ETAPA 05), nova coluna "vs. rede" na tabela e o
+texto longo de elegibilidade movido para um bloco `<details>` colapsável.
+`/admin/indicadores/comparativos` renomeada para "Comparação entre Escolas
+e Rede", com novo filtro "Só com sinal de atenção" (reaproveita
+`getPainelAtencaoEscolas`). Nenhum item "fora do MVP" (scatter, radar,
+índice composto, ranking) foi adicionado. Detalhe completo em
+[`etapas/06-fluxo-comparativos.md`](etapas/06-fluxo-comparativos.md).
 
 ## Regra de avanço
 
