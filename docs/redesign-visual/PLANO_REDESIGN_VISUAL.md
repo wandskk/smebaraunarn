@@ -255,7 +255,7 @@ se pedido explicitamente depois.
 | V3 — Home Direção | **DONE** | 2026-08-25 |
 | V4 — Home/turmas Professor | **DONE** | 2026-08-25 |
 | V5 — Home/frequência/boletim Aluno | **DONE** | 2026-08-25 |
-| V6 — Home Servidor Geral | PENDING | — |
+| V6 — Home Servidor Geral | **DONE** | 2026-08-25 |
 | V7 — Listagens e fichas | PENDING | — |
 | V8 — Avaliações Municipais | PENDING | — |
 | V9 — Administração (usuários/sync/CMS) | PENDING | — |
@@ -448,6 +448,22 @@ repetidas vezes em `docs/plano-evolucao-sme/PROGRESSO.md` para os outros
 (EmptyState/stagger/AnimatedNumber) usa exatamente os mesmos componentes
 já validados visualmente na V1/V2, mas não foi vista renderizada como
 DIRETOR de fato.
+
+Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
+limpo (66 rotas).
+
+## Resumo da ETAPA V6
+
+`/portal/servidor` — exatamente como previsto no roteiro original: perfil
+mais simples, sem KPI/percentual/lista, só ficha cadastral (vínculo,
+contato, pendência pedagógica). Nenhum componente novo se aplicava de
+verdade — só stagger `animate-fade-in-up` nos blocos existentes (aviso de
+divergência de escola, vínculo e lotação, contato, pendência pedagógica).
+Sem `EmptyState`/gráfico forçado onde não há distribuição real para
+mostrar.
+
+**Não verificado visualmente** (sem credencial SERVIDOR_GERAL nesta
+sessão) — mudança é só classe CSS já validada visualmente em V1-V5.
 
 Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
 limpo (66 rotas).

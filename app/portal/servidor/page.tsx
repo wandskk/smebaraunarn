@@ -59,7 +59,10 @@ export default async function ServidorHomePage() {
       />
 
       {escolaDivergente && (
-        <div className="mt-4 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning-subtle p-4 text-sm text-warning-subtle-foreground">
+        <div
+          className="mt-4 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning-subtle p-4 text-sm text-warning-subtle-foreground animate-fade-in-up"
+          style={{ "--stagger-delay": "0ms" } as React.CSSProperties}
+        >
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
           <p>
             A escola informada pela origem (<strong>{servidor.escolaNome}</strong>) é diferente da unidade
@@ -69,18 +72,21 @@ export default async function ServidorHomePage() {
         </div>
       )}
 
-      <SectionCard title="Vínculo e lotação" className="mt-6">
-        <dl className="grid gap-4 sm:grid-cols-2">
-          {camposFuncionais.map((field) => (
-            <div key={field.label}>
-              <dt className="text-xs text-foreground-muted">{field.label}</dt>
-              <dd className="text-sm font-medium text-foreground">{field.value ?? NAO_INFORMADO}</dd>
-            </div>
-          ))}
-        </dl>
-      </SectionCard>
+      <div className="animate-fade-in-up" style={{ "--stagger-delay": "60ms" } as React.CSSProperties}>
+        <SectionCard title="Vínculo e lotação" className="mt-6">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            {camposFuncionais.map((field) => (
+              <div key={field.label}>
+                <dt className="text-xs text-foreground-muted">{field.label}</dt>
+                <dd className="text-sm font-medium text-foreground">{field.value ?? NAO_INFORMADO}</dd>
+              </div>
+            ))}
+          </dl>
+        </SectionCard>
+      </div>
 
       {(servidor.email || servidor.telefone) && (
+        <div className="animate-fade-in-up" style={{ "--stagger-delay": "120ms" } as React.CSSProperties}>
         <SectionCard
           title="Contato cadastrado"
           description="Sincronizado do SIGEduc — a correção não é feita por aqui."
@@ -105,10 +111,14 @@ export default async function ServidorHomePage() {
             )}
           </dl>
         </SectionCard>
+        </div>
       )}
 
       {servidor.pendenciaPedagogica && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-border bg-surface p-5 text-sm text-foreground">
+        <div
+          className="mt-6 flex items-start gap-3 rounded-xl border border-border bg-surface p-5 text-sm text-foreground animate-fade-in-up"
+          style={{ "--stagger-delay": "180ms" } as React.CSSProperties}
+        >
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-foreground-muted" />
           <div>
             <p>
