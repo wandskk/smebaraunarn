@@ -1,11 +1,26 @@
 import Link from "next/link";
-import { AlertTriangle, AlertCircle } from "lucide-react";
-import type { InsightAtencao } from "@/lib/analytics/atencao";
+import { AlertTriangle, AlertCircle, ArrowRight } from "lucide-react";
+import type { CategoriaInsight, InsightAtencao } from "@/lib/analytics/atencao";
 import { cn } from "@/lib/utils";
 
 export interface InsightCardProps {
   insight: InsightAtencao;
 }
+
+const CATEGORIA_LABEL: Record<CategoriaInsight, string> = {
+  frequencia: "Frequência",
+  aprendizagem: "Aprendizagem",
+  trajetoria: "Trajetória",
+  dados: "Qualidade dos dados",
+};
+
+/** CTA por categoria (seção 4 do plano) — "Investigar escola", "Ver desempenho", etc. */
+const CATEGORIA_CTA: Record<CategoriaInsight, string> = {
+  frequencia: "Investigar escola",
+  aprendizagem: "Ver desempenho",
+  trajetoria: "Ver trajetória",
+  dados: "Ver sincronização",
+};
 
 /**
  * Cartão explicável de um insight de "Atenção agora" — fato + valor já
@@ -35,17 +50,31 @@ export function InsightCard({ insight }: InsightCardProps) {
         >
           <Icone className="h-4 w-4" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-foreground-muted/70">
+            {CATEGORIA_LABEL[insight.categoria]} · {critico ? "Crítico" : "Atenção"}
+          </p>
           <p
             className={cn(
-              "text-sm font-medium",
+              "mt-0.5 text-sm font-medium",
               critico ? "text-danger-subtle-foreground" : "text-warning-subtle-foreground",
             )}
           >
             {insight.titulo}
           </p>
           <p className="mt-1 text-xs text-foreground-muted">{insight.motivo}</p>
-          <p className="mt-1 text-xs text-foreground-muted/70">{insight.periodo}</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-xs text-foreground-muted/70">{insight.periodo}</p>
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1 text-xs font-medium",
+                critico ? "text-danger" : "text-warning",
+              )}
+            >
+              {CATEGORIA_CTA[insight.categoria]}
+              <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
         </div>
       </div>
     </Link>

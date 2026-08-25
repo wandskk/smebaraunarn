@@ -11,7 +11,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
+import { cn, formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import { getIndicadoresGeraisRede } from "@/lib/queries/indicadores-gerais";
 import { getStatusSincronizacao, ROTULO_MODULO, type StatusModuloSincronizacao } from "@/lib/queries/qualidade-dados";
 import {
@@ -23,9 +23,11 @@ import {
 } from "@/lib/queries/frequencia";
 import { getDesempenhoPorEscola, NOTA_MINIMA_ESPERADA_PADRAO } from "@/lib/queries/desempenho";
 import { getAvaliacoesResumo, TIPO_AVALIACAO_LABEL, STATUS_AVALIACAO_LABEL } from "@/lib/queries/avaliacoes";
+import { getInsightsAtencao, getPainelAtencaoEscolas, type PainelEscolaAtencao } from "@/lib/queries/atencao";
 import { calcularMediaPonderada } from "@/lib/analytics/comparativos";
 import { calcularPercentualFrequencia, calcularVariacaoFrequencia, classificarFaixaFrequencia } from "@/lib/analytics/frequencia";
 import { DICIONARIO_INDICADORES, descreverContexto, type ContextoExibicao } from "@/lib/analytics/explicabilidade";
+import type { CategoriaInsightPorEscola, SeveridadeAtencao } from "@/lib/analytics/atencao";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard, type MetricCardTone } from "@/components/ui/metric-card";
 import { Select } from "@/components/ui/select";
@@ -34,10 +36,72 @@ import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { InsightCard } from "@/components/ui/insight-card";
+import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { TimeSeriesChart } from "@/components/ui/charts/time-series-chart";
+import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
+import { TableEmptyState } from "@/components/ui/table-empty-state";
 
 interface PageProps {
-  searchParams: { ano?: string };
+  searchParams: { ano?: string; painel?: string };
+}
+
+type FiltroPainel = "todas" | "com-sinais" | "frequencia" | "aprendizagem" | "trajetoria";
+
+const FILTROS_PAINEL: { valor: FiltroPainel; label: string }[] = [
+  { valor: "todas", label: "Todas" },
+  { valor: "com-sinais", label: "Com sinais" },
+  { valor: "frequencia", label: "Frequência" },
+  { valor: "aprendizagem", label: "Aprendizagem" },
+  { valor: "trajetoria", label: "Trajetória" },
+];
+
+const SINAL_LABEL: Record<CategoriaInsightPorEscola, string> = {
+  frequencia: "Frequência",
+  aprendizagem: "Aprendizagem",
+  trajetoria: "Trajetória",
+};
+
+const SINAL_BADGE_VARIANT: Record<SeveridadeAtencao, BadgeVariant> = {
+  critico: "danger",
+  atencao: "warning",
+};
+
+function formatarNota(valor: number | null): string {
+  return valor === null ? "-" : valor.toFixed(1);
+}
+
+/** `maiorEhMelhor` inverte a leitura de cor — mesma regra de .../comparativos/page.tsx: distorção acima da rede é ruim, frequência/desempenho acima é bom. */
+function DiferencaRede({ diferenca, unidade, maiorEhMelhor }: { diferenca: number | null; unidade: "p.p." | "pts"; maiorEhMelhor: boolean }) {
+  if (diferenca === null) return <span className="text-xs text-foreground-muted/60">sem referência</span>;
+  const estavel = Math.abs(diferenca) < 0.05;
+  const favoravel = estavel ? null : maiorEhMelhor ? diferenca > 0 : diferenca < 0;
+  const texto = `${diferenca > 0 ? "+" : ""}${diferenca.toFixed(1)} ${unidade}`;
+  return <ComparisonDelta diferenca={diferenca} texto={texto} favoravel={favoravel} />;
+}
+
+function filtrarPainel(escolas: PainelEscolaAtencao[], filtro: FiltroPainel): PainelEscolaAtencao[] {
+  if (filtro === "todas") return escolas;
+  if (filtro === "com-sinais") return escolas.filter((e) => Object.keys(e.sinais).length > 0);
+  return escolas.filter((e) => e.sinais[filtro] !== undefined);
+}
+
+/** Ordenação do Panorama (seção 5 do plano): mais sinais críticos primeiro, depois mais sinais de atenção, depois nome — nunca um score somado. */
+function ordenarPainel(escolas: PainelEscolaAtencao[]): PainelEscolaAtencao[] {
+  const contar = (e: PainelEscolaAtencao, severidade: SeveridadeAtencao) =>
+    Object.values(e.sinais).filter((s) => s === severidade).length;
+
+  return [...escolas].sort((a, b) => {
+    const criticosA = contar(a, "critico");
+    const criticosB = contar(b, "critico");
+    if (criticosA !== criticosB) return criticosB - criticosA;
+
+    const atencaoA = contar(a, "atencao");
+    const atencaoB = contar(b, "atencao");
+    if (atencaoA !== atencaoB) return atencaoB - atencaoA;
+
+    return a.nomeEscola.localeCompare(b.nomeEscola);
+  });
 }
 
 const STATUS_AVALIACAO_BADGE_VARIANT: Record<string, BadgeVariant> = {
@@ -70,6 +134,9 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
 
   const janelaFrequencia = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
   const anoCorrente = anoLetivo === new Date().getFullYear();
+  const filtroPainel: FiltroPainel = FILTROS_PAINEL.some((f) => f.valor === searchParams.painel)
+    ? (searchParams.painel as FiltroPainel)
+    : "todas";
 
   const [
     indicadores,
@@ -79,6 +146,8 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
     avaliacoesRecentes,
     contagemFaltasConsecutivas,
     evolucaoFrequenciaRede,
+    insightsAtencao,
+    painelEscolas,
   ] = await Promise.all([
     getIndicadoresGeraisRede({ anoLetivo }),
     getStatusSincronizacao(),
@@ -87,7 +156,12 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
     getAvaliacoesResumo({ kind: "rede" }),
     anoCorrente ? getContagemFaltasConsecutivasPorEscola() : Promise.resolve(new Map()),
     getEvolucaoFrequenciaRede({ inicio: janelaFrequencia.atualInicio, fim: janelaFrequencia.atualFim }),
+    getInsightsAtencao(anoLetivo),
+    getPainelAtencaoEscolas(anoLetivo),
   ]);
+
+  const painelFiltrado = ordenarPainel(filtrarPainel(painelEscolas, filtroPainel));
+  const painelComSinal = (filtro: FiltroPainel) => `${comAno("/admin/indicadores")}&painel=${filtro}`;
 
   const statusPorModulo = new Map(statusSincronizacao.modulos.map((m) => [m.modulo, m]));
 
@@ -281,15 +355,129 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
         </div>
       </div>
 
-      <div className="mt-8 rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-foreground-muted">
-        O bloco &quot;Atenção agora&quot; (destaque automático de escolas/turmas com queda recente, direto neste
-        painel) ainda não existe. Frequência, desempenho e distorção por escola no mesmo recorte já estão
-        disponíveis lado a lado em{" "}
-        <Link href={comAno("/admin/indicadores/comparativos")} className="text-primary underline">
-          Comparar escolas
-        </Link>{" "}
-        — o destaque automático nesta página fica para a próxima etapa (ver
-        docs/mvp-indicadores-inteligentes/PROGRESSO.md).
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-foreground">Atenção agora</h2>
+        <p className="mt-0.5 text-xs text-foreground-muted">
+          Situações identificadas automaticamente a partir de tendência, comparação com a rede e qualidade dos dados.
+        </p>
+
+        {insightsAtencao.length === 0 ? (
+          <EmptyState
+            className="mt-3"
+            icon={ShieldCheck}
+            title="Nenhuma situação de atenção identificada neste recorte."
+            description="As regras de frequência, aprendizagem, trajetória e sincronização não encontraram nada fora do esperado agora."
+          />
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {insightsAtencao.map((insight, index) => (
+              <div key={insight.id} className="animate-fade-in-up" style={{ "--stagger-delay": `${index * 60}ms` } as React.CSSProperties}>
+                <InsightCard insight={insight} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-foreground">Panorama das escolas</h2>
+        <p className="mt-0.5 text-xs text-foreground-muted">
+          Compare os principais sinais de cada escola no mesmo recorte, sem reduzir realidades diferentes a um único
+          ranking.
+        </p>
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {FILTROS_PAINEL.map((f) => (
+            <Link
+              key={f.valor}
+              href={painelComSinal(f.valor)}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition",
+                filtroPainel === f.valor
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-muted text-foreground-muted hover:text-foreground",
+              )}
+            >
+              {f.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="mt-3">
+          <DataTable>
+            <TableHeader>
+              <tr>
+                <TableHeadCell>Escola</TableHeadCell>
+                <TableHeadCell>Frequência</TableHeadCell>
+                <TableHeadCell>Tendência</TableHeadCell>
+                <TableHeadCell>Desempenho</TableHeadCell>
+                <TableHeadCell>vs. rede</TableHeadCell>
+                <TableHeadCell>Distorção</TableHeadCell>
+                <TableHeadCell>Sinais</TableHeadCell>
+                <TableHeadCell className="text-right">Ações</TableHeadCell>
+              </tr>
+            </TableHeader>
+            <TableBody>
+              {painelFiltrado.map((escola) => (
+                <TableRow key={escola.escolaId}>
+                  <TableCell>
+                    <Link
+                      href={`/admin/escolas/${escola.escolaId}?ano=${anoLetivo}`}
+                      className="font-medium text-foreground hover:text-primary hover:underline"
+                    >
+                      {escola.nomeEscola}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-semibold text-foreground">{formatarPercentual(escola.frequenciaPercentual)}</div>
+                    <FaixaBadge faixa={escola.frequenciaFaixa} />
+                  </TableCell>
+                  <TableCell>
+                    {escola.frequenciaVariacao ? (
+                      <DeltaFrequenciaRede
+                        diferenca={escola.frequenciaVariacao.diferencaPontosPercentuais}
+                        tendencia={escola.frequenciaVariacao.tendencia}
+                      />
+                    ) : (
+                      <span className="text-xs text-foreground-muted/60">sem dado anterior</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-semibold text-foreground">{formatarNota(escola.desempenhoMedia)}</TableCell>
+                  <TableCell>
+                    <DiferencaRede diferenca={escola.desempenhoDiferencaRede} unidade="pts" maiorEhMelhor />
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-semibold text-foreground">{formatarPercentual(escola.distorcaoPercentual)}</div>
+                    <DiferencaRede diferenca={escola.distorcaoDiferencaRede} unidade="p.p." maiorEhMelhor={false} />
+                  </TableCell>
+                  <TableCell>
+                    {Object.keys(escola.sinais).length === 0 ? (
+                      <span className="text-xs text-foreground-muted/60">-</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {(Object.entries(escola.sinais) as [CategoriaInsightPorEscola, SeveridadeAtencao][]).map(
+                          ([categoria, severidade]) => (
+                            <Badge key={categoria} variant={SINAL_BADGE_VARIANT[severidade]}>
+                              {SINAL_LABEL[categoria]}
+                            </Badge>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link href={`/admin/escolas/${escola.escolaId}?ano=${anoLetivo}`} className="text-primary hover:underline">
+                      Ver escola
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {painelFiltrado.length === 0 && (
+                <TableEmptyState colSpan={8} title="Nenhuma escola encontrada para este filtro." />
+              )}
+            </TableBody>
+          </DataTable>
+        </div>
       </div>
 
       <div className="mt-8">

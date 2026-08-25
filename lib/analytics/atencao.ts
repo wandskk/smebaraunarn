@@ -12,8 +12,19 @@ import type { SituacaoSincronizacao } from "./qualidade-dados";
 
 export type SeveridadeAtencao = "critico" | "atencao";
 
+/**
+ * Categoria explícita do insight — antes só existia implicitamente no
+ * prefixo do `id` de cada regra (`frequencia-`, `desempenho-`, `distorcao-`,
+ * `sincronizacao`). Nomes de categoria seguem a linguagem de produto do
+ * plano (`docs/mvp-indicadores-inteligentes/`), não necessariamente o nome
+ * interno da regra que a gera — "aprendizagem" aqui é a mesma regra que
+ * `gerarInsightsDesempenho`/`percentualAbaixoDoEsperado` já implementam.
+ */
+export type CategoriaInsight = "frequencia" | "aprendizagem" | "trajetoria" | "dados";
+
 export interface InsightAtencao {
   id: string;
+  categoria: CategoriaInsight;
   severidade: SeveridadeAtencao;
   /** Fato + valor + referência já formatados (ex.: "Escola X: frequência 72,4%, -6,1 p.p. vs período anterior"). */
   titulo: string;
@@ -21,6 +32,8 @@ export interface InsightAtencao {
   motivo: string;
   periodo: string;
   href: string;
+  /** Escola a que o insight se refere — ausente no insight de sincronização (é da rede, não de uma escola). */
+  escolaId?: number;
 }
 
 export interface EscolaAtencaoInput {
@@ -66,6 +79,8 @@ export function gerarInsightsFrequencia(
     const { diferencaPontosPercentuais } = e.frequenciaVariacao;
     insights.push({
       id: `frequencia-${e.escolaId}`,
+      escolaId: e.escolaId,
+      categoria: "frequencia",
       severidade: e.frequenciaFaixa === "critica" ? "critico" : "atencao",
       titulo: `${e.nomeEscola}: frequência ${e.frequenciaPercentual.toFixed(1)}%, ${diferencaPontosPercentuais > 0 ? "+" : ""}${diferencaPontosPercentuais.toFixed(1)} p.p. vs período anterior`,
       motivo: `Frequência na faixa "${e.frequenciaFaixa}" e em queda no período mais recente.`,
@@ -95,6 +110,8 @@ export function gerarInsightsDesempenho(
 
     insights.push({
       id: `desempenho-${e.escolaId}`,
+      escolaId: e.escolaId,
+      categoria: "aprendizagem",
       severidade: e.percentualAbaixoDoEsperado >= 60 ? "critico" : "atencao",
       titulo: `${e.nomeEscola}: desempenho ${e.desempenhoDiferencaRede.toFixed(1)} pts vs rede, ${e.percentualAbaixoDoEsperado.toFixed(0)}% das notas abaixo do parâmetro`,
       motivo: "Desempenho abaixo da referência de rede, com proporção elevada de notas abaixo do parâmetro esperado.",
@@ -122,6 +139,8 @@ export function gerarInsightsDistorcao(
 
     insights.push({
       id: `distorcao-${e.escolaId}`,
+      escolaId: e.escolaId,
+      categoria: "trajetoria",
       severidade: e.distorcaoDiferencaRede >= 10 ? "critico" : "atencao",
       titulo: `${e.nomeEscola}: distorção idade-série ${e.distorcaoPercentual.toFixed(1)}%, ${e.distorcaoDiferencaRede.toFixed(1)} p.p. acima da rede`,
       motivo: "Proporção de estudantes em distorção idade-série bem acima da referência de rede.",
@@ -153,6 +172,7 @@ export function gerarInsightSincronizacao(modulos: ModuloSincronizacaoInput[]): 
   return [
     {
       id: "sincronizacao",
+      categoria: "dados",
       severidade: travados.length > 0 || comProblema.some((m) => m.situacao === "sem-sincronizacao") ? "critico" : "atencao",
       titulo: `Sincronização com atraso: ${nomes}`,
       motivo,
@@ -170,4 +190,34 @@ export function combinarInsightsAtencao(grupos: InsightAtencao[][], limite = 5):
     .flat()
     .sort((a, b) => PESO_SEVERIDADE[a.severidade] - PESO_SEVERIDADE[b.severidade])
     .slice(0, limite);
+}
+
+/** Categorias que sempre pertencem a uma escola específica — a única que não pertence é "dados" (sincronização é da rede). */
+export type CategoriaInsightPorEscola = Exclude<CategoriaInsight, "dados">;
+
+export type SinaisEscola = Partial<Record<CategoriaInsightPorEscola, SeveridadeAtencao>>;
+
+/**
+ * Transforma uma lista de insights (SEM limite/corte, ao contrário de
+ * `combinarInsightsAtencao`) em um mapa `escolaId -> sinais por categoria` —
+ * para o Panorama das escolas (Bloco D), que precisa saber quais escolas
+ * têm QUALQUER sinal em cada categoria, não só as 5 mais graves da rede.
+ * Não soma nem cria um score: cada categoria fica com sua própria
+ * severidade, independente das outras (regra 7.6/seção 5 do plano — nunca
+ * "score 82"). Insights sem `escolaId` (ex.: sincronização) são ignorados
+ * aqui, não descartados de "Atenção agora" — são só irrelevantes para um
+ * mapa por escola.
+ */
+export function agruparInsightsPorEscola(insights: InsightAtencao[]): Map<number, SinaisEscola> {
+  const porEscola = new Map<number, SinaisEscola>();
+
+  for (const insight of insights) {
+    if (insight.escolaId === undefined || insight.categoria === "dados") continue;
+
+    const sinais = porEscola.get(insight.escolaId) ?? {};
+    sinais[insight.categoria] = insight.severidade;
+    porEscola.set(insight.escolaId, sinais);
+  }
+
+  return porEscola;
 }

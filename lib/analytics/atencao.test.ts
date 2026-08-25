@@ -6,7 +6,9 @@ import {
   gerarInsightsDistorcao,
   gerarInsightSincronizacao,
   combinarInsightsAtencao,
+  agruparInsightsPorEscola,
   type EscolaAtencaoInput,
+  type InsightAtencao,
 } from "./atencao";
 
 function escolaBase(overrides: Partial<EscolaAtencaoInput> = {}): EscolaAtencaoInput {
@@ -34,6 +36,7 @@ describe("gerarInsightsFrequencia", () => {
     const insights = gerarInsightsFrequencia([escola], 2026);
     assert.equal(insights.length, 1);
     assert.equal(insights[0]!.severidade, "critico");
+    assert.equal(insights[0]!.categoria, "frequencia");
     assert.match(insights[0]!.titulo, /68\.0%/);
     assert.match(insights[0]!.titulo, /-6\.1 p\.p\./);
     assert.equal(insights[0]!.href, "/admin/escolas/1?ano=2026");
@@ -88,6 +91,7 @@ describe("gerarInsightsDesempenho", () => {
     const insights = gerarInsightsDesempenho([escola], 2026);
     assert.equal(insights.length, 1);
     assert.equal(insights[0]!.severidade, "atencao");
+    assert.equal(insights[0]!.categoria, "aprendizagem");
   });
 
   test("severidade crítica quando proporção abaixo do parâmetro é muito alta", () => {
@@ -119,6 +123,7 @@ describe("gerarInsightsDistorcao", () => {
     const insights = gerarInsightsDistorcao([escola], 2026);
     assert.equal(insights.length, 1);
     assert.equal(insights[0]!.severidade, "critico");
+    assert.equal(insights[0]!.categoria, "trajetoria");
   });
 
   test("não gera insight quando diferença para a rede é pequena", () => {
@@ -155,6 +160,7 @@ describe("gerarInsightSincronizacao", () => {
     assert.match(insights[0]!.titulo, /Notas/);
     assert.doesNotMatch(insights[0]!.titulo, /Escolas/);
     assert.equal(insights[0]!.severidade, "critico"); // sem-sincronizacao presente
+    assert.equal(insights[0]!.categoria, "dados");
   });
 
   test("severidade 'atencao' quando nenhum módulo está totalmente sem sincronização nem travado", () => {
@@ -175,8 +181,8 @@ describe("gerarInsightSincronizacao", () => {
 
 describe("combinarInsightsAtencao", () => {
   test("prioriza crítico sobre atenção", () => {
-    const atencao = { id: "a", severidade: "atencao" as const, titulo: "A", motivo: "", periodo: "", href: "" };
-    const critico = { id: "c", severidade: "critico" as const, titulo: "C", motivo: "", periodo: "", href: "" };
+    const atencao = { id: "a", categoria: "dados" as const, severidade: "atencao" as const, titulo: "A", motivo: "", periodo: "", href: "" };
+    const critico = { id: "c", categoria: "dados" as const, severidade: "critico" as const, titulo: "C", motivo: "", periodo: "", href: "" };
     const resultado = combinarInsightsAtencao([[atencao], [critico]]);
     assert.equal(resultado[0]!.id, "c");
     assert.equal(resultado[1]!.id, "a");
@@ -185,6 +191,7 @@ describe("combinarInsightsAtencao", () => {
   test("limita ao total pedido", () => {
     const insights = Array.from({ length: 10 }, (_, i) => ({
       id: `i${i}`,
+      categoria: "dados" as const,
       severidade: "atencao" as const,
       titulo: "",
       motivo: "",
@@ -192,5 +199,47 @@ describe("combinarInsightsAtencao", () => {
       href: "",
     }));
     assert.equal(combinarInsightsAtencao([insights], 3).length, 3);
+  });
+});
+
+describe("agruparInsightsPorEscola", () => {
+  function insight(overrides: Partial<InsightAtencao> = {}): InsightAtencao {
+    return {
+      id: "x",
+      categoria: "frequencia",
+      severidade: "atencao",
+      titulo: "",
+      motivo: "",
+      periodo: "",
+      href: "",
+      escolaId: 1,
+      ...overrides,
+    };
+  }
+
+  test("agrupa cada categoria separadamente por escola, sem somar nem criar score", () => {
+    const mapa = agruparInsightsPorEscola([
+      insight({ escolaId: 1, categoria: "frequencia", severidade: "critico" }),
+      insight({ escolaId: 1, categoria: "trajetoria", severidade: "atencao" }),
+      insight({ escolaId: 2, categoria: "aprendizagem", severidade: "critico" }),
+    ]);
+
+    assert.deepEqual(mapa.get(1), { frequencia: "critico", trajetoria: "atencao" });
+    assert.deepEqual(mapa.get(2), { aprendizagem: "critico" });
+    assert.equal(mapa.get(3), undefined);
+  });
+
+  test("ignora insight de categoria 'dados' (sincronização é da rede, não de uma escola)", () => {
+    const mapa = agruparInsightsPorEscola([insight({ categoria: "dados" })]);
+    assert.equal(mapa.size, 0);
+  });
+
+  test("ignora insight sem escolaId mesmo que a categoria seja de escola", () => {
+    const mapa = agruparInsightsPorEscola([insight({ categoria: "frequencia", escolaId: undefined })]);
+    assert.equal(mapa.size, 0);
+  });
+
+  test("lista vazia retorna mapa vazio", () => {
+    assert.equal(agruparInsightsPorEscola([]).size, 0);
   });
 });

@@ -1,6 +1,6 @@
 # Progresso — MVP de Indicadores Inteligentes
 
-**Última atualização:** 2026-08-25 (ETAPA 02 concluída)
+**Última atualização:** 2026-08-25 (ETAPA 03 concluída)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -13,7 +13,7 @@ com o Markdown correspondente em `etapas/`.
 | 00 | Auditoria e baseline | **DONE** | 2026-08-25 |
 | 01 | Central Executiva | **DONE** | 2026-08-25 |
 | 02 | Tendência temporal de frequência | **DONE** | 2026-08-25 |
-| 03 | Atenção Agora + Panorama | PENDING | — |
+| 03 | Atenção Agora + Panorama | **DONE** | 2026-08-25 |
 | 04 | Frequência e Permanência | PENDING | — |
 | 05 | Aprendizagem e Desempenho | PENDING | — |
 | 06 | Fluxo e Trajetória + Comparativos | PENDING | — |
@@ -63,6 +63,22 @@ detalhe em [`etapas/02-tendencia-frequencia.md`](etapas/02-tendencia-frequencia.
 que também registra um incidente de ambiente (`next build` concorrente com
 `next dev` corrompeu `.next`) e o aprendizado guardado em memória para não
 repetir.
+
+## Resumo da ETAPA 03
+
+Campo `categoria` adicionado a `InsightAtencao` (decisão da ETAPA 00,
+implementada agora — aditivo, preenchido pelos 4 geradores já existentes).
+Nova função pura `agruparInsightsPorEscola` + nova query
+`getPainelAtencaoEscolas` (mesmas 3 regras por escola, sem corte de 5)
+alimentam o Bloco C "Atenção agora" (5 insights reais, com rótulo de
+categoria e CTA no `InsightCard`) e o Bloco D "Panorama das escolas"
+(tabela com badges de sinal por categoria, filtros por categoria via
+`searchParams`, ordenação por contagem de sinais — nunca score somado).
+Verificado com dados reais: 5 insights (2 frequência crítico, 1 trajetória
+crítico, 1 qualidade de dados crítico, 1 frequência atenção), Panorama com
+28 escolas ordenadas corretamente, filtro por categoria funcionando. Sem
+regressão em `/admin` (Painel), que já usava `InsightCard`. Detalhe
+completo em [`etapas/03-atencao-panorama.md`](etapas/03-atencao-panorama.md).
 
 ## Regra de avanço
 
