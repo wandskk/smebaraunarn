@@ -7,6 +7,7 @@ import {
   classificarGravidadeFaltasConsecutivas,
   classificarFaixaFrequencia,
   calcularPercentualFrequencia,
+  calcularEvolucaoFrequencia,
   calcularJanelaDias,
   FAIXAS_PADRAO_FREQUENCIA,
   LIMIARES_PADRAO_FALTAS_CONSECUTIVAS,
@@ -202,5 +203,33 @@ describe("calcularPercentualFrequencia", () => {
 
   test("retorna null para total de aulas negativo (dado corrompido)", () => {
     assert.equal(calcularPercentualFrequencia(-1, 0), null);
+  });
+});
+
+describe("calcularEvolucaoFrequencia", () => {
+  test("lista vazia retorna série vazia", () => {
+    assert.deepEqual(calcularEvolucaoFrequencia([]), []);
+  });
+
+  test("ordena por data ascendente, independente da ordem de entrada", () => {
+    const resultado = calcularEvolucaoFrequencia([
+      { data: "2026-08-03", aulas: 10, faltas: 1 },
+      { data: "2026-08-01", aulas: 10, faltas: 0 },
+      { data: "2026-08-02", aulas: 10, faltas: 2 },
+    ]);
+    assert.deepEqual(
+      resultado.map((p) => p.data),
+      ["2026-08-01", "2026-08-02", "2026-08-03"],
+    );
+  });
+
+  test("converte aulas/faltas em percentual usando a mesma fórmula de calcularPercentualFrequencia", () => {
+    const resultado = calcularEvolucaoFrequencia([{ data: "2026-08-01", aulas: 100, faltas: 15 }]);
+    assert.equal(resultado[0]!.percentual, 85);
+  });
+
+  test("dia sem nenhuma aula registrada vira percentual null, não erro/divisão por zero", () => {
+    const resultado = calcularEvolucaoFrequencia([{ data: "2026-08-01", aulas: 0, faltas: 0 }]);
+    assert.equal(resultado[0]!.percentual, null);
   });
 });

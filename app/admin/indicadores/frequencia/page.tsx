@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, LineChart } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import {
   getFrequenciaPorEscola,
+  getEvolucaoFrequenciaRede,
   calcularJanelaComparativaPadrao,
   resolverDataReferenciaJanela,
   getContagemFaltasConsecutivasPorEscola,
@@ -12,10 +13,12 @@ import type { FaixaFrequencia, VariacaoFrequencia } from "@/lib/analytics/freque
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 import { DonutChart, type DonutChartDatum } from "@/components/ui/charts/donut-chart";
 import { RingProgress } from "@/components/ui/charts/ring-progress";
+import { TimeSeriesChart } from "@/components/ui/charts/time-series-chart";
 import type { ChartAccent } from "@/components/ui/charts/accent-colors";
 
 const FAIXA_DONUT_LABEL: Record<FaixaFrequencia, string> = { adequada: "Adequada", atencao: "Atenção", critica: "Crítica" };
@@ -42,7 +45,10 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
 
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
-  const escolas = await getFrequenciaPorEscola({ anoLetivo, ...janela });
+  const [escolas, evolucaoFrequenciaRede] = await Promise.all([
+    getFrequenciaPorEscola({ anoLetivo, ...janela }),
+    getEvolucaoFrequenciaRede({ inicio: janela.atualInicio, fim: janela.atualFim }),
+  ]);
   const semHistoricoParaTendencia = escolas.length > 0 && escolas.every((e) => e.variacao === null);
 
   const faixaDonutData: DonutChartDatum[] = (
@@ -84,6 +90,26 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
           histórico suficiente para o período de comparação. A tendência aparece automaticamente assim que houver
           dados no período anterior.
         </p>
+      )}
+
+      {evolucaoFrequenciaRede.length < 2 ? (
+        <EmptyState
+          className="mt-4"
+          icon={LineChart}
+          title="Ainda não há histórico suficiente para calcular tendência."
+          description="O gráfico aparecerá automaticamente quando houver dados comparáveis."
+        />
+      ) : (
+        <div className="mt-4 rounded-xl border border-border bg-surface p-5">
+          <div className="text-xs font-medium uppercase tracking-wide text-foreground-muted">Evolução da rede</div>
+          <div className="mt-3">
+            <TimeSeriesChart
+              data={evolucaoFrequenciaRede.map((p) => ({ data: p.data, valor: p.percentual }))}
+              accent="attendance"
+              unidade="percentual"
+            />
+          </div>
+        </div>
       )}
 
       {faixaDonutData.length > 0 && (

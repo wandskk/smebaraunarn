@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ClipboardList,
   GitCompare,
+  LineChart,
   Percent,
   ShieldCheck,
   TrendingDown,
@@ -15,6 +16,7 @@ import { getIndicadoresGeraisRede } from "@/lib/queries/indicadores-gerais";
 import { getStatusSincronizacao, ROTULO_MODULO, type StatusModuloSincronizacao } from "@/lib/queries/qualidade-dados";
 import {
   getFrequenciaPorEscola,
+  getEvolucaoFrequenciaRede,
   calcularJanelaComparativaPadrao,
   resolverDataReferenciaJanela,
   getContagemFaltasConsecutivasPorEscola,
@@ -31,6 +33,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TimeSeriesChart } from "@/components/ui/charts/time-series-chart";
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -67,15 +71,23 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
   const janelaFrequencia = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
   const anoCorrente = anoLetivo === new Date().getFullYear();
 
-  const [indicadores, statusSincronizacao, frequenciaPorEscola, desempenhoPorEscola, avaliacoesRecentes, contagemFaltasConsecutivas] =
-    await Promise.all([
-      getIndicadoresGeraisRede({ anoLetivo }),
-      getStatusSincronizacao(),
-      getFrequenciaPorEscola({ anoLetivo, ...janelaFrequencia }),
-      getDesempenhoPorEscola({ anoLetivo }),
-      getAvaliacoesResumo({ kind: "rede" }),
-      anoCorrente ? getContagemFaltasConsecutivasPorEscola() : Promise.resolve(new Map()),
-    ]);
+  const [
+    indicadores,
+    statusSincronizacao,
+    frequenciaPorEscola,
+    desempenhoPorEscola,
+    avaliacoesRecentes,
+    contagemFaltasConsecutivas,
+    evolucaoFrequenciaRede,
+  ] = await Promise.all([
+    getIndicadoresGeraisRede({ anoLetivo }),
+    getStatusSincronizacao(),
+    getFrequenciaPorEscola({ anoLetivo, ...janelaFrequencia }),
+    getDesempenhoPorEscola({ anoLetivo }),
+    getAvaliacoesResumo({ kind: "rede" }),
+    anoCorrente ? getContagemFaltasConsecutivasPorEscola() : Promise.resolve(new Map()),
+    getEvolucaoFrequenciaRede({ inicio: janelaFrequencia.atualInicio, fim: janelaFrequencia.atualFim }),
+  ]);
 
   const statusPorModulo = new Map(statusSincronizacao.modulos.map((m) => [m.modulo, m]));
 
@@ -278,6 +290,42 @@ export default async function AdminIndicadoresPage({ searchParams }: PageProps) 
         </Link>{" "}
         — o destaque automático nesta página fica para a próxima etapa (ver
         docs/mvp-indicadores-inteligentes/PROGRESSO.md).
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-foreground">Evolução da frequência</h2>
+        <p className="mt-0.5 text-xs text-foreground-muted">
+          Acompanhe a variação recente da frequência da rede para diferenciar um valor isolado de uma tendência.
+        </p>
+
+        {evolucaoFrequenciaRede.length < 2 ? (
+          <EmptyState
+            className="mt-3"
+            icon={LineChart}
+            title="Ainda não há histórico suficiente para calcular tendência."
+            description="O gráfico aparecerá automaticamente quando houver dados comparáveis."
+          />
+        ) : (
+          <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+            <TimeSeriesChart
+              data={evolucaoFrequenciaRede.map((p) => ({ data: p.data, valor: p.percentual }))}
+              accent="attendance"
+              unidade="percentual"
+            />
+            <p className="mt-3 text-xs text-foreground-muted">
+              {variacaoFrequenciaRede === null ? (
+                "Sem período anterior comparável ainda."
+              ) : (
+                <>
+                  A frequência média {variacaoFrequenciaRede.tendencia === "queda" ? "caiu" : variacaoFrequenciaRede.tendencia === "alta" ? "subiu" : "ficou estável,"}{" "}
+                  {variacaoFrequenciaRede.tendencia !== "estavel" &&
+                    `${Math.abs(variacaoFrequenciaRede.diferencaPontosPercentuais).toFixed(1)} p.p. `}
+                  em relação aos 30 dias anteriores.
+                </>
+              )}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-[2fr_1fr]">

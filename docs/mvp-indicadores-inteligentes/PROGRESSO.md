@@ -1,6 +1,6 @@
 # Progresso — MVP de Indicadores Inteligentes
 
-**Última atualização:** 2026-08-25 (ETAPA 01 concluída)
+**Última atualização:** 2026-08-25 (ETAPA 02 concluída)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -12,7 +12,7 @@ com o Markdown correspondente em `etapas/`.
 |---|---|---|---|
 | 00 | Auditoria e baseline | **DONE** | 2026-08-25 |
 | 01 | Central Executiva | **DONE** | 2026-08-25 |
-| 02 | Tendência temporal de frequência | PENDING | — |
+| 02 | Tendência temporal de frequência | **DONE** | 2026-08-25 |
 | 03 | Atenção Agora + Panorama | PENDING | — |
 | 04 | Frequência e Permanência | PENDING | — |
 | 05 | Aprendizagem e Desempenho | PENDING | — |
@@ -47,6 +47,22 @@ e um campo novo em `getIndicadoresGeraisRede`. "Números da página inicial"
 movido para a sidebar (grupo Administração). Verificado com dados reais no
 browser (desktop + mobile, sem erros de console). Detalhe completo em
 [`etapas/01-central-executiva.md`](etapas/01-central-executiva.md).
+
+## Resumo da ETAPA 02
+
+Nova query `getEvolucaoFrequenciaRede` (série diária de frequência da rede,
+`lib/queries/frequencia.ts`) + transformação pura testada
+`calcularEvolucaoFrequencia` (`lib/analytics/frequencia.ts`, 4 testes
+novos) + novo componente `TimeSeriesChart`
+(`components/ui/charts/time-series-chart.tsx`, Recharts, mesma convenção
+visual dos gráficos existentes). Usado no Bloco E da Central e no Gráfico 1
+de `/admin/indicadores/frequencia`, com `EmptyState` quando não há
+histórico suficiente. Um bug real foi pego na verificação visual (função
+como prop de Server → Client Component) e corrigido antes do commit — ver
+detalhe em [`etapas/02-tendencia-frequencia.md`](etapas/02-tendencia-frequencia.md),
+que também registra um incidente de ambiente (`next build` concorrente com
+`next dev` corrompeu `.next`) e o aprendizado guardado em memória para não
+repetir.
 
 ## Regra de avanço
 

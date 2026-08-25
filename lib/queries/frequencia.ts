@@ -3,6 +3,7 @@ import {
   calcularJanelaDias,
   calcularPercentualFrequencia,
   calcularVariacaoFrequencia,
+  calcularEvolucaoFrequencia,
   classificarFaixaFrequencia,
   faltasConsecutivasAtuais,
   classificarGravidadeFaltasConsecutivas,
@@ -13,6 +14,7 @@ import {
   type VariacaoFrequencia,
   type RegistroDiario,
   type GravidadeFaltasConsecutivas,
+  type PontoEvolucaoFrequencia,
 } from "@/lib/analytics/frequencia";
 import { resolverMatriculaPorAno } from "@/lib/queries/distorcao";
 
@@ -257,6 +259,35 @@ export async function getFrequenciaPorEscola(filtro: FiltroFrequenciaPorEscola):
 export function resolverDataReferenciaJanela(anoLetivo: number, hoje: Date = new Date()): Date {
   if (anoLetivo === hoje.getFullYear()) return hoje;
   return new Date(`${anoLetivo}-12-15`);
+}
+
+export interface FiltroEvolucaoFrequenciaRede {
+  /** ISO (YYYY-MM-DD), inclusive. */
+  inicio: string;
+  /** ISO (YYYY-MM-DD), inclusive. */
+  fim: string;
+}
+
+/**
+ * Série diária de frequência da rede inteira — alimenta o `TimeSeriesChart`
+ * da Central e da página de Frequência (ver ETAPA 02 do MVP de
+ * Indicadores). Uma única `groupBy` por `data` agregando aulas/faltas de
+ * todos os alunos naquele dia; a transformação em percentual/ordenação é
+ * pura (`calcularEvolucaoFrequencia`), testável sem banco. Só retorna dias
+ * com ao menos uma aula registrada — sem preencher fins de semana/recesso
+ * com pontos vazios, então o gráfico não desenha "quedas" artificiais nos
+ * dias sem aula.
+ */
+export async function getEvolucaoFrequenciaRede(filtro: FiltroEvolucaoFrequenciaRede): Promise<PontoEvolucaoFrequencia[]> {
+  const linhas = await prisma.frequenciaEstudante.groupBy({
+    by: ["data"],
+    where: { data: { gte: filtro.inicio, lte: filtro.fim } },
+    _sum: { falta: true, quantidadeAula: true },
+  });
+
+  return calcularEvolucaoFrequencia(
+    linhas.map((l) => ({ data: l.data, aulas: l._sum.quantidadeAula ?? 0, faltas: l._sum.falta ?? 0 })),
+  );
 }
 
 export function calcularJanelaComparativaPadrao(hoje: Date, diasPorJanela = 30): JanelaComparativa {

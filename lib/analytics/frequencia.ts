@@ -138,6 +138,30 @@ export function calcularPercentualFrequencia(totalAulas: number, totalFaltas: nu
   return ((totalAulas - totalFaltas) / totalAulas) * 100;
 }
 
+export interface PontoEvolucaoFrequencia {
+  /** ISO (YYYY-MM-DD). */
+  data: string;
+  /** Percentual de presença da rede naquele dia. Null se não houver aula registrada no dia. */
+  percentual: number | null;
+}
+
+/**
+ * Transforma totais diários de aulas/faltas (já agregados pela rede inteira
+ * via `groupBy` em lib/queries/frequencia.ts:getEvolucaoFrequenciaRede) em
+ * uma série cronológica de percentuais — só a parte pura/testável dessa
+ * query, para não precisar de banco para testar a transformação. Dias sem
+ * nenhuma aula registrada (fim de semana, recesso) simplesmente não entram
+ * na entrada — não há "dia com 0 aulas" para transformar em null aqui,
+ * quem decide incluir ou não um dia na consulta é o `groupBy` de origem.
+ */
+export function calcularEvolucaoFrequencia(
+  registrosDiarios: { data: string; aulas: number; faltas: number }[],
+): PontoEvolucaoFrequencia[] {
+  return registrosDiarios
+    .map((r) => ({ data: r.data, percentual: calcularPercentualFrequencia(r.aulas, r.faltas) }))
+    .sort((a, b) => a.data.localeCompare(b.data));
+}
+
 export interface JanelaDias {
   /** Data inicial da janela, formato ISO (YYYY-MM-DD), inclusive. */
   inicio: string;
