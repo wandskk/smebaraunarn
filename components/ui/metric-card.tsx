@@ -33,8 +33,8 @@ export interface MetricCardProps {
   /** String na maioria dos usos; aceita ReactNode para casos como AnimatedNumber. */
   value: ReactNode;
   icon: LucideIcon;
-  /** Contexto curto sob o valor (ex.: link textual para o detalhe). */
-  helpText?: string;
+  /** Contexto curto sob o valor (ex.: delta de tendência + link textual para o detalhe). */
+  helpText?: ReactNode;
   /**
    * Texto de explicabilidade (fonte, fórmula, data de atualização) exibido
    * como tooltip nativo — ver lib/analytics/explicabilidade.ts. Todo

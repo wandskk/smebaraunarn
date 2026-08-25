@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   RefreshCw,
   School,
+  Settings,
   Users,
   X,
   type LucideIcon,
@@ -77,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/usuarios", label: "Usuários e Acessos", icon: Users },
       { href: "/admin/sincronizacao", label: "Sincronização SIGEduc", icon: RefreshCw },
+      { href: "/admin/indicadores/portal-publico", label: "Números da Página Inicial", icon: Settings },
     ],
   },
 ];

@@ -32,6 +32,8 @@ export interface IndicadoresGeraisRede {
   /** Média simples das notas lançadas no ano. Null se não houver nenhuma nota. */
   desempenhoMedioRede: number | null;
   estudantesEmDistorcaoIdadeSerie: number;
+  /** Estudantes com série mapeada e data de nascimento válida — a base sobre a qual o percentual de distorção é calculado (denominador). */
+  estudantesElegiveisDistorcao: number;
   /**
    * Estudantes cuja turma está fora do escopo do indicador de distorção
    * (Educação Infantil, EJA, Educação Especial, turmas multianuais e
@@ -108,6 +110,7 @@ export async function getIndicadoresGeraisRede(
   const matriculaPorAno = await resolverMatriculaPorAno(anoLetivo);
   let estudantesEmDistorcaoIdadeSerie = 0;
   let estudantesForaDoEscopoOuSemDadosParaDistorcao = 0;
+  let estudantesElegiveisDistorcao = 0;
   for (const dados of matriculaPorAno.values()) {
     const serie = normalizarSerie(dados.serieTexto);
 
@@ -117,8 +120,9 @@ export async function getIndicadoresGeraisRede(
 
     if (resultado === null) {
       estudantesForaDoEscopoOuSemDadosParaDistorcao += 1;
-    } else if (resultado.emDistorcao) {
-      estudantesEmDistorcaoIdadeSerie += 1;
+    } else {
+      estudantesElegiveisDistorcao += 1;
+      if (resultado.emDistorcao) estudantesEmDistorcaoIdadeSerie += 1;
     }
   }
 
@@ -130,6 +134,7 @@ export async function getIndicadoresGeraisRede(
     estudantesAbaixoFaixaFrequencia,
     desempenhoMedioRede: desempenhoAgregado._avg.nota ?? null,
     estudantesEmDistorcaoIdadeSerie,
+    estudantesElegiveisDistorcao,
     estudantesForaDoEscopoOuSemDadosParaDistorcao,
   };
 }
