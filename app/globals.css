@@ -80,3 +80,58 @@ body {
 
   --ring: 221 83% 40%;
 }
+
+/*
+ * Animações do redesign visual (docs/redesign-visual/PLANO_REDESIGN_VISUAL.md,
+ * ETAPA V0) — shimmer para os esqueletos de loading.tsx e fade-in-up para
+ * entrada em stagger de grids de card (delay individual via
+ * --stagger-delay, setado inline por item). `prefers-reduced-motion` acima
+ * de tudo: usuário que pediu menos movimento não recebe nenhuma das duas.
+ */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+  animation-delay: var(--stagger-delay, 0ms);
+}
+
+/* Base de components/ui/skeleton.tsx — faixa de brilho correndo da esquerda pra direita sobre um fundo neutro. */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: hsl(var(--surface-muted));
+}
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg, transparent, hsl(var(--surface) / 0.7), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+  }
+
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+}

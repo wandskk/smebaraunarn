@@ -1,16 +1,22 @@
 import Link from "next/link";
-import { AlertTriangle, ClipboardList, FileText, GraduationCap, ShieldCheck, Users } from "lucide-react";
+import { CheckCircle2, ClipboardList, FileText, GraduationCap, Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatNumber } from "@/lib/utils";
 import { getStatusSincronizacao, ROTULO_MODULO } from "@/lib/queries/qualidade-dados";
 import { getInsightsAtencao } from "@/lib/queries/atencao";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { InsightCard } from "@/components/ui/insight-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { buttonVariants } from "@/components/ui/button";
+
+function staggerStyle(index: number): React.CSSProperties {
+  return { "--stagger-delay": `${index * 60}ms` } as React.CSSProperties;
+}
 
 export default async function AdminDashboardPage() {
   const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
@@ -26,6 +32,7 @@ export default async function AdminDashboardPage() {
   ]);
 
   const modulosComProblema = modulos.filter((m) => m.situacao !== "em-dia" || m.execucaoIncompleta);
+  const modulosEmDiaPercentual = modulos.length > 0 ? ((modulos.length - modulosComProblema.length) / modulos.length) * 100 : null;
 
   const cards = [
     { label: "Publicações no CMS", value: totalPosts, href: "/admin/posts", icon: FileText, accent: "warning" as const },
@@ -40,42 +47,46 @@ export default async function AdminDashboardPage() {
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Atenção agora</h2>
       {insights.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-foreground-muted">
-          Nenhum ponto de atenção identificado no momento pelas regras vigentes (frequência em queda, desempenho
-          abaixo da rede, distorção elevada e sincronização atrasada).
-        </p>
+        <EmptyState
+          className="mt-3"
+          icon={CheckCircle2}
+          title="Nenhum ponto de atenção no momento"
+          description="Nenhuma regra vigente disparou (frequência em queda, desempenho abaixo da rede, distorção elevada e sincronização atrasada)."
+        />
       ) : (
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} />
+          {insights.map((insight, index) => (
+            <div key={insight.id} className="animate-fade-in-up" style={staggerStyle(index)}>
+              <InsightCard insight={insight} />
+            </div>
           ))}
         </div>
       )}
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Números da rede</h2>
       <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => (
-          <MetricCard
-            key={card.label}
-            label={card.label}
-            value={formatNumber(card.value)}
-            icon={card.icon}
-            href={card.href}
-            accent={card.accent}
-          />
+        {cards.map((card, index) => (
+          <div key={card.label} className="animate-fade-in-up" style={staggerStyle(index)}>
+            <MetricCard
+              label={card.label}
+              value={<AnimatedNumber value={card.value} />}
+              icon={card.icon}
+              href={card.href}
+              accent={card.accent}
+            />
+          </div>
         ))}
       </div>
 
       <Card className="mt-8">
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                modulosComProblema.length > 0 ? "bg-warning-subtle text-warning-subtle-foreground" : "bg-success-subtle text-success-subtle-foreground"
-              }`}
-            >
-              {modulosComProblema.length > 0 ? <AlertTriangle className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
-            </span>
+          <div className="flex items-center gap-4">
+            <RingProgress
+              value={modulosEmDiaPercentual}
+              accent={modulosComProblema.length > 0 ? "warning" : "success"}
+              size={56}
+              strokeWidth={7}
+            />
             <div>
               <div className="text-sm font-semibold text-foreground">Saúde da base</div>
               <p className="mt-0.5 text-sm text-foreground-muted">

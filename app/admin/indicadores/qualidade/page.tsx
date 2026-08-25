@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ShieldCheck } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import {
   getStatusSincronizacao,
@@ -14,6 +14,30 @@ import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { DonutChart, type DonutChartDatum } from "@/components/ui/charts/donut-chart";
+import { MiniBarChart } from "@/components/ui/charts/mini-bar-chart";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
+import type { ChartAccent } from "@/components/ui/charts/accent-colors";
+
+const SITUACAO_DONUT_LABEL: Record<string, string> = {
+  "em-dia": "Em dia",
+  atrasado: "Atrasado",
+  "sem-sincronizacao": "Sem sincronização",
+};
+
+const SITUACAO_DONUT_ACCENT: Record<string, ChartAccent> = {
+  "em-dia": "success",
+  atrasado: "warning",
+  "sem-sincronizacao": "danger",
+};
+
+function accentDaCompletude(percentualCompleto: number): ChartAccent {
+  if (percentualCompleto >= 95) return "success";
+  if (percentualCompleto >= 80) return "warning";
+  return "danger";
+}
 
 function formatarData(data: Date | null): string {
   return data ? data.toLocaleString("pt-BR") : "nunca";
@@ -43,6 +67,25 @@ export default async function QualidadeDadosPage() {
 
   const colisoesDivergentes = colisoes.filter((c) => c.divergente);
 
+  const situacaoDonutData: DonutChartDatum[] = (
+    Object.entries(
+      modulos.reduce<Record<string, number>>((acc, m) => {
+        acc[m.situacao] = (acc[m.situacao] ?? 0) + 1;
+        return acc;
+      }, {}),
+    ) as [string, number][]
+  ).map(([situacao, value]) => ({
+    label: SITUACAO_DONUT_LABEL[situacao] ?? situacao,
+    value,
+    accent: SITUACAO_DONUT_ACCENT[situacao] ?? "primary",
+  }));
+
+  const errosPorModuloData = modulos.map((m) => ({
+    label: ROTULO_MODULO[m.modulo],
+    value: m.errosUltimos7Dias,
+    accent: (m.errosUltimos7Dias > 0 ? "danger" : "success") as ChartAccent,
+  }));
+
   return (
     <div>
       <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-info-subtle-foreground hover:underline">
@@ -69,6 +112,30 @@ export default async function QualidadeDadosPage() {
           execute a sincronização novamente.
         </p>
       )}
+
+      <div className="mt-4 grid gap-4 rounded-xl border border-border bg-surface p-5 sm:grid-cols-2">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+            Situação por módulo
+          </div>
+          <div className="mt-3">
+            <DonutChart
+              data={situacaoDonutData}
+              size={128}
+              thickness={18}
+              centerValue={String(modulos.length)}
+              centerLabel="módulos"
+            />
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+            Erros por módulo (7 dias)
+          </div>
+          <MiniBarChart data={errosPorModuloData} height={140} className="mt-3" />
+        </div>
+      </div>
+
       <div className="mt-3">
         <DataTable>
           <TableHeader>
@@ -151,11 +218,20 @@ export default async function QualidadeDadosPage() {
                 </TableCell>
                 <TableCell>
                   {c.percentualAusente === null ? (
-                    "-"
-                  ) : c.percentualAusente > 0 ? (
-                    <span className="font-semibold text-warning-subtle-foreground">{c.percentualAusente.toFixed(1)}%</span>
+                    <span className="text-foreground-muted/60">-</span>
                   ) : (
-                    <span className="text-success-subtle-foreground">0%</span>
+                    <div className="flex items-center gap-2">
+                      <RingProgress
+                        value={100 - c.percentualAusente}
+                        accent={accentDaCompletude(100 - c.percentualAusente)}
+                        size={36}
+                        strokeWidth={5}
+                        valueLabel=""
+                      />
+                      <span className="text-xs text-foreground-muted">
+                        {c.percentualAusente > 0 ? `${c.percentualAusente.toFixed(1)}% ausente` : "completo"}
+                      </span>
+                    </div>
                   )}
                 </TableCell>
                 <TableCell className="max-w-sm text-xs text-foreground-muted">{c.impacto}</TableCell>
@@ -184,20 +260,26 @@ export default async function QualidadeDadosPage() {
         indicador de distorção idade-série a usar a série errada para uma turma.
       </p>
       {colisoes.length === 0 ? (
-        <p className="mt-3 text-sm text-foreground-muted/60">Nenhum código de turma reutilizado entre escolas no momento.</p>
+        <EmptyState
+          className="mt-3"
+          icon={ShieldCheck}
+          title="Nenhum código de turma reutilizado"
+          description="Nenhuma colisão entre escolas diferentes no momento."
+        />
       ) : (
         <>
           <div className="mt-3 flex items-center gap-2 text-sm">
             {colisoesDivergentes.length > 0 ? (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-danger-subtle px-3 py-1.5 font-medium text-danger-subtle-foreground">
                 <AlertTriangle className="h-4 w-4" />
-                {colisoesDivergentes.length} código(s) com série divergente entre escolas — revisar
+                <AnimatedNumber value={colisoesDivergentes.length} /> código(s) com série divergente entre escolas —
+                revisar
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-success-subtle px-3 py-1.5 font-medium text-success-subtle-foreground">
                 <CheckCircle2 className="h-4 w-4" />
-                {formatNumber(colisoes.length)} código(s) reutilizado(s), mas a série resolvida é consistente entre
-                as escolas
+                <AnimatedNumber value={colisoes.length} /> código(s) reutilizado(s), mas a
+                série resolvida é consistente entre as escolas
               </span>
             )}
           </div>

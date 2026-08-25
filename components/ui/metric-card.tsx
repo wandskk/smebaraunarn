@@ -1,6 +1,8 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Info, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Sparkline } from "@/components/ui/charts/sparkline";
 
 export type MetricCardTone = "default" | "atencao" | "critico";
 
@@ -28,7 +30,8 @@ const TONE_OVERRIDE_STYLE: Partial<Record<MetricCardTone, { icon: string; iconBg
 
 export interface MetricCardProps {
   label: string;
-  value: string;
+  /** String na maioria dos usos; aceita ReactNode para casos como AnimatedNumber. */
+  value: ReactNode;
   icon: LucideIcon;
   /** Contexto curto sob o valor (ex.: link textual para o detalhe). */
   helpText?: string;
@@ -42,6 +45,12 @@ export interface MetricCardProps {
   tone?: MetricCardTone;
   /** Cor de domínio do ícone quando tone="default" (ver MetricCardAccent). */
   accent?: MetricCardAccent;
+  /**
+   * Série curta (ex.: percentual diário dos últimos 30 dias) exibida como
+   * sparkline embutido — opcional e aditivo, nenhum uso existente do
+   * MetricCard precisa passar isso. Ver ETAPA V0 do plano de redesign.
+   */
+  trend?: number[];
 }
 
 /**
@@ -58,8 +67,10 @@ export function MetricCard({
   href,
   tone = "default",
   accent = "primary",
+  trend,
 }: MetricCardProps) {
   const { icon: iconStyle, iconBg } = TONE_OVERRIDE_STYLE[tone] ?? ACCENT_STYLE[accent];
+  const sparklineAccent = tone === "atencao" ? "warning" : tone === "critico" ? "danger" : accent;
 
   const conteudo = (
     <>
@@ -67,16 +78,21 @@ export function MetricCard({
         <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", iconBg)}>
           <Icon className={cn("h-5 w-5", iconStyle)} />
         </span>
-        {explicacao && (
-          <span
-            title={explicacao}
-            aria-label={explicacao}
-            tabIndex={0}
-            className="text-foreground-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 rounded"
-          >
-            <Info className="h-4 w-4" />
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {trend && trend.length > 1 && (
+            <Sparkline data={trend} accent={sparklineAccent} height={28} className="w-16" />
+          )}
+          {explicacao && (
+            <span
+              title={explicacao}
+              aria-label={explicacao}
+              tabIndex={0}
+              className="text-foreground-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 rounded"
+            >
+              <Info className="h-4 w-4" />
+            </span>
+          )}
+        </div>
       </div>
       <div className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
       <div className="mt-0.5 text-xs text-foreground-muted">{label}</div>
