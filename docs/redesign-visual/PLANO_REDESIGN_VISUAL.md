@@ -258,7 +258,7 @@ se pedido explicitamente depois.
 | V6 — Home Servidor Geral | **DONE** | 2026-08-25 |
 | V7 — Listagens e fichas | **DONE** | 2026-08-25 |
 | V8 — Avaliações Municipais | **DONE** | 2026-08-25 |
-| V9 — Administração (usuários/sync/CMS) | PENDING | — |
+| V9 — Administração (usuários/sync/CMS) | **DONE** | 2026-08-25 |
 
 _(Atualizar esta tabela e adicionar um resumo por etapa, no mesmo formato de
 `docs/plano-evolucao-sme/PROGRESSO.md`, conforme cada uma for concluída.)_
@@ -451,6 +451,32 @@ DIRETOR de fato.
 
 Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
 limpo (66 rotas).
+
+## Resumo da ETAPA V9
+
+Etapa só de auditoria — **nenhum código mudou**. `grep` por
+`border-dashed border-border bg-surface` em `/admin/usuarios`,
+`/admin/usuarios/[id]`, `/admin/sincronizacao`, `/admin/posts` e
+`/admin/documentos`:
+
+- `/admin/sincronizacao`, `/admin/posts`, `/admin/documentos`: nenhuma
+  ocorrência — já usam `TableEmptyState` (padrão de célula de tabela,
+  já bom, ETAPA V7 confirmou que não precisa mudar) ou não têm estado
+  vazio nenhum (sincronização é só botões + histórico).
+- `/admin/usuarios` e `/admin/usuarios/[id]`: 2 ocorrências, mas nenhuma
+  é um estado vazio de verdade — são avisos de **permissão negada**
+  ("Criar acessos manuais... disponível apenas para Administradores",
+  dentro de `CapabilityGate`). `EmptyState` comunica "nada aqui ainda";
+  usá-lo para "você não pode fazer isso" seria a mensagem errada — os
+  dois ficam como estão.
+
+Único `border-dashed` restante no projeto inteiro: o aviso em
+`/admin/indicadores` de que o bloco "Atenção agora" daquela página ainda
+não foi construído (nota de escopo futuro, não um estado vazio de dado).
+
+**Roteiro de telas V1-V9 concluído.** Restam, fora do escopo original por
+decisão explícita (ver seção "Fora deste plano por enquanto"): a landing
+pública (`app/page.tsx`, `components/site/*`).
 
 ## Resumo da ETAPA V8
 
