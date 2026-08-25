@@ -224,7 +224,7 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
               </h2>
               <div className="mt-3 flex flex-wrap gap-2">
                 {avaliacao.escolasPendentes.map((e) => (
-                  <Link key={e.id} href={`/admin/escolas/${e.id}`}>
+                  <Link key={e.id} href={`/admin/escolas/${e.id}?ano=${avaliacaoBase.ano}`}>
                     <Badge variant="warning">{e.nome}</Badge>
                   </Link>
                 ))}

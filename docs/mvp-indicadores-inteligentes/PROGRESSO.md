@@ -1,6 +1,6 @@
 # Progresso — MVP de Indicadores Inteligentes
 
-**Última atualização:** 2026-08-25 (ETAPA 07 concluída)
+**Última atualização:** 2026-08-25 (ETAPA 08 concluída — build final pendente de cota do banco)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -18,7 +18,12 @@ com o Markdown correspondente em `etapas/`.
 | 05 | Aprendizagem e Desempenho | **DONE** | 2026-08-25 |
 | 06 | Fluxo e Trajetória + Comparativos | **DONE** | 2026-08-25 |
 | 07 | Avaliações Municipais | **DONE** | 2026-08-25 |
-| 08 | Hardening e roteiro de demonstração | PENDING | — |
+| 08 | Hardening e roteiro de demonstração | **DONE*** | 2026-08-25 |
+
+\* Todos os critérios atendidos exceto a confirmação final de `npm run
+build` limpo, bloqueada por cota de transferência do banco (Neon) esgotada
+— não é falha de código, ver detalhe em
+[`etapas/08-hardening-demo.md`](etapas/08-hardening-demo.md).
 
 ## Resumo da ETAPA 00
 
@@ -128,6 +133,23 @@ sem ranking de estudante. A seção de avaliações recentes na Central já
 tinha sido entregue na ETAPA 01. Testado com uma avaliação de Fluência
 Leitora e uma SPADEB reais. Detalhe completo em
 [`etapas/07-avaliacoes.md`](etapas/07-avaliacoes.md).
+
+## Resumo da ETAPA 08
+
+Sweep de hardening (funcional, acessibilidade, responsividade) sem
+achados graves — 1 bug real corrigido (link sem `?ano=` em
+`avaliacoes/[id]`). `prefers-reduced-motion`, estado nunca só por cor,
+RBAC e ausência de CPF/PII nas telas de indicadores confirmados. Sem
+overflow em 375/768/1440px. Criado
+[`ROTEIRO_DEMO.md`](../ROTEIRO_DEMO.md) com 3 casos reais. `npm test`
+(225/225), `typecheck` e `lint` passam limpos; `npm run build` está
+bloqueado por esgotamento da cota de transferência do banco (Neon) — um
+incidente de infraestrutura externo à sessão, não uma falha de código
+(nenhuma rota desta feature é pré-renderizada em build-time). Detalhe
+completo em
+[`etapas/08-hardening-demo.md`](etapas/08-hardening-demo.md). **MVP
+concluído**, mediante confirmação do usuário após a cota do banco ser
+restabelecida e o build final rodar limpo.
 
 ## Regra de avanço
 
