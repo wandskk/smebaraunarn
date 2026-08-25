@@ -8,6 +8,7 @@ import { getAvaliacoesResultadosPorEstudante, TIPO_AVALIACAO_LABEL, NIVEL_FLUENC
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function AlunoAvaliacoesPage() {
   const session = await requireSession(["ALUNO"]);
@@ -24,9 +25,7 @@ export default async function AlunoAvaliacoesPage() {
       />
 
       {resultados.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhum resultado de avaliação municipal disponível ainda.
-        </p>
+        <EmptyState className="mt-8" icon={ClipboardList} title="Nenhum resultado disponível ainda" />
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {resultados.map((r) => (

@@ -257,7 +257,7 @@ se pedido explicitamente depois.
 | V5 — Home/frequência/boletim Aluno | **DONE** | 2026-08-25 |
 | V6 — Home Servidor Geral | **DONE** | 2026-08-25 |
 | V7 — Listagens e fichas | **DONE** | 2026-08-25 |
-| V8 — Avaliações Municipais | PENDING | — |
+| V8 — Avaliações Municipais | **DONE** | 2026-08-25 |
 | V9 — Administração (usuários/sync/CMS) | PENDING | — |
 
 _(Atualizar esta tabela e adicionar um resumo por etapa, no mesmo formato de
@@ -448,6 +448,38 @@ repetidas vezes em `docs/plano-evolucao-sme/PROGRESSO.md` para os outros
 (EmptyState/stagger/AnimatedNumber) usa exatamente os mesmos componentes
 já validados visualmente na V1/V2, mas não foi vista renderizada como
 DIRETOR de fato.
+
+Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
+limpo (66 rotas).
+
+## Resumo da ETAPA V8
+
+`RingProgress` em toda coluna/card de percentual de cobertura e % de
+acerto — catálogo + detalhe, nos 3 perfis que têm avaliações (Admin,
+Direção, Professor) + `EmptyState` no catálogo do Aluno:
+
+- **`/admin/avaliacoes`**: ring na coluna Cobertura do catálogo.
+- **`/admin/avaliacoes/[id]`**: ring no card "Percentual de cobertura"
+  (Visão Geral), ring por linha em "Cobertura por turma" e nas duas
+  tabelas da aba Análise (por questão, por descritor); `EmptyState` nos 2
+  casos "sem questão"/"sem resposta por item" (antes caixa tracejada).
+- **`/portal/direcao/avaliacoes` (+ `[id]`)** e
+  **`/portal/professor/avaliacoes` (+ `[id]`)**: mesmo padrão —
+  `EmptyState` no catálogo, ring no card de resumo de cada avaliação e
+  nas tabelas de cobertura/análise. Professor ganhou de brinde um
+  percentual de cobertura que a versão original omitia no card (o dado já
+  vinha calculado, só faltava exibir — mesma fórmula simples já usada em
+  Direção).
+- **`/portal/aluno/avaliacoes` (+ `[id]`)**: só `EmptyState` no catálogo
+  — é resultado individual, sem percentual de cobertura para virar anel;
+  a lista "Sua evolução em {tipo}" não ganhou gráfico (mistura pontuação
+  numérica com nível categórico entre avaliações, um sparkline ali seria
+  enganoso — melhor deixar como lista ordenada, que já comunica bem).
+
+Validado logado como ADMIN: catálogo com anéis por linha, aba Análise com
+20 anéis de % de acerto por questão (SPADEB 9º Ano) proporcionais ao
+valor real, `EmptyState` na avaliação de Fluência Leitora (sem questões
+cadastradas) — sem erro de console. `npm test` 206/206.
 
 Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
 limpo (66 rotas).

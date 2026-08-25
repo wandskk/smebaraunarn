@@ -7,6 +7,8 @@ import { getAvaliacoesResumoPorEscola, TIPO_AVALIACAO_LABEL, STATUS_AVALIACAO_LA
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 
 const STATUS_BADGE_VARIANT: Record<string, BadgeVariant> = {
   preparacao: "neutral",
@@ -27,9 +29,12 @@ export default async function DirecaoAvaliacoesPage() {
       />
 
       {avaliacoes.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhuma avaliação com resultados registrados para esta escola ainda.
-        </p>
+        <EmptyState
+          className="mt-8"
+          icon={ClipboardList}
+          title="Nenhuma avaliação com resultado"
+          description="Nenhuma avaliação com resultados registrados para esta escola ainda."
+        />
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {avaliacoes.map((a) => {
@@ -55,9 +60,12 @@ export default async function DirecaoAvaliacoesPage() {
                     {a.codigo} · {TIPO_AVALIACAO_LABEL[a.tipo]}
                     {a.etapaEnsino && ` · ${a.etapaEnsino}`}
                   </div>
-                  <div className="mt-3 text-sm text-foreground-muted">
-                    Cobertura: {a.totalResultados}/{a.totalEsperado || "?"}{" "}
-                    {percentual !== null && `(${percentual.toFixed(0)}%)`} · {a.turmasComResultado} turma(s)
+                  <div className="mt-3 flex items-center gap-2 text-sm text-foreground-muted">
+                    {percentual !== null && <RingProgress value={percentual} accent="info" size={28} strokeWidth={4} valueLabel="" />}
+                    <span>
+                      Cobertura: {a.totalResultados}/{a.totalEsperado || "?"}{" "}
+                      {percentual !== null && `(${percentual.toFixed(0)}%)`} · {a.turmasComResultado} turma(s)
+                    </span>
                   </div>
                   <div className="mt-1 text-xs text-foreground-muted/70">
                     Atualizado em {format(a.ultimaAtualizacao, "dd/MM/yyyy", { locale: ptBR })}

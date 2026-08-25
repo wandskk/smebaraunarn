@@ -19,6 +19,7 @@ import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 import { Pagination } from "@/components/ui/pagination";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { ClipboardCheck, Percent, Users } from "lucide-react";
 
 interface PageProps {
@@ -71,7 +72,16 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
         />
         <MetricCard
           label="Percentual de cobertura"
-          value={avaliacao.cobertura.percentual !== null ? `${avaliacao.cobertura.percentual.toFixed(1)}%` : "-"}
+          value={
+            avaliacao.cobertura.percentual !== null ? (
+              <div className="flex items-center gap-2">
+                <RingProgress value={avaliacao.cobertura.percentual} accent="education" size={32} strokeWidth={5} valueLabel="" />
+                <span>{avaliacao.cobertura.percentual.toFixed(1)}%</span>
+              </div>
+            ) : (
+              "-"
+            )
+          }
           icon={Percent}
           accent="education"
         />
@@ -106,8 +116,15 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
                   <TableCell className="font-medium text-foreground">{t.turma}</TableCell>
                   <TableCell className="text-foreground-muted">{t.matriculados}</TableCell>
                   <TableCell className="text-foreground-muted">{t.resultados}</TableCell>
-                  <TableCell className="text-foreground-muted">
-                    {t.percentual !== null ? `${t.percentual.toFixed(0)}%` : "-"}
+                  <TableCell>
+                    {t.percentual === null ? (
+                      <span className="text-foreground-muted/60">-</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <RingProgress value={t.percentual} accent="info" size={32} strokeWidth={4} valueLabel="" />
+                        <span className="text-foreground-muted">{t.percentual.toFixed(0)}%</span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant={t.completa ? "success" : "warning"}>{t.completa ? "Completa" : "Parcial"}</Badge>
@@ -214,8 +231,15 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
                     <TableCell className="text-foreground-muted">{q.descritor ?? "-"}</TableCell>
                     <TableCell className="text-foreground-muted">{q.respondidas}</TableCell>
                     <TableCell className="text-foreground-muted">{q.acertos}</TableCell>
-                    <TableCell className="text-foreground-muted">
-                      {q.percentualAcerto !== null ? `${q.percentualAcerto.toFixed(0)}%` : "-"}
+                    <TableCell>
+                      {q.percentualAcerto === null ? (
+                        <span className="text-foreground-muted/60">-</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <RingProgress value={q.percentualAcerto} accent="education" size={32} strokeWidth={4} valueLabel="" />
+                          <span className="text-foreground-muted">{q.percentualAcerto.toFixed(0)}%</span>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

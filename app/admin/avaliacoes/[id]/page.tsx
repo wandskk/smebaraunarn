@@ -25,7 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
-import { ClipboardCheck, Pencil, Percent, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
+import { ClipboardCheck, ClipboardList, Pencil, Percent, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PageProps {
@@ -133,7 +135,16 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
             />
             <MetricCard
               label="Percentual de cobertura"
-              value={avaliacao.cobertura.percentual !== null ? `${avaliacao.cobertura.percentual.toFixed(1)}%` : "-"}
+              value={
+                avaliacao.cobertura.percentual !== null ? (
+                  <div className="flex items-center gap-2">
+                    <RingProgress value={avaliacao.cobertura.percentual} accent="education" size={32} strokeWidth={5} valueLabel="" />
+                    <span>{avaliacao.cobertura.percentual.toFixed(1)}%</span>
+                  </div>
+                ) : (
+                  "-"
+                )
+              }
               icon={Percent}
               accent="education"
             />
@@ -186,8 +197,15 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
                         <TableCell className="font-medium text-foreground">{t.turma}</TableCell>
                         <TableCell className="text-foreground-muted">{t.matriculados}</TableCell>
                         <TableCell className="text-foreground-muted">{t.resultados}</TableCell>
-                        <TableCell className="text-foreground-muted">
-                          {t.percentual !== null ? `${t.percentual.toFixed(0)}%` : "-"}
+                        <TableCell>
+                          {t.percentual === null ? (
+                            <span className="text-foreground-muted/60">-</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <RingProgress value={t.percentual} accent="info" size={32} strokeWidth={4} valueLabel="" />
+                              <span className="text-foreground-muted">{t.percentual.toFixed(0)}%</span>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant={t.completa ? "success" : "warning"}>{t.completa ? "Completa" : "Parcial"}</Badge>
@@ -340,14 +358,17 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
       {tab === "analise" && (
         <div className="mt-6 space-y-8">
           {avaliacaoBase.questoes.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-              Cadastre questões (aba Questões) para habilitar a análise por item/descritor.
-            </p>
+            <EmptyState
+              icon={ClipboardList}
+              title="Nenhuma questão cadastrada"
+              description="Cadastre questões (aba Questões) para habilitar a análise por item/descritor."
+            />
           ) : !analise || analise.totalRespondentes === 0 ? (
-            <p className="rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-              Nenhum resultado com resposta por item registrada ainda. Ao lançar um resultado na aba Resultados,
-              preencha a resposta de cada questão para alimentar esta análise.
-            </p>
+            <EmptyState
+              icon={ClipboardList}
+              title="Nenhuma resposta por item registrada"
+              description="Ao lançar um resultado na aba Resultados, preencha a resposta de cada questão para alimentar esta análise."
+            />
           ) : (
             <>
               <p className="text-xs text-foreground-muted/70">
@@ -376,8 +397,15 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
                           <TableCell className="text-foreground-muted">{q.descritor ?? "-"}</TableCell>
                           <TableCell className="text-foreground-muted">{q.respondidas}</TableCell>
                           <TableCell className="text-foreground-muted">{q.acertos}</TableCell>
-                          <TableCell className="text-foreground-muted">
-                            {q.percentualAcerto !== null ? `${q.percentualAcerto.toFixed(0)}%` : "-"}
+                          <TableCell>
+                            {q.percentualAcerto === null ? (
+                              <span className="text-foreground-muted/60">-</span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <RingProgress value={q.percentualAcerto} accent="education" size={32} strokeWidth={4} valueLabel="" />
+                                <span className="text-foreground-muted">{q.percentualAcerto.toFixed(0)}%</span>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -405,8 +433,15 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
                             <TableCell className="font-medium text-foreground">{d.descritor}</TableCell>
                             <TableCell className="text-foreground-muted">{d.respondidas}</TableCell>
                             <TableCell className="text-foreground-muted">{d.acertos}</TableCell>
-                            <TableCell className="text-foreground-muted">
-                              {d.percentualAcerto !== null ? `${d.percentualAcerto.toFixed(0)}%` : "-"}
+                            <TableCell>
+                              {d.percentualAcerto === null ? (
+                                <span className="text-foreground-muted/60">-</span>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <RingProgress value={d.percentualAcerto} accent="education" size={32} strokeWidth={4} valueLabel="" />
+                                  <span className="text-foreground-muted">{d.percentualAcerto.toFixed(0)}%</span>
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}

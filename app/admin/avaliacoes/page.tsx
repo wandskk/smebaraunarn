@@ -16,6 +16,7 @@ import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 
 const STATUS_BADGE_VARIANT: Record<string, BadgeVariant> = {
   preparacao: "neutral",
@@ -141,18 +142,25 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
                   <TableCell className="text-foreground-muted">{TIPO_LABEL[a.tipo]}</TableCell>
                   <TableCell className="text-foreground-muted">{a.ano}</TableCell>
                   <TableCell className="text-foreground-muted">
-                    {a._count.resultados === 0 ? (
-                      "Sem resultados"
-                    ) : (
-                      <>
-                        {cobertura ? `${cobertura.realizado} / ${cobertura.esperado || "?"}` : `${a._count.resultados} resultado(s)`}
-                        {cobertura?.percentual !== null && cobertura?.percentual !== undefined && (
-                          <> ({cobertura.percentual.toFixed(0)}%)</>
+                    <div className="flex items-center gap-2">
+                      {cobertura?.percentual !== null && cobertura?.percentual !== undefined && (
+                        <RingProgress value={cobertura.percentual} accent="education" size={28} strokeWidth={4} valueLabel="" />
+                      )}
+                      <span>
+                        {a._count.resultados === 0 ? (
+                          "Sem resultados"
+                        ) : (
+                          <>
+                            {cobertura ? `${cobertura.realizado} / ${cobertura.esperado || "?"}` : `${a._count.resultados} resultado(s)`}
+                            {cobertura?.percentual !== null && cobertura?.percentual !== undefined && (
+                              <> ({cobertura.percentual.toFixed(0)}%)</>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                    {" · "}
-                    {a._count.questoes} questão(ões)
+                        {" · "}
+                        {a._count.questoes} questão(ões)
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={STATUS_BADGE_VARIANT[status]}>{STATUS_AVALIACAO_LABEL[status as keyof typeof STATUS_AVALIACAO_LABEL]}</Badge>
