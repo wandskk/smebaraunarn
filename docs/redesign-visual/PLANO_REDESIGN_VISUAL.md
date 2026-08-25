@@ -252,7 +252,7 @@ se pedido explicitamente depois.
 | V0 — Fundação (biblioteca de componentes) | **DONE** | 2026-08-25 |
 | V1 — Dashboard Admin | **DONE** | 2026-08-25 |
 | V2 — Central de Indicadores | **DONE** | 2026-08-25 |
-| V3 — Home Direção | PENDING | — |
+| V3 — Home Direção | **DONE** | 2026-08-25 |
 | V4 — Home/turmas Professor | PENDING | — |
 | V5 — Home/frequência/boletim Aluno | PENDING | — |
 | V6 — Home Servidor Geral | PENDING | — |
@@ -416,3 +416,38 @@ Validado logado como ADMIN nas 5 páginas contra a base real (números e
 cores batendo com os dados, incluindo o caso "Estável" com 0 escolas
 corretamente omitido do donut de comparativos). `npm run build` limpo (66
 rotas, mesma contagem).
+
+**A partir daqui, execução muda de regime** (pedido do usuário em
+2026-08-25): cada etapa é implementada, validada e, ao final, commitada e
+enviada (`git push`) — seguindo direto para a próxima etapa sem pausar
+para autorização, diferente do plano funcional
+(`docs/plano-evolucao-sme/`, que continua exigindo parada a cada etapa).
+
+## Resumo da ETAPA V3
+
+`/portal/direcao` (home) + `SchoolOverview` (componente compartilhado
+também usado por `/admin/escolas/[id]`), sem mudar dado/query:
+
+- **`SchoolOverview`** (`components/portal/school-overview.tsx`): ganhou
+  `RingProgress` nos cards de Frequência (accent `attendance`) e Distorção
+  idade-série (accent `warning`) — mesmo padrão já usado em
+  `/admin/indicadores/comparativos` na V2. Desempenho continua só texto
+  (não é percentual). Como o componente é compartilhado, o ganho aparece
+  tanto na Home da Direção quanto em `/admin/escolas/[id]` — validado
+  nesta última (só tenho sessão ADMIN nesta etapa).
+- **`/portal/direcao/page.tsx`**: `EmptyState` no lugar da caixa
+  tracejada de "Atenção agora"; stagger nos cards de insight e nos 3
+  cards de "Estrutura da escola"; `AnimatedNumber` nesses 3 cards
+  (Servidores/Estudantes/Resultados de avaliações).
+
+**Validação parcial**: só existe credencial de teste para ADMIN nesta
+sessão (`SEED_ADMIN_*` em `.env`) — mesma limitação já registrada
+repetidas vezes em `docs/plano-evolucao-sme/PROGRESSO.md` para os outros
+4 perfis. `SchoolOverview` foi validado de verdade (via
+`/admin/escolas/[id]`); a parte específica de `/portal/direcao/page.tsx`
+(EmptyState/stagger/AnimatedNumber) usa exatamente os mesmos componentes
+já validados visualmente na V1/V2, mas não foi vista renderizada como
+DIRETOR de fato.
+
+Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
+limpo (66 rotas).

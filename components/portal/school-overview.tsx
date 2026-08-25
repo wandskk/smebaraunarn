@@ -2,6 +2,7 @@ import type { ComparativoEscola } from "@/lib/queries/comparativos";
 import { Card } from "@/components/ui/card";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 
 function formatarPercentual(valor: number | null): string {
   return valor === null ? "-" : `${valor.toFixed(1)}%`;
@@ -57,14 +58,19 @@ export function SchoolOverview({ comparativo, anoLetivo }: SchoolOverviewProps) 
     <div className="grid gap-4 sm:grid-cols-3">
       <Card>
         <div className="text-xs uppercase text-foreground-muted">Frequência</div>
-        <div className="mt-1 flex items-center gap-2">
-          <span className="text-xl font-semibold text-foreground">
-            {formatarPercentual(comparativo.frequenciaPercentual)}
-          </span>
-          {comparativo.frequenciaFaixa && <FaixaBadge faixa={comparativo.frequenciaFaixa} />}
-        </div>
-        <div className="mt-1">
-          <DiferencaRede diferenca={comparativo.frequenciaDiferencaRede} unidade="p.p." maiorEhMelhor />
+        <div className="mt-2 flex items-center gap-3">
+          {comparativo.frequenciaPercentual !== null && (
+            <RingProgress value={comparativo.frequenciaPercentual} accent="attendance" size={44} strokeWidth={6} />
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-semibold text-foreground">
+                {formatarPercentual(comparativo.frequenciaPercentual)}
+              </span>
+              {comparativo.frequenciaFaixa && <FaixaBadge faixa={comparativo.frequenciaFaixa} />}
+            </div>
+            <DiferencaRede diferenca={comparativo.frequenciaDiferencaRede} unidade="p.p." maiorEhMelhor />
+          </div>
         </div>
       </Card>
       <Card>
@@ -76,11 +82,16 @@ export function SchoolOverview({ comparativo, anoLetivo }: SchoolOverviewProps) 
       </Card>
       <Card>
         <div className="text-xs uppercase text-foreground-muted">Distorção idade-série</div>
-        <div className="mt-1 text-xl font-semibold text-foreground">
-          {formatarPercentual(comparativo.distorcaoPercentual)}
-        </div>
-        <div className="mt-1">
-          <DiferencaRede diferenca={comparativo.distorcaoDiferencaRede} unidade="p.p." maiorEhMelhor={false} />
+        <div className="mt-2 flex items-center gap-3">
+          {comparativo.distorcaoPercentual !== null && (
+            <RingProgress value={comparativo.distorcaoPercentual} accent="warning" size={44} strokeWidth={6} />
+          )}
+          <div>
+            <div className="text-xl font-semibold text-foreground">
+              {formatarPercentual(comparativo.distorcaoPercentual)}
+            </div>
+            <DiferencaRede diferenca={comparativo.distorcaoDiferencaRede} unidade="p.p." maiorEhMelhor={false} />
+          </div>
         </div>
       </Card>
     </div>

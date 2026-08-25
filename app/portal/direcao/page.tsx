@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, Users } from "lucide-react";
+import { CheckCircle2, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
@@ -14,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { SchoolOverview } from "@/components/portal/school-overview";
 import { InsightCard } from "@/components/ui/insight-card";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 
 interface PageProps {
   searchParams: { ano?: string };
@@ -79,14 +80,18 @@ export default async function DirecaoHomePage({ searchParams }: PageProps) {
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Atenção agora</h2>
       {insights.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-foreground-muted">
-          Nenhum ponto de atenção identificado no momento pelas regras vigentes (frequência em queda, desempenho
-          abaixo da rede e distorção elevada).
-        </p>
+        <EmptyState
+          className="mt-3"
+          icon={CheckCircle2}
+          title="Nenhum ponto de atenção no momento"
+          description="Nenhuma regra vigente disparou (frequência em queda, desempenho abaixo da rede e distorção elevada)."
+        />
       ) : (
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} />
+          {insights.map((insight, index) => (
+            <div key={insight.id} className="animate-fade-in-up" style={{ "--stagger-delay": `${index * 60}ms` } as React.CSSProperties}>
+              <InsightCard insight={insight} />
+            </div>
           ))}
         </div>
       )}
@@ -98,15 +103,16 @@ export default async function DirecaoHomePage({ searchParams }: PageProps) {
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Estrutura da escola</h2>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
-        {cardsEstrutura.map((card) => (
-          <MetricCard
-            key={card.href}
-            href={card.href}
-            label={card.label}
-            value={String(card.value)}
-            icon={card.icon}
-            accent={card.accent}
-          />
+        {cardsEstrutura.map((card, index) => (
+          <div key={card.href} className="animate-fade-in-up" style={{ "--stagger-delay": `${index * 60}ms` } as React.CSSProperties}>
+            <MetricCard
+              href={card.href}
+              label={card.label}
+              value={<AnimatedNumber value={card.value} />}
+              icon={card.icon}
+              accent={card.accent}
+            />
+          </div>
         ))}
       </div>
 
