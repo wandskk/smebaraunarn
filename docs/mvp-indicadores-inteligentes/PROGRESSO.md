@@ -1,6 +1,6 @@
 # Progresso — MVP de Indicadores Inteligentes
 
-**Última atualização:** 2026-08-25 (ETAPA 03 concluída)
+**Última atualização:** 2026-08-25 (ETAPA 04 concluída)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -14,7 +14,7 @@ com o Markdown correspondente em `etapas/`.
 | 01 | Central Executiva | **DONE** | 2026-08-25 |
 | 02 | Tendência temporal de frequência | **DONE** | 2026-08-25 |
 | 03 | Atenção Agora + Panorama | **DONE** | 2026-08-25 |
-| 04 | Frequência e Permanência | PENDING | — |
+| 04 | Frequência e Permanência | **DONE** | 2026-08-25 |
 | 05 | Aprendizagem e Desempenho | PENDING | — |
 | 06 | Fluxo e Trajetória + Comparativos | PENDING | — |
 | 07 | Avaliações Municipais | PENDING | — |
@@ -79,6 +79,18 @@ crítico, 1 qualidade de dados crítico, 1 frequência atenção), Panorama com
 28 escolas ordenadas corretamente, filtro por categoria funcionando. Sem
 regressão em `/admin` (Painel), que já usava `InsightCard`. Detalhe
 completo em [`etapas/03-atencao-panorama.md`](etapas/03-atencao-panorama.md).
+
+## Resumo da ETAPA 04
+
+`/admin/indicadores/frequencia` renomeada para "Frequência e Permanência",
+com 4 KPIs novos no topo (frequência média + delta, escolas em atenção/
+crítica, escolas em queda, faltas consecutivas agora) e um novo bloco
+"Ausências que exigem investigação" (top 5 escolas por contagem de faltas
+consecutivas, sem ranking/score). De quebra, corrigidos 2 links que não
+preservavam `?ano=` nos drill-downs (achado durante a etapa, regra 11 do
+master prompt). Verificado com dados reais em 2026 (ano corrente) e 2025
+(ano sem histórico de 30 dias, exercitando os estados vazios). Detalhe
+completo em [`etapas/04-frequencia.md`](etapas/04-frequencia.md).
 
 ## Regra de avanço
 

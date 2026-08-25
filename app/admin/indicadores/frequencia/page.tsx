@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, LineChart } from "lucide-react";
+import { ArrowLeft, AlertTriangle, LineChart, Percent, School, TrendingDown, Users2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
 import {
@@ -9,9 +9,11 @@ import {
   resolverDataReferenciaJanela,
   getContagemFaltasConsecutivasPorEscola,
 } from "@/lib/queries/frequencia";
+import { calcularPercentualFrequencia, calcularVariacaoFrequencia } from "@/lib/analytics/frequencia";
 import type { FaixaFrequencia, VariacaoFrequencia } from "@/lib/analytics/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard } from "@/components/ui/metric-card";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
@@ -44,12 +46,34 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
   const anosDisponiveis = anosRows.map((r) => r.ano);
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
 
+  const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
+
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
   const [escolas, evolucaoFrequenciaRede] = await Promise.all([
     getFrequenciaPorEscola({ anoLetivo, ...janela }),
     getEvolucaoFrequenciaRede({ inicio: janela.atualInicio, fim: janela.atualFim }),
   ]);
   const semHistoricoParaTendencia = escolas.length > 0 && escolas.every((e) => e.variacao === null);
+
+  // KPIs da rede (Bloco de topo) — mesma janela/agregação da Central (ETAPA 01), não a média do ano inteiro.
+  let aulasAtualRede = 0;
+  let faltasAtualRede = 0;
+  let aulasAnteriorRede = 0;
+  let faltasAnteriorRede = 0;
+  for (const e of escolas) {
+    aulasAtualRede += e.aulasAtual;
+    faltasAtualRede += e.faltasAtual;
+    aulasAnteriorRede += e.aulasAnterior;
+    faltasAnteriorRede += e.faltasAnterior;
+  }
+  const frequenciaAtualRede = calcularPercentualFrequencia(aulasAtualRede, faltasAtualRede);
+  const frequenciaAnteriorRede = calcularPercentualFrequencia(aulasAnteriorRede, faltasAnteriorRede);
+  const variacaoFrequenciaRede =
+    frequenciaAtualRede !== null && frequenciaAnteriorRede !== null
+      ? calcularVariacaoFrequencia(frequenciaAtualRede, frequenciaAnteriorRede)
+      : null;
+  const escolasEmAtencaoOuCritica = escolas.filter((e) => e.faixa === "atencao" || e.faixa === "critica").length;
+  const escolasEmQueda = escolas.filter((e) => e.variacao?.tendencia === "queda").length;
 
   const faixaDonutData: DonutChartDatum[] = (
     Object.entries(
@@ -65,24 +89,78 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
   const anoCorrente = anoLetivo === new Date().getFullYear();
   const contagemFaltasConsecutivas = anoCorrente ? await getContagemFaltasConsecutivasPorEscola() : new Map();
 
+  let totalFaltasConsecutivas = 0;
+  for (const contagem of contagemFaltasConsecutivas.values()) totalFaltasConsecutivas += contagem.total;
+
+  const nomePorEscola = new Map(escolas.map((e) => [e.escolaId, e.nomeEscola]));
+  const escolasComFaltasConsecutivas = Array.from(contagemFaltasConsecutivas.entries())
+    .filter(([, contagem]) => contagem.total > 0)
+    .sort(([, a], [, b]) => b.total - a.total)
+    .slice(0, 5)
+    .map(([escolaId, contagem]) => ({ escolaId, nomeEscola: nomePorEscola.get(escolaId) ?? `Escola #${escolaId}`, contagem }));
+
   return (
     <div>
-      <Link href="/admin/indicadores" className="inline-flex items-center gap-1 text-sm text-attendance-subtle-foreground hover:underline">
+      <Link href={comAno("/admin/indicadores")} className="inline-flex items-center gap-1 text-sm text-attendance-subtle-foreground hover:underline">
         <ArrowLeft className="h-4 w-4" />
         Central de Indicadores
       </Link>
 
       <PageHeader
         className="mt-3"
-        title="Frequência por Escola"
+        title="Frequência e Permanência"
         description={
           <>
-            Onde a frequência está piorando? Compara {janela.atualInicio} a {janela.atualFim} com os 30 dias
-            anteriores a esse período ({janela.anteriorInicio} a {janela.anteriorFim}). Ano letivo {anoLetivo}. Lista
-            ordenada da frequência mais baixa para a mais alta.
+            Onde a frequência está piorando e quais escolas ou estudantes apresentam sinais recentes de ausência?
+            Compara {janela.atualInicio} a {janela.atualFim} com os 30 dias anteriores a esse período (
+            {janela.anteriorInicio} a {janela.anteriorFim}). Ano letivo {anoLetivo}.
           </>
         }
       />
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          label="Frequência média da rede"
+          value={frequenciaAtualRede === null ? "-" : `${frequenciaAtualRede.toFixed(1)}%`}
+          icon={Percent}
+          accent="attendance"
+          helpText={
+            variacaoFrequenciaRede ? (
+              <ComparisonDelta
+                diferenca={variacaoFrequenciaRede.diferencaPontosPercentuais}
+                texto={`${variacaoFrequenciaRede.diferencaPontosPercentuais > 0 ? "+" : ""}${variacaoFrequenciaRede.diferencaPontosPercentuais.toFixed(1)} p.p. nos últimos 30 dias`}
+                favoravel={variacaoFrequenciaRede.tendencia === "estavel" ? null : variacaoFrequenciaRede.tendencia === "alta"}
+              />
+            ) : (
+              "sem histórico suficiente"
+            )
+          }
+        />
+        <MetricCard
+          label="Escolas em atenção/crítica"
+          value={formatNumber(escolasEmAtencaoOuCritica)}
+          icon={School}
+          tone={escolasEmAtencaoOuCritica > 0 ? "atencao" : "default"}
+          accent="attendance"
+          helpText={`de ${formatNumber(escolas.length)} escola(s) no recorte`}
+        />
+        <MetricCard
+          label="Escolas em queda no período"
+          value={formatNumber(escolasEmQueda)}
+          icon={TrendingDown}
+          tone={escolasEmQueda > 0 ? "atencao" : "default"}
+          accent="attendance"
+          helpText="frequência caindo vs. período anterior"
+        />
+        <MetricCard
+          label="Faltas consecutivas agora"
+          value={anoCorrente ? formatNumber(totalFaltasConsecutivas) : "-"}
+          icon={AlertTriangle}
+          tone={totalFaltasConsecutivas > 0 ? "atencao" : "default"}
+          accent="attendance"
+          helpText={anoCorrente ? "estudantes com sequência de 3+ faltas" : "só disponível para o ano letivo corrente"}
+        />
+      </div>
 
       {semHistoricoParaTendencia && (
         <p className="mt-3 max-w-2xl rounded-lg bg-warning-subtle px-3 py-2 text-sm text-warning-subtle-foreground">
@@ -127,6 +205,41 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
         </div>
       )}
 
+      {anoCorrente && (
+        <div className="mt-6">
+          <h2 className="text-sm font-semibold text-foreground">Ausências que exigem investigação</h2>
+          <p className="mt-0.5 text-xs text-foreground-muted">
+            Escolas com maior quantidade atual de estudantes em sequência de faltas — sem criar ranking de escolas.
+          </p>
+
+          {escolasComFaltasConsecutivas.length === 0 ? (
+            <EmptyState
+              className="mt-3"
+              icon={AlertTriangle}
+              title="Nenhum estudante com sequência de faltas em andamento."
+              description="O sinal aparece automaticamente assim que houver uma sequência de 3 ou mais dias letivos seguidos com falta."
+            />
+          ) : (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {escolasComFaltasConsecutivas.map(({ escolaId, nomeEscola, contagem }) => (
+                <Link
+                  key={escolaId}
+                  href={`/admin/escolas/${escolaId}?ano=${anoLetivo}`}
+                  className="block rounded-xl border border-warning/30 bg-warning-subtle p-4 transition hover:shadow-card"
+                >
+                  <p className="text-sm font-medium text-warning-subtle-foreground">{nomeEscola}</p>
+                  <p className="mt-1 text-xs text-foreground-muted">
+                    {formatNumber(contagem.total)} estudante(s) com sequência recente de faltas
+                    {contagem.critico > 0 && ` — ${formatNumber(contagem.critico)} deles na faixa mais grave definida pelo motor atual`}
+                    .
+                  </p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-6">
         <DataTable>
           <TableHeader>
@@ -146,7 +259,7 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
                 <TableRow key={escola.escolaId}>
                   <TableCell>
                     <Link
-                      href={`/admin/escolas/${escola.escolaId}`}
+                      href={comAno(`/admin/escolas/${escola.escolaId}`)}
                       className="font-medium text-foreground hover:text-attendance-subtle-foreground hover:underline"
                     >
                       {escola.nomeEscola}
@@ -179,7 +292,7 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
                     <TableCell>
                       {contagem && contagem.total > 0 ? (
                         <Link
-                          href={`/admin/escolas/${escola.escolaId}`}
+                          href={comAno(`/admin/escolas/${escola.escolaId}`)}
                           className="inline-flex items-center gap-1 text-warning-subtle-foreground hover:underline"
                         >
                           <AlertTriangle className="h-3.5 w-3.5" />
