@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { CalendarCheck, CalendarX, LayoutGrid } from "lucide-react";
+import { CalendarCheck, CalendarX, LayoutGrid, Inbox } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 import { calcularPercentualFrequencia } from "@/lib/analytics/frequencia";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 
 export default async function DirecaoFrequenciaPage() {
@@ -45,15 +48,23 @@ export default async function DirecaoFrequenciaPage() {
             icon={CalendarCheck}
             accent="attendance"
           />
-          <MetricCard label="Faltas registradas" value={String(totalFaltasEscola)} icon={CalendarX} accent="attendance" />
-          <MetricCard label="Turmas com registro" value={String(linhas.length)} icon={LayoutGrid} accent="attendance" />
+          <MetricCard
+            label="Faltas registradas"
+            value={<AnimatedNumber value={totalFaltasEscola} />}
+            icon={CalendarX}
+            accent="attendance"
+          />
+          <MetricCard
+            label="Turmas com registro"
+            value={<AnimatedNumber value={linhas.length} />}
+            icon={LayoutGrid}
+            accent="attendance"
+          />
         </div>
       )}
 
       {linhas.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhum registro de frequência para {anoAtual} ainda.
-        </p>
+        <EmptyState className="mt-8" icon={Inbox} title="Nenhum registro de frequência" description={`Nenhum registro para ${anoAtual} ainda.`} />
       ) : (
         <div className="mt-6">
           <DataTable>
@@ -78,8 +89,15 @@ export default async function DirecaoFrequenciaPage() {
                   </TableCell>
                   <TableCell className="text-foreground-muted">{l.totalAulas}</TableCell>
                   <TableCell className="text-foreground-muted">{l.totalFaltas}</TableCell>
-                  <TableCell className="text-foreground">
-                    {l.percentual !== null ? `${l.percentual.toFixed(1)}%` : "-"}
+                  <TableCell>
+                    {l.percentual === null ? (
+                      <span className="text-foreground-muted/60">-</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <RingProgress value={l.percentual} accent="attendance" size={36} strokeWidth={5} valueLabel="" />
+                        <span className="text-foreground">{l.percentual.toFixed(1)}%</span>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

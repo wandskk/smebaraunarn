@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Users } from "lucide-react";
+import { Users, LayoutGrid } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatTurmaLabel, getTurmasDaEscola } from "@/lib/queries/academico";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { SchoolOverview } from "@/components/portal/school-overview";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface PageProps {
   params: { id: string };
@@ -77,16 +78,12 @@ export default async function AdminEscolaDetalhePage({ params, searchParams }: P
 
       <h2 className="mt-8 text-sm font-semibold text-foreground">Turmas</h2>
       {todasTurmas.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhuma turma encontrada para esta escola.
-        </p>
+        <EmptyState className="mt-3" icon={LayoutGrid} title="Nenhuma turma encontrada para esta escola" />
       ) : (
         <>
           <ListToolbar searchPlaceholder="Buscar por turma..." />
           {turmas.length === 0 ? (
-            <p className="mt-3 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-              Nenhuma turma encontrada.
-            </p>
+            <EmptyState className="mt-3" icon={LayoutGrid} title="Nenhuma turma encontrada" description="Ajuste a busca acima." />
           ) : (
             <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {turmas.map((t) => (

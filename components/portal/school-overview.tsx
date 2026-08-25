@@ -1,8 +1,10 @@
+import { BarChart3 } from "lucide-react";
 import type { ComparativoEscola } from "@/lib/queries/comparativos";
 import { Card } from "@/components/ui/card";
 import { ComparisonDelta } from "@/components/ui/comparison-delta";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
 import { RingProgress } from "@/components/ui/charts/ring-progress";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function formatarPercentual(valor: number | null): string {
   return valor === null ? "-" : `${valor.toFixed(1)}%`;
@@ -48,9 +50,11 @@ export interface SchoolOverviewProps {
 export function SchoolOverview({ comparativo, anoLetivo }: SchoolOverviewProps) {
   if (!comparativo) {
     return (
-      <p className="rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-foreground-muted">
-        Sem dado suficiente para comparar esta escola com a rede no ano letivo {anoLetivo}.
-      </p>
+      <EmptyState
+        icon={BarChart3}
+        title="Sem dado suficiente para comparar"
+        description={`Não há dado suficiente para comparar esta escola com a rede no ano letivo ${anoLetivo}.`}
+      />
     );
   }
 

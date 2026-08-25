@@ -256,7 +256,7 @@ se pedido explicitamente depois.
 | V4 — Home/turmas Professor | **DONE** | 2026-08-25 |
 | V5 — Home/frequência/boletim Aluno | **DONE** | 2026-08-25 |
 | V6 — Home Servidor Geral | **DONE** | 2026-08-25 |
-| V7 — Listagens e fichas | PENDING | — |
+| V7 — Listagens e fichas | **DONE** | 2026-08-25 |
 | V8 — Avaliações Municipais | PENDING | — |
 | V9 — Administração (usuários/sync/CMS) | PENDING | — |
 
@@ -448,6 +448,39 @@ repetidas vezes em `docs/plano-evolucao-sme/PROGRESSO.md` para os outros
 (EmptyState/stagger/AnimatedNumber) usa exatamente os mesmos componentes
 já validados visualmente na V1/V2, mas não foi vista renderizada como
 DIRETOR de fato.
+
+Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
+limpo (66 rotas).
+
+## Resumo da ETAPA V7
+
+Varredura das listagens/fichas que ainda usavam a caixa tracejada genérica
+(`grep` por `border-dashed border-border bg-surface` em `app/` e
+`components/`) — a maioria das listagens já tinha um bom estado vazio via
+`TableEmptyState` (ícone + título + descrição, dentro de `<tr>`, já
+existia antes deste redesign); o achado real foram as telas em grid de
+cards e agregados, que ainda usavam a caixa antiga:
+
+- **`components/portal/school-overview.tsx`**: "Sem dado suficiente..."
+  virou `EmptyState` — esquecido na V3, corrigido agora.
+- **`/admin/escolas/[id]`**: `EmptyState` nos 2 casos de "nenhuma turma".
+- **`/portal/direcao/turmas`**: mesmo par de `EmptyState`.
+- **`/portal/direcao/frequencia`**: `EmptyState`, `AnimatedNumber` nos 2
+  `MetricCard` numéricos, `RingProgress` por linha na coluna Frequência
+  (mesmo padrão de `/admin/indicadores/frequencia` da V2).
+- **`/portal/direcao/notas`**: `EmptyState`, `AnimatedNumber` no card de
+  contagem de turmas (média geral fica texto — nota 0–10, não percentual).
+
+**Não alterado, deliberadamente**: listagens puras de tabela (Estudantes,
+Servidores, Turmas em `/admin`) já usam `TableEmptyState` — padrão
+diferente (célula de tabela, não bloco), já bom, não precisa de mudança.
+Grids paginados de card (turmas por escola) não ganharam stagger — com
+paginação de até 50 itens por página, um delay de 50ms por item acumularia
+até ~2.5s antes do último card aparecer; stagger só faz sentido em listas
+curtas de tamanho fixo (3–7 itens), como já usado em V1–V6.
+
+Validado via `/admin/escolas/[id]` (sem erro de console). `npm test`
+206/206.
 
 Baseline: `npm run typecheck` limpo, `npm run lint` limpo, `npm run build`
 limpo (66 rotas).

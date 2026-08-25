@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { Users, LayoutGrid } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { formatTurmaLabel, getTurmasDaEscola } from "@/lib/queries/academico";
 import { PageHeader } from "@/components/ui/page-header";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface PageProps {
   searchParams: { q?: string; page?: string; pageSize?: string };
@@ -29,16 +30,12 @@ export default async function DirecaoTurmasPage({ searchParams }: PageProps) {
       <PageHeader title="Turmas" description="Selecione uma turma para ver alunos, notas e frequência." />
 
       {todasTurmas.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhuma turma encontrada para esta escola.
-        </p>
+        <EmptyState className="mt-8" icon={LayoutGrid} title="Nenhuma turma encontrada para esta escola" />
       ) : (
         <>
           <ListToolbar searchPlaceholder="Buscar por turma..." />
           {turmas.length === 0 ? (
-            <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-              Nenhuma turma encontrada.
-            </p>
+            <EmptyState className="mt-8" icon={LayoutGrid} title="Nenhuma turma encontrada" description="Ajuste a busca acima." />
           ) : (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {turmas.map((t) => (

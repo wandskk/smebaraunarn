@@ -3,8 +3,10 @@ import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
-import { BarChart3, BookOpen } from "lucide-react";
+import { BarChart3, BookOpen, Inbox } from "lucide-react";
 
 export default async function DirecaoNotasPage({
   searchParams,
@@ -45,7 +47,7 @@ export default async function DirecaoNotasPage({
           <MetricCard label="Média geral da escola" value={mediaGeral.toFixed(1)} icon={BarChart3} accent="education" />
           <MetricCard
             label="Turmas com notas lançadas"
-            value={String(turmasOrdenadas.length)}
+            value={<AnimatedNumber value={turmasOrdenadas.length} />}
             icon={BookOpen}
             accent="education"
           />
@@ -53,9 +55,7 @@ export default async function DirecaoNotasPage({
       )}
 
       {turmasOrdenadas.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-foreground-muted">
-          Nenhuma nota lançada para o ano {ano} ainda.
-        </p>
+        <EmptyState className="mt-8" icon={Inbox} title="Nenhuma nota lançada" description={`Nenhuma nota lançada para o ano ${ano} ainda.`} />
       ) : (
         <div className="mt-6 space-y-8">
           {turmasOrdenadas.map((turma) => {
