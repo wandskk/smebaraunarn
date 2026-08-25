@@ -36,8 +36,8 @@ ou schema foi alterado nesta etapa.
 
 ## Regra de avanço
 
-Nunca pular etapa nem executar mais de uma por rodada. Cada etapa termina
-atualizando seu próprio `etapas/NN-*.md` (status, alterações, testes,
-decisões) e esta tabela, então **parando** e aguardando autorização
-explícita do usuário ("continue", "próxima etapa", "pode seguir", "etapa
-NN") antes de iniciar a etapa seguinte.
+Nunca pular etapa. Cada etapa termina atualizando seu próprio
+`etapas/NN-*.md` (status, alterações, testes, decisões) e esta tabela, então
+`git commit` + `git push origin main`, seguindo **automaticamente** para a
+próxima etapa sem parar para autorização — instrução do usuário em
+2026-08-25 ("sempre que concluir uma etapa, pode subir, e continuar").

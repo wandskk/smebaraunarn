@@ -21,12 +21,13 @@ que já existem.
 
 ## Regra de execução
 
-Execução **uma ETAPA por vez**, seguindo
-[`plano-evolucao-sme`](../plano-evolucao-sme/README.md) como precedente: ao
-final de cada etapa, atualizar o Markdown da etapa + este índice
-(`PROGRESSO.md`), rodar `npm test && npm run typecheck && npm run lint && npm run build`,
-verificar visualmente (mobile/desktop), e **parar** aguardando autorização
-explícita do usuário antes de iniciar a etapa seguinte.
+Execução **uma ETAPA por vez**, com **auto-avanço**: ao final de cada etapa,
+atualizar o Markdown da etapa + este índice (`PROGRESSO.md`), rodar
+`npm test && npm run typecheck && npm run lint && npm run build`, verificar
+visualmente (mobile/desktop), `git commit` + `git push origin main`, e
+seguir direto para a próxima etapa **sem parar para autorização** — mesmo
+padrão de `docs/redesign-visual/`. Só parar se surgir uma decisão de
+produto/design que exija o usuário.
 
 ## O que já existe e NÃO deve ser reconstruído
 
