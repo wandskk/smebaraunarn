@@ -71,10 +71,15 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
         title="Avaliações Municipais"
         description={`Fluência Leitora, SPADEB, simulados e provas municipais. ${total} avaliação(ões).`}
         actions={
-          <Link href="/admin/avaliacoes/new" className={buttonVariants({ variant: "primary" })}>
-            <Plus className="h-4 w-4" />
-            Nova Avaliação
-          </Link>
+          <>
+            <Link href="/admin/avaliacoes/caed/importar" className={buttonVariants({ variant: "secondary" })}>
+              Importar CAEd
+            </Link>
+            <Link href="/admin/avaliacoes/new" className={buttonVariants({ variant: "primary" })}>
+              <Plus className="h-4 w-4" />
+              Nova Avaliação
+            </Link>
+          </>
         }
       />
 

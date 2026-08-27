@@ -1,6 +1,12 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { deriveStatusAvaliacao, calcularAnalisePorItem, calcularDistribuicaoFluencia } from "./avaliacoes";
+import {
+  deriveStatusAvaliacao,
+  calcularAnalisePorItem,
+  calcularDistribuicaoFluencia,
+  calcularResumoResultadosTurma,
+  type ResultadoTurmaInput,
+} from "./avaliacoes";
 
 describe("deriveStatusAvaliacao", () => {
   test("sem nenhum resultado -> preparacao", () => {
@@ -151,5 +157,69 @@ describe("calcularDistribuicaoFluencia", () => {
     const resultado = calcularDistribuicaoFluencia([], niveis);
     assert.ok(resultado.porNivel.every((n) => n.quantidade === 0));
     assert.equal(resultado.semNivel, 0);
+  });
+});
+
+describe("calcularResumoResultadosTurma", () => {
+  function linha(overrides: Partial<ResultadoTurmaInput>): ResultadoTurmaInput {
+    return {
+      escolaId: 1,
+      escolaNome: "Escola A",
+      turma: "5A",
+      percentualParticipacao: 100,
+      percentualDefasagem: 20,
+      percentualIntermediario: 30,
+      percentualAdequado: 50,
+      acertoPorHabilidade: null,
+      ...overrides,
+    };
+  }
+
+  test("calcula a média simples de cada percentual entre as linhas", () => {
+    const resumo = calcularResumoResultadosTurma([
+      linha({ percentualAdequado: 40 }),
+      linha({ percentualAdequado: 60 }),
+    ]);
+    assert.equal(resumo.mediaAdequado, 50);
+    assert.equal(resumo.mediaParticipacao, 100);
+  });
+
+  test("ignora linhas com percentual null ao calcular a média, não trata como zero", () => {
+    const resumo = calcularResumoResultadosTurma([
+      linha({ percentualAdequado: 80 }),
+      linha({ percentualAdequado: null }),
+    ]);
+    assert.equal(resumo.mediaAdequado, 80);
+  });
+
+  test("lista vazia retorna médias null, nunca zero ou NaN", () => {
+    const resumo = calcularResumoResultadosTurma([]);
+    assert.equal(resumo.mediaParticipacao, null);
+    assert.equal(resumo.mediaAdequado, null);
+    assert.deepEqual(resumo.porHabilidade, []);
+  });
+
+  test("ordena porEscola por nome da escola e depois por turma", () => {
+    const resumo = calcularResumoResultadosTurma([
+      linha({ escolaNome: "Escola B", turma: "1A" }),
+      linha({ escolaNome: "Escola A", turma: "2A" }),
+      linha({ escolaNome: "Escola A", turma: "1A" }),
+    ]);
+    assert.deepEqual(
+      resumo.porEscola.map((l) => `${l.escolaNome}/${l.turma}`),
+      ["Escola A/1A", "Escola A/2A", "Escola B/1A"],
+    );
+  });
+
+  test("agrega acertoPorHabilidade em média por habilidade através das linhas que a reportam", () => {
+    const resumo = calcularResumoResultadosTurma([
+      linha({ acertoPorHabilidade: { H01: 80, H02: 40 } }),
+      linha({ acertoPorHabilidade: { H01: 60 } }),
+      linha({ acertoPorHabilidade: null }),
+    ]);
+    assert.deepEqual(resumo.porHabilidade, [
+      { habilidade: "H01", percentualMedioAcerto: 70 },
+      { habilidade: "H02", percentualMedioAcerto: 40 },
+    ]);
   });
 });

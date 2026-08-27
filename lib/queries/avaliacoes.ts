@@ -4,10 +4,12 @@ import {
   deriveStatusAvaliacao,
   calcularAnalisePorItem,
   calcularDistribuicaoFluencia,
+  calcularResumoResultadosTurma,
   type StatusAvaliacao,
   type AnaliseItemResultado,
   type AnaliseDescritorResultado,
   type DistribuicaoFluencia,
+  type ResumoResultadosTurma,
 } from "@/lib/analytics/avaliacoes";
 
 export { STATUS_AVALIACAO_LABEL, type StatusAvaliacao } from "@/lib/analytics/avaliacoes";
@@ -18,6 +20,7 @@ export const TIPO_AVALIACAO_LABEL: Record<TipoAvaliacao, string> = {
   SPADEB: "SPADEB",
   SIMULADO: "Simulado",
   PROVA_MUNICIPAL: "Prova Municipal",
+  AVALIACAO_CONTINUA_CAED: "Avaliação Contínua da Aprendizagem (CAEd)",
 };
 
 export const NIVEL_FLUENCIA_LABEL: Record<NivelFluencia, string> = {
@@ -509,4 +512,32 @@ export async function getDistribuicaoFluencia(avaliacaoId: string, scope: Avalia
   });
 
   return calcularDistribuicaoFluencia(resultados, Object.keys(NIVEL_FLUENCIA_LABEL));
+}
+
+/**
+ * Indicadores agregados por escola/turma vindos de `AvaliacaoResultadoTurma`
+ * — fontes externas que só publicam nesse nível, sem aluno identificável
+ * (ex.: Avaliação Contínua da Aprendizagem do CAEd). `null` quando a
+ * avaliação não tem nenhuma linha desse tipo (o caso comum: avaliações
+ * lançadas manualmente, que usam só `AvaliacaoResultadoAluno`).
+ */
+export async function getResumoResultadosTurma(avaliacaoId: string): Promise<ResumoResultadosTurma | null> {
+  const linhas = await prisma.avaliacaoResultadoTurma.findMany({
+    where: { avaliacaoId },
+    include: { escola: { select: { nome: true } } },
+  });
+  if (linhas.length === 0) return null;
+
+  return calcularResumoResultadosTurma(
+    linhas.map((l) => ({
+      escolaId: l.escolaId,
+      escolaNome: l.escola.nome,
+      turma: l.turma,
+      percentualParticipacao: l.percentualParticipacao,
+      percentualDefasagem: l.percentualDefasagem,
+      percentualIntermediario: l.percentualIntermediario,
+      percentualAdequado: l.percentualAdequado,
+      acertoPorHabilidade: l.acertoPorHabilidade as Record<string, number> | null,
+    })),
+  );
 }

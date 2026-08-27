@@ -29,6 +29,7 @@ enum TipoAvaliacao {
   SPADEB
   SIMULADO
   PROVA_MUNICIPAL
+  AVALIACAO_CONTINUA_CAED
 }
 
 enum NivelFluencia {
@@ -65,6 +66,7 @@ model Escola {
   servidores  Servidor[]
   estudantes  Estudante[]
   avaliacoesResultados AvaliacaoResultadoAluno[]
+  avaliacoesResultadosTurma AvaliacaoResultadoTurma[]
   servidorTurmas ServidorTurma[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -255,6 +257,7 @@ model Avaliacao {
   ativo       Boolean        @default(true)
   questoes    AvaliacaoQuestao[]
   resultados  AvaliacaoResultadoAluno[]
+  resultadosTurma AvaliacaoResultadoTurma[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 }
@@ -288,6 +291,27 @@ model AvaliacaoResultadoAluno {
   updatedAt        DateTime       @updatedAt
 
   @@unique([avaliacaoId, estudanteId])
+}
+
+// Resultado agregado por turma — usado por fontes externas que só
+// publicam indicadores no nível de turma/escola, sem identificar aluno
+// (ex.: Avaliação Contínua da Aprendizagem do CAEd/Criança Alfabetizada).
+model AvaliacaoResultadoTurma {
+  id                      String    @id @default(cuid())
+  avaliacaoId             String
+  avaliacao               Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  escolaId                Int
+  escola                  Escola    @relation(fields: [escolaId], references: [id])
+  turma                   String
+  percentualParticipacao  Float?
+  percentualDefasagem     Float?
+  percentualIntermediario Float?
+  percentualAdequado      Float?
+  acertoPorHabilidade     Json?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@unique([avaliacaoId, escolaId, turma])
 }
 
 model LogSincronizacao {

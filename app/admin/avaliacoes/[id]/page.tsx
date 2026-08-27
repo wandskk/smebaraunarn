@@ -9,6 +9,7 @@ import {
   getAvaliacaoDetalhe,
   getAnaliseItensAvaliacao,
   getDistribuicaoFluencia,
+  getResumoResultadosTurma,
 } from "@/lib/queries/avaliacoes";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
 import { QuestaoForm } from "./questao-form";
@@ -32,6 +33,7 @@ import { HorizontalBarChart, type HorizontalBarDatum } from "@/components/ui/cha
 import { MiniBarChart, type MiniBarDatum } from "@/components/ui/charts/mini-bar-chart";
 import { ClipboardCheck, ClipboardList, Pencil, Percent, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CAED_TURMA_SENTINELA_ESCOLA } from "@/lib/caed-catalogo";
 
 const MAXIMO_ITENS_NO_GRAFICO = 10;
 
@@ -88,6 +90,10 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
     tab === "analise" && avaliacaoBase.tipo === "FLUENCIA_LEITORA"
       ? await getDistribuicaoFluencia(params.id, { kind: "rede" })
       : null;
+  const resumoTurma =
+    tab === "visao-geral" && avaliacaoBase.tipo === "AVALIACAO_CONTINUA_CAED"
+      ? await getResumoResultadosTurma(params.id)
+      : null;
 
   // "Menor % de acerto primeiro" — o mesmo objetivo do exemplo da seção 14
   // do plano ("aponta onde investigar", nunca prescreve intervenção).
@@ -118,6 +124,33 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
           label: d.descritor,
           value: d.percentualAcerto,
           valueLabel: `${d.percentualAcerto.toFixed(0)}% de acerto`,
+          accent: "danger",
+        }))
+    : [];
+
+  const escolasComMenorAdequado: HorizontalBarDatum[] = resumoTurma
+    ? resumoTurma.porEscola
+        .filter((l): l is typeof l & { percentualAdequado: number } => l.percentualAdequado !== null)
+        .sort((a, b) => a.percentualAdequado - b.percentualAdequado)
+        .slice(0, MAXIMO_ITENS_NO_GRAFICO)
+        .reverse()
+        .map((l) => ({
+          label: l.turma === CAED_TURMA_SENTINELA_ESCOLA ? l.escolaNome : `${l.escolaNome} — ${l.turma}`,
+          value: l.percentualAdequado,
+          valueLabel: `${l.percentualAdequado.toFixed(0)}% adequado`,
+          accent: "danger",
+        }))
+    : [];
+
+  const habilidadesComMenorAcerto: HorizontalBarDatum[] = resumoTurma
+    ? [...resumoTurma.porHabilidade]
+        .sort((a, b) => a.percentualMedioAcerto - b.percentualMedioAcerto)
+        .slice(0, MAXIMO_ITENS_NO_GRAFICO)
+        .reverse()
+        .map((h) => ({
+          label: h.habilidade,
+          value: h.percentualMedioAcerto,
+          valueLabel: `${h.percentualMedioAcerto.toFixed(0)}% de acerto`,
           accent: "danger",
         }))
     : [];
@@ -264,6 +297,92 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
                         </TableCell>
                         <TableCell>
                           <Badge variant={t.completa ? "success" : "warning"}>{t.completa ? "Completa" : "Parcial"}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </DataTable>
+              </div>
+            </div>
+          )}
+
+          {resumoTurma && (
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Indicadores por escola/turma (CAEd)</h2>
+              <p className="mt-1 text-xs text-foreground-muted/70">
+                Dados agregados importados do portal Criança Alfabetizada (CAEd/UFJF) — a fonte não identifica aluno,
+                só participação e faixas de aprendizagem por turma (ou pela escola inteira, quando marcado
+                &quot;{CAED_TURMA_SENTINELA_ESCOLA}&quot;). Médias simples entre as linhas, não ponderadas por
+                matriculados.
+              </p>
+
+              <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                <MetricCard
+                  label="Participação média"
+                  value={resumoTurma.mediaParticipacao !== null ? `${resumoTurma.mediaParticipacao.toFixed(0)}%` : "-"}
+                  icon={Users}
+                  accent="info"
+                />
+                <MetricCard
+                  label="% médio em defasagem"
+                  value={resumoTurma.mediaDefasagem !== null ? `${resumoTurma.mediaDefasagem.toFixed(0)}%` : "-"}
+                  icon={Percent}
+                  accent="warning"
+                />
+                <MetricCard
+                  label="% médio adequado"
+                  value={resumoTurma.mediaAdequado !== null ? `${resumoTurma.mediaAdequado.toFixed(0)}%` : "-"}
+                  icon={ClipboardCheck}
+                  accent="education"
+                />
+              </div>
+
+              {escolasComMenorAdequado.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-foreground">Escolas/turmas com menor % adequado</h3>
+                  <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+                    <HorizontalBarChart data={escolasComMenorAdequado} accent="danger" />
+                  </div>
+                </div>
+              )}
+
+              {habilidadesComMenorAcerto.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-foreground">Habilidades com menor % de acerto</h3>
+                  <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+                    <HorizontalBarChart data={habilidadesComMenorAcerto} accent="danger" />
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6">
+                <DataTable>
+                  <TableHeader>
+                    <tr>
+                      <TableHeadCell>Escola</TableHeadCell>
+                      <TableHeadCell>Turma</TableHeadCell>
+                      <TableHeadCell>Participação</TableHeadCell>
+                      <TableHeadCell>Defasagem</TableHeadCell>
+                      <TableHeadCell>Intermediário</TableHeadCell>
+                      <TableHeadCell>Adequado</TableHeadCell>
+                    </tr>
+                  </TableHeader>
+                  <TableBody>
+                    {resumoTurma.porEscola.map((l) => (
+                      <TableRow key={`${l.escolaId}:${l.turma}`}>
+                        <TableCell className="font-medium text-foreground">{l.escolaNome}</TableCell>
+                        <TableCell className="text-foreground-muted">{l.turma}</TableCell>
+                        <TableCell className="text-foreground-muted">
+                          {l.percentualParticipacao !== null ? `${l.percentualParticipacao}%` : "-"}
+                        </TableCell>
+                        <TableCell className="text-foreground-muted">
+                          {l.percentualDefasagem !== null ? `${l.percentualDefasagem}%` : "-"}
+                        </TableCell>
+                        <TableCell className="text-foreground-muted">
+                          {l.percentualIntermediario !== null ? `${l.percentualIntermediario}%` : "-"}
+                        </TableCell>
+                        <TableCell className="text-foreground-muted">
+                          {l.percentualAdequado !== null ? `${l.percentualAdequado}%` : "-"}
                         </TableCell>
                       </TableRow>
                     ))}

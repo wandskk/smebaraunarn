@@ -183,3 +183,67 @@ export function calcularDistribuicaoFluencia(
 
   return { porNivel, semNivel, palavrasPorMinuto };
 }
+
+export interface ResultadoTurmaInput {
+  escolaId: number;
+  escolaNome: string;
+  turma: string;
+  percentualParticipacao: number | null;
+  percentualDefasagem: number | null;
+  percentualIntermediario: number | null;
+  percentualAdequado: number | null;
+  acertoPorHabilidade: Record<string, number> | null;
+}
+
+export interface ResumoHabilidadeTurma {
+  habilidade: string;
+  percentualMedioAcerto: number;
+}
+
+export interface ResumoResultadosTurma {
+  porEscola: ResultadoTurmaInput[];
+  mediaParticipacao: number | null;
+  mediaDefasagem: number | null;
+  mediaIntermediario: number | null;
+  mediaAdequado: number | null;
+  /** Média do % de acerto de cada habilidade através das linhas que a reportaram — vazio quando a fonte não traz essa quebra. */
+  porHabilidade: ResumoHabilidadeTurma[];
+}
+
+function media(valores: (number | null)[]): number | null {
+  const validos = valores.filter((v): v is number => v !== null);
+  return validos.length > 0 ? validos.reduce((soma, v) => soma + v, 0) / validos.length : null;
+}
+
+/**
+ * Agrega indicadores de `AvaliacaoResultadoTurma` — fontes externas que só
+ * publicam no nível de turma/escola (ex.: CAEd/Criança Alfabetizada), sem
+ * identificar aluno. Médias são simples entre as linhas (sem ponderar por
+ * matriculados, que esse modelo não guarda) — suficiente para apontar onde
+ * investigar, nunca uma nota oficial da rede.
+ */
+export function calcularResumoResultadosTurma(linhas: ResultadoTurmaInput[]): ResumoResultadosTurma {
+  const porHabilidadeMap = new Map<string, number[]>();
+  for (const linha of linhas) {
+    if (!linha.acertoPorHabilidade) continue;
+    for (const [habilidade, percentual] of Object.entries(linha.acertoPorHabilidade)) {
+      if (!porHabilidadeMap.has(habilidade)) porHabilidadeMap.set(habilidade, []);
+      porHabilidadeMap.get(habilidade)!.push(percentual);
+    }
+  }
+  const porHabilidade: ResumoHabilidadeTurma[] = Array.from(porHabilidadeMap.entries())
+    .map(([habilidade, percentuais]) => ({
+      habilidade,
+      percentualMedioAcerto: percentuais.reduce((soma, v) => soma + v, 0) / percentuais.length,
+    }))
+    .sort((a, b) => a.habilidade.localeCompare(b.habilidade));
+
+  return {
+    porEscola: [...linhas].sort((a, b) => a.escolaNome.localeCompare(b.escolaNome) || a.turma.localeCompare(b.turma)),
+    mediaParticipacao: media(linhas.map((l) => l.percentualParticipacao)),
+    mediaDefasagem: media(linhas.map((l) => l.percentualDefasagem)),
+    mediaIntermediario: media(linhas.map((l) => l.percentualIntermediario)),
+    mediaAdequado: media(linhas.map((l) => l.percentualAdequado)),
+    porHabilidade,
+  };
+}
