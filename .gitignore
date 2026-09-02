@@ -23,3 +23,7 @@ next-env.d.ts
 
 # carga histórica (scripts/sync-historico.ts) — estado local de progresso, não é código
 scripts/.sync-historico-progresso.json
+.caed_session
+# dados brutos extraídos do CAEd (nome de aluno — PII), nunca commitar
+scripts/caed_*.jsonl
+
