@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { validarLinhasQuestao, interpretarNivelFluencia, extrairRespostasPorItem } from "./avaliacoes-import";
+import { validarLinhasQuestao, interpretarNivelFluencia, extrairRespostasPorItem, normalizarNomeComparacao } from "./avaliacoes-import";
 
 describe("validarLinhasQuestao", () => {
   test("aceita linha válida com número e peso padrão", () => {
@@ -74,5 +74,19 @@ describe("extrairRespostasPorItem", () => {
   test("não confunde uma coluna 'q' sem número com resposta", () => {
     const respostas = extrairRespostasPorItem({ qualquer: "X" });
     assert.deepEqual(respostas, {});
+  });
+});
+
+describe("normalizarNomeComparacao", () => {
+  test("remove acentos e maiusculiza", () => {
+    assert.equal(normalizarNomeComparacao("Flávio Emanoel Silva"), "FLAVIO EMANOEL SILVA");
+  });
+
+  test("colapsa espaços duplos e remove espaços nas pontas", () => {
+    assert.equal(normalizarNomeComparacao("  Hugo Fernando  da Silva Duarte "), "HUGO FERNANDO DA SILVA DUARTE");
+  });
+
+  test("nomes já equivalentes sem acento continuam iguais entre si", () => {
+    assert.equal(normalizarNomeComparacao("Maria Júlia"), normalizarNomeComparacao("MARIA JULIA"));
   });
 });

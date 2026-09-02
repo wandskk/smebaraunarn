@@ -186,7 +186,7 @@ export default async function DirecaoAvaliacaoDetalhePage({ params, searchParams
             {itens.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium text-foreground">{r.nomeEstudante}</TableCell>
-                <TableCell className="text-foreground-muted">{r.turma}</TableCell>
+                <TableCell className="text-foreground-muted">{r.turma ?? "-"}</TableCell>
                 <TableCell className="text-foreground-muted">{r.pontuacao ?? "-"}</TableCell>
                 <TableCell className="text-foreground-muted">
                   {r.nivelDesempenho ? NIVEL_FLUENCIA_LABEL[r.nivelDesempenho] : "-"}

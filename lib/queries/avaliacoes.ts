@@ -98,6 +98,13 @@ export interface AvaliacaoDetalheEscola {
     turmasCompletas: number;
     turmasParciais: number;
   };
+  /**
+   * Resultados de fonte externa (ex.: CAEd) sem vínculo confirmado com
+   * Estudante — não entram no cálculo de cobertura acima (não sabemos a
+   * turma pra comparar com matriculados), mas continuam contados aqui pra
+   * não esconder a estatística que a fonte original tem.
+   */
+  semVinculo: number;
   porTurma: AvaliacaoCoberturaTurma[];
   turmasDisponiveis: string[];
   /**
@@ -117,10 +124,12 @@ export interface FiltroResultadosAvaliacao {
 
 export interface ResultadoAvaliacaoItem {
   id: string;
-  estudanteId: number;
+  /** null quando é um resultado de fonte externa sem vínculo confirmado com Estudante (ver `AvaliacaoResultadoAluno.nomeBruto`). */
+  estudanteId: number | null;
   nomeEstudante: string;
   escolaId: number;
-  turma: string;
+  /** null só no caso sem vínculo — sem Estudante não há turmaSerie a copiar. */
+  turma: string | null;
   pontuacao: number | null;
   nivelDesempenho: NivelFluencia | null;
   palavrasPorMin: number | null;
@@ -233,10 +242,13 @@ export async function getAvaliacoesResultadosPorEstudante(estudanteId: number): 
 export async function getAvaliacoesResumo(scope: AvaliacaoScope): Promise<AvaliacaoResumoEscola[]> {
   if (scope.kind === "professor" && scope.atribuicoes.length === 0) return [];
 
-  const resultados = await prisma.avaliacaoResultadoAluno.findMany({
+  const todosResultados = await prisma.avaliacaoResultadoAluno.findMany({
     where: whereResultadoPorScope(scope),
     select: { avaliacaoId: true, escolaId: true, turma: true, updatedAt: true },
   });
+  // Resultados sem vínculo (turma null, ver AvaliacaoResultadoAluno.nomeBruto) não entram
+  // nesta cobertura por turma — sem Estudante não há turma pra comparar com matriculados.
+  const resultados = todosResultados.filter((r): r is typeof r & { turma: string } => r.turma !== null);
   if (resultados.length === 0) return [];
 
   const avaliacaoIds = Array.from(new Set(resultados.map((r) => r.avaliacaoId)));
@@ -308,10 +320,12 @@ export interface CoberturaResumo {
 export async function getCoberturaResumoPorAvaliacoes(avaliacaoIds: string[]): Promise<Map<string, CoberturaResumo>> {
   if (avaliacaoIds.length === 0) return new Map();
 
-  const resultados = await prisma.avaliacaoResultadoAluno.findMany({
+  const todosResultados = await prisma.avaliacaoResultadoAluno.findMany({
     where: { avaliacaoId: { in: avaliacaoIds } },
     select: { avaliacaoId: true, escolaId: true, turma: true },
   });
+  // Resultados sem vínculo (turma null) não entram nesta cobertura — ver getAvaliacoesResumo.
+  const resultados = todosResultados.filter((r): r is typeof r & { turma: string } => r.turma !== null);
   if (resultados.length === 0) return new Map();
 
   const chavesTurma = Array.from(new Set(resultados.map((r) => chaveTurma(r.escolaId, r.turma)))).map((k) => {
@@ -367,15 +381,22 @@ export async function getAvaliacaoDetalhe(
   if (!avaliacao) return null;
   if (scope.kind !== "rede" && todosResultados.length === 0) return null;
 
-  const chavesTurma = Array.from(new Set(todosResultados.map((r) => chaveTurma(r.escolaId, r.turma)))).map((k) => {
+  // Resultados sem vínculo (turma null) não entram na aritmética de
+  // cobertura por turma — sem Estudante não há como comparar com
+  // matriculados — mas continuam contados em `semVinculo` e em
+  // `escolasPendentes` (baseado em todosResultados, não só vinculados).
+  const resultadosVinculados = todosResultados.filter((r): r is { escolaId: number; turma: string } => r.turma !== null);
+  const semVinculo = todosResultados.length - resultadosVinculados.length;
+
+  const chavesTurma = Array.from(new Set(resultadosVinculados.map((r) => chaveTurma(r.escolaId, r.turma)))).map((k) => {
     const [escolaId, turma] = k.split(":");
     return { escolaId: Number(escolaId), turma: turma! };
   });
-  const turmasDisponiveis = Array.from(new Set(todosResultados.map((r) => r.turma))).sort();
+  const turmasDisponiveis = Array.from(new Set(resultadosVinculados.map((r) => r.turma))).sort();
   const matriculadosPorTurma = await contarMatriculadosPorTurma(chavesTurma);
 
   const resultadosPorTurma = new Map<string, number>();
-  for (const r of todosResultados) {
+  for (const r of resultadosVinculados) {
     const chave = chaveTurma(r.escolaId, r.turma);
     resultadosPorTurma.set(chave, (resultadosPorTurma.get(chave) ?? 0) + 1);
   }
@@ -395,7 +416,7 @@ export async function getAvaliacaoDetalhe(
   });
 
   const esperado = porTurma.reduce((soma, t) => soma + t.matriculados, 0);
-  const realizado = todosResultados.length;
+  const realizado = resultadosVinculados.length;
   const turmasCompletas = porTurma.filter((t) => t.completa).length;
   const turmasParciais = porTurma.filter((t) => !t.completa).length;
 
@@ -443,6 +464,7 @@ export async function getAvaliacaoDetalhe(
         turmasCompletas,
         turmasParciais,
       },
+      semVinculo,
       porTurma,
       turmasDisponiveis,
       escolasPendentes,
@@ -450,7 +472,7 @@ export async function getAvaliacaoDetalhe(
     itens: resultadosPagina.map((r) => ({
       id: r.id,
       estudanteId: r.estudanteId,
-      nomeEstudante: r.estudante.nome,
+      nomeEstudante: r.estudante?.nome ?? r.nomeBruto ?? "(nome não vinculado)",
       escolaId: r.escolaId,
       turma: r.turma,
       pontuacao: r.pontuacao,

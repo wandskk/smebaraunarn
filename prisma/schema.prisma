@@ -277,11 +277,20 @@ model AvaliacaoResultadoAluno {
   id               String         @id @default(cuid())
   avaliacaoId      String
   avaliacao        Avaliacao      @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
-  estudanteId      Int
-  estudante        Estudante      @relation(fields: [estudanteId], references: [id], onDelete: Cascade)
+  // Opcional: fontes externas (ex.: CAEd) podem trazer um resultado cujo
+  // nome não bate com nenhum Estudante do nosso cadastro — em vez de
+  // descartar a linha (perdendo a estatística que a fonte original tem),
+  // ela é gravada sem vínculo, com o nome bruto em `nomeBruto`. Nunca
+  // usado pelo lançamento manual/CSV de Avaliações Municipais, que sempre
+  // exige um Estudante resolvido antes de gravar.
+  estudanteId      Int?
+  estudante        Estudante?     @relation(fields: [estudanteId], references: [id], onDelete: Cascade)
+  nomeBruto        String?
   escolaId         Int
   escola           Escola         @relation(fields: [escolaId], references: [id])
-  turma            String
+  // Null só no caso de resultado sem vínculo — sem Estudante não há
+  // turmaSerie a copiar, e a origem externa não traz turma nossa.
+  turma            String?
   pontuacao        Float?
   nivelDesempenho  NivelFluencia?
   palavrasPorMin   Int?

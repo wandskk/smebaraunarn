@@ -200,7 +200,7 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
           >
             {t.label}
             {t.id === "questoes" && ` (${avaliacaoBase.questoes.length})`}
-            {t.id === "resultados" && ` (${avaliacao.cobertura.realizado})`}
+            {t.id === "resultados" && ` (${avaliacao.cobertura.realizado + avaliacao.semVinculo})`}
           </Link>
         ))}
       </nav>
@@ -211,6 +211,14 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
             <p className="text-sm text-foreground-muted">
               {avaliacao.cobertura.percentual.toFixed(0)}% dos estudantes esperados nas turmas já iniciadas possuem
               resultado registrado.
+            </p>
+          )}
+
+          {avaliacao.semVinculo > 0 && (
+            <p className="text-xs text-foreground-muted/70">
+              +{avaliacao.semVinculo} resultado(s) da fonte externa sem vínculo confirmado com um estudante do
+              cadastro (nome não encontrado ou ambíguo) — não entram na cobertura acima, mas ficam listados na aba
+              Resultados para não perder o dado da fonte original.
             </p>
           )}
 
@@ -501,7 +509,7 @@ export default async function AvaliacaoDetailPage({ params, searchParams }: Page
                 {itens.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium text-foreground">{r.nomeEstudante}</TableCell>
-                    <TableCell className="text-foreground-muted">{r.turma}</TableCell>
+                    <TableCell className="text-foreground-muted">{r.turma ?? "-"}</TableCell>
                     <TableCell className="text-foreground-muted">{r.pontuacao ?? "-"}</TableCell>
                     <TableCell className="text-foreground-muted">
                       {r.nivelDesempenho ? NIVEL_LABEL[r.nivelDesempenho] : "-"}

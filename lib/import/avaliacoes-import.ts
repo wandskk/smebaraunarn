@@ -160,6 +160,20 @@ interface EstudanteResumo {
 }
 
 /**
+ * Normaliza um nome para comparação tolerante a acento (maiúsculo, sem
+ * diacríticos, espaços colapsados) — usado só como critério de *fallback*
+ * quando a busca exata falhar, nunca para a busca principal (index-friendly).
+ */
+export function normalizarNomeComparacao(nome: string): string {
+  return nome
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Resolve o estudante de uma linha por matrícula, CPF, ou (nome + escola
  * opcionalmente + turma) — nessa ordem de prioridade. Nome sozinho, sem
  * nenhum outro dado, tende a ser ambíguo numa rede de milhares de alunos;
@@ -199,7 +213,7 @@ async function resolverEstudante(linha: LinhaTabular): Promise<{ candidatos: Est
     escolaId = escola?.id;
   }
 
-  const candidatos = await prisma.estudante.findMany({
+  let candidatos = await prisma.estudante.findMany({
     where: {
       nome: { equals: nome, mode: "insensitive" },
       ...(escolaId ? { escolaId } : {}),
@@ -207,6 +221,19 @@ async function resolverEstudante(linha: LinhaTabular): Promise<{ candidatos: Est
     },
     select: { id: true, nome: true, escolaId: true, turmaSerie: true },
   });
+
+  // Fallback só quando a escola é conhecida (nunca busca acento-insensível
+  // rede inteira, pra não arriscar casar com aluno de outra escola por
+  // coincidência de nome) — a busca exata acima falha em fontes externas
+  // (ex.: CAEd) que às vezes divergem só na acentuação do nosso cadastro.
+  if (candidatos.length === 0 && escolaId) {
+    const doEscopo = await prisma.estudante.findMany({
+      where: { escolaId, ...(turmaTexto ? { turmaSerie: turmaTexto } : {}) },
+      select: { id: true, nome: true, escolaId: true, turmaSerie: true },
+    });
+    const alvo = normalizarNomeComparacao(nome);
+    candidatos = doEscopo.filter((e) => normalizarNomeComparacao(e.nome) === alvo);
+  }
 
   const partes = [nome, escolaTexto && `escola "${escolaTexto}"`, turmaTexto && `turma "${turmaTexto}"`].filter(Boolean);
   return { candidatos, identificador: partes.join(" · ") };
@@ -322,6 +349,40 @@ export async function commitResultadosImportados(avaliacaoId: string, linhas: Re
   }
 
   return validas.length;
+}
+
+export interface ResultadoNaoVinculado {
+  escolaId: number;
+  nomeBruto: string;
+}
+
+/**
+ * Grava resultados de fontes externas (ex.: CAEd) cujo nome não bateu com
+ * nenhum Estudante do nosso cadastro — sem `estudanteId`, para não perder a
+ * estatística que a fonte original tem (participação/nível por nome), só
+ * sem o vínculo. `escolaId` continua conhecido (resolvido pela fonte
+ * independente do match de aluno); `turma` fica null porque, sem Estudante,
+ * não há `turmaSerie` a copiar.
+ *
+ * Sem chave única de banco pra (avaliacaoId, escolaId, nomeBruto) — `estudanteId`
+ * null não serve de chave (Postgres trata cada NULL como distinto) — por
+ * isso o dedup é feito aqui, uma consulta por linha, pra reimportação não
+ * duplicar a mesma linha sem vínculo.
+ */
+export async function commitResultadosNaoVinculados(avaliacaoId: string, linhas: ResultadoNaoVinculado[]): Promise<number> {
+  let gravados = 0;
+  for (const linha of linhas) {
+    const existente = await prisma.avaliacaoResultadoAluno.findFirst({
+      where: { avaliacaoId, estudanteId: null, escolaId: linha.escolaId, nomeBruto: linha.nomeBruto },
+      select: { id: true },
+    });
+    if (existente) continue;
+    await prisma.avaliacaoResultadoAluno.create({
+      data: { avaliacaoId, escolaId: linha.escolaId, nomeBruto: linha.nomeBruto },
+    });
+    gravados++;
+  }
+  return gravados;
 }
 
 /**

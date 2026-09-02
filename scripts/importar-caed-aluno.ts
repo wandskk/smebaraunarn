@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { prisma } from "../lib/prisma";
-import { validarLinhasResultado, commitResultadosImportados } from "../lib/import/avaliacoes-import";
+import { validarLinhasResultado, commitResultadosImportados, commitResultadosNaoVinculados, type ResultadoNaoVinculado } from "../lib/import/avaliacoes-import";
 import { CAED_ANOS_ESCOLARES, CAED_COMPONENTES } from "../lib/caed-catalogo";
 import type { LinhaTabular } from "../lib/import/parse-tabular";
 
@@ -10,8 +10,12 @@ import type { LinhaTabular } from "../lib/import/parse-tabular";
  * CSV nesse nível, só a tabela em tela, sem matrícula/CPF. Por isso o
  * casamento com nosso Estudante é só por nome + escola (mesma função
  * `resolverEstudante` já usada no importador de resultados por aluno das
- * Avaliações Municipais), com linhas ambíguas/não encontradas sinalizadas
- * em vez de gravadas incorretamente.
+ * Avaliações Municipais). Linhas ambíguas (nome bate com mais de um
+ * Estudante da mesma escola) ficam de fora — arriscado demais escolher uma.
+ * Linhas "não encontrado" (nome não bate com nenhum Estudante da escola)
+ * são gravadas mesmo assim, sem vínculo (`commitResultadosNaoVinculados`) —
+ * pra não perder a estatística que a fonte original (CAEd) já tem só
+ * porque o nosso cadastro de estudantes não confirma quem é.
  *
  * A turma do CAEd não é usada como filtro de casamento (o texto livre não
  * bate com Estudante.turmaSerie do SIGEduc) — só fica registrada em
@@ -60,19 +64,20 @@ async function main() {
     .filter((l) => l.trim())
     .map((l) => JSON.parse(l));
 
-  // cache de código INEP -> nome canônico da nossa Escola
-  const cacheEscola = new Map<string, string | null>();
+  // cache de código INEP -> id + nome canônico da nossa Escola
+  const cacheEscola = new Map<string, { id: number; nome: string } | null>();
 
-  async function nomeCanonico(escolaCaed: string): Promise<string | null> {
+  async function escolaCanonica(escolaCaed: string): Promise<{ id: number; nome: string } | null> {
     if (cacheEscola.has(escolaCaed)) return cacheEscola.get(escolaCaed)!;
     const match = escolaCaed.match(REGEX_CODIGO_INEP);
     if (!match) {
       cacheEscola.set(escolaCaed, null);
       return null;
     }
-    const escola = await prisma.escola.findFirst({ where: { codigoInep: match[1]! }, select: { nome: true } });
-    cacheEscola.set(escolaCaed, escola?.nome ?? null);
-    return escola?.nome ?? null;
+    const escola = await prisma.escola.findFirst({ where: { codigoInep: match[1]! }, select: { id: true, nome: true } });
+    const resultado = escola ? { id: escola.id, nome: escola.nome } : null;
+    cacheEscola.set(escolaCaed, resultado);
+    return resultado;
   }
 
   // agrupa por (ciclo, anoEscolar, componente) — mesma Avaliacao já criada na importação de turma
@@ -103,31 +108,46 @@ async function main() {
     }
 
     const linhasTabulares: LinhaTabular[] = [];
+    const escolaIdPorLinha: (number | null)[] = [];
     for (const bloco of blocos) {
-      const nomeEscola = await nomeCanonico(bloco.escola);
+      const escolaInfo = await escolaCanonica(bloco.escola);
       for (const [nome, participacao, nivel] of bloco.alunos) {
         linhasTabulares.push({
           nome,
-          escola: nomeEscola ?? "",
+          escola: escolaInfo?.nome ?? "",
           observacoes: `Turma CAEd: ${bloco.turma} · Participação: ${participacao} · Nível: ${nivel}`,
         });
+        escolaIdPorLinha.push(escolaInfo?.id ?? null);
       }
     }
 
     const validadas = await validarLinhasResultado(linhasTabulares);
     const gravados = await commitResultadosImportados(avaliacao.id, validadas);
+
+    const naoEncontrados: ResultadoNaoVinculado[] = [];
+    validadas.forEach((l, indice) => {
+      if (l.status !== "nao_encontrado") return;
+      const escolaId = escolaIdPorLinha[indice];
+      const nomeBruto = linhasTabulares[indice]!.nome;
+      if (escolaId && nomeBruto) naoEncontrados.push({ escolaId, nomeBruto });
+    });
+    const gravadosSemVinculo = await commitResultadosNaoVinculados(avaliacao.id, naoEncontrados);
+
     const problemas = validadas.filter((l) => l.status !== "ok");
+    const problemasRestantes = problemas.filter((l) => l.status !== "nao_encontrado");
 
-    totalGravados += gravados;
-    totalProblema += problemas.length;
+    totalGravados += gravados + gravadosSemVinculo;
+    totalProblema += problemasRestantes.length;
 
-    console.log(`${chave}: ${gravados} gravados, ${problemas.length} com problema`);
-    for (const p of problemas) {
+    console.log(
+      `${chave}: ${gravados} gravados, ${gravadosSemVinculo} sem vínculo (nome não encontrado, gravados mesmo assim), ${problemasRestantes.length} com problema`,
+    );
+    for (const p of problemasRestantes) {
       console.log(`  - [${p.status}] ${p.identificadorUsado}: ${p.detalhe}`);
     }
   }
 
-  console.log(`\nTotal: ${totalGravados} resultados de aluno gravados, ${totalProblema} linhas com problema.`);
+  console.log(`\nTotal: ${totalGravados} resultados de aluno gravados (com ou sem vínculo), ${totalProblema} linhas com problema.`);
   await prisma.$disconnect();
 }
 
