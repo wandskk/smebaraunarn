@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { extrairCodigoInep, parsePercent, extrairAcertoPorHabilidade, slug } from "./caed-turma-import";
+import { extrairCodigoInep, parsePercent, parseInteiro, extrairAcertoPorHabilidade, slug } from "./caed-turma-import";
 
 describe("extrairCodigoInep", () => {
   test("extrai o código INEP do fim do texto da escola", () => {
@@ -32,6 +32,25 @@ describe("parsePercent", () => {
 
   test("retorna null para texto não numérico, nunca lança", () => {
     assert.equal(parsePercent("--"), null);
+  });
+});
+
+describe("parseInteiro", () => {
+  test("converte texto numérico em inteiro", () => {
+    assert.equal(parseInteiro("76"), 76);
+  });
+
+  test("arredonda valores com casas decimais", () => {
+    assert.equal(parseInteiro("76,4"), 76);
+  });
+
+  test("retorna null para texto vazio ou indefinido", () => {
+    assert.equal(parseInteiro(""), null);
+    assert.equal(parseInteiro(undefined), null);
+  });
+
+  test("retorna null para texto não numérico, nunca lança", () => {
+    assert.equal(parseInteiro("--"), null);
   });
 });
 

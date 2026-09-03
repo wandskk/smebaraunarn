@@ -72,6 +72,9 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
         description={`Fluência Leitora, SPADEB, simulados e provas municipais. ${total} avaliação(ões).`}
         actions={
           <>
+            <Link href="/admin/avaliacoes/caed" className={buttonVariants({ variant: "secondary" })}>
+              Painel CAEd
+            </Link>
             <Link href="/admin/avaliacoes/caed/importar" className={buttonVariants({ variant: "secondary" })}>
               Importar CAEd
             </Link>

@@ -5,6 +5,8 @@ import {
   calcularAnalisePorItem,
   calcularDistribuicaoFluencia,
   calcularResumoResultadosTurma,
+  faixaAcertoHabilidade,
+  ordemCicloCaed,
   type ResultadoTurmaInput,
 } from "./avaliacoes";
 
@@ -166,10 +168,15 @@ describe("calcularResumoResultadosTurma", () => {
       escolaId: 1,
       escolaNome: "Escola A",
       turma: "5A",
+      previstos: null,
+      avaliados: null,
       percentualParticipacao: 100,
       percentualDefasagem: 20,
       percentualIntermediario: 30,
       percentualAdequado: 50,
+      quantidadeDefasagem: null,
+      quantidadeIntermediario: null,
+      quantidadeAdequado: null,
       acertoPorHabilidade: null,
       ...overrides,
     };
@@ -221,5 +228,97 @@ describe("calcularResumoResultadosTurma", () => {
       { habilidade: "H01", percentualMedioAcerto: 70 },
       { habilidade: "H02", percentualMedioAcerto: 40 },
     ]);
+  });
+
+  test("soma previstos/avaliados das linhas que têm o dado", () => {
+    const resumo = calcularResumoResultadosTurma([
+      linha({ previstos: 30, avaliados: 28 }),
+      linha({ previstos: 10, avaliados: 9 }),
+    ]);
+    assert.equal(resumo.totalPrevistos, 40);
+    assert.equal(resumo.totalAvaliados, 37);
+  });
+
+  test("totalPrevistos/totalAvaliados null quando nenhuma linha traz o dado (fonte antiga)", () => {
+    const resumo = calcularResumoResultadosTurma([linha({ previstos: null, avaliados: null })]);
+    assert.equal(resumo.totalPrevistos, null);
+    assert.equal(resumo.totalAvaliados, null);
+  });
+
+  test("média ponderada por estudante avaliado difere da média simples entre escolas com tamanhos desiguais", () => {
+    // escola pequena (3 avaliados) com 100% adequado, escola grande (76 avaliados) com 34% — igual ao caso real
+    // observado (5º ano/LP Leitura) que motivou este cálculo: a média simples esconde o peso real de cada escola.
+    const resumo = calcularResumoResultadosTurma([
+      linha({ avaliados: 3, percentualAdequado: 100 }),
+      linha({ avaliados: 76, percentualAdequado: 34 }),
+    ]);
+    assert.equal(resumo.mediaAdequado, 67); // média simples: (100+34)/2
+    const esperadoPonderado = (3 * 100 + 76 * 34) / (3 + 76);
+    assert.ok(Math.abs(resumo.mediaAdequadoPonderada! - esperadoPonderado) < 0.001);
+    assert.ok(resumo.mediaAdequadoPonderada! < 40); // bem mais próximo da escola grande
+  });
+
+  test("média ponderada null quando nenhuma linha tem avaliados, mesmo com percentual presente", () => {
+    const resumo = calcularResumoResultadosTurma([linha({ avaliados: null, percentualAdequado: 80 })]);
+    assert.equal(resumo.mediaAdequadoPonderada, null);
+    assert.equal(resumo.mediaDefasagemPonderada, null);
+    assert.equal(resumo.mediaIntermediarioPonderada, null);
+  });
+
+  test("média ponderada ignora só as linhas sem avaliados, sem descartar o resto", () => {
+    const resumo = calcularResumoResultadosTurma([
+      linha({ avaliados: 10, percentualAdequado: 50 }),
+      linha({ avaliados: null, percentualAdequado: 90 }),
+    ]);
+    assert.equal(resumo.mediaAdequadoPonderada, 50);
+  });
+
+  test("média ponderada usa a contagem exata (quantidadeAdequado) quando disponível, não aproxima", () => {
+    // 6 avaliados, 6 adequado (100%) — contagem exata bate com o percentual aqui, caso simples.
+    const resumo = calcularResumoResultadosTurma([linha({ avaliados: 6, quantidadeAdequado: 6, percentualAdequado: 100 })]);
+    assert.equal(resumo.mediaAdequadoPonderada, 100);
+  });
+
+  test("contagem exata e aproximação por percentual se combinam quando linhas diferentes têm fontes diferentes", () => {
+    // linha 1: contagem exata (API nova). linha 2: só percentual (CSV antigo). As duas entram na mesma ponderação.
+    const resumo = calcularResumoResultadosTurma([
+      linha({ avaliados: 10, quantidadeAdequado: 10, percentualAdequado: 100 }),
+      linha({ avaliados: 10, quantidadeAdequado: null, percentualAdequado: 0 }),
+    ]);
+    assert.equal(resumo.mediaAdequadoPonderada, 50); // (10 exatos + 0 aproximados) / 20 avaliados
+  });
+});
+
+describe("faixaAcertoHabilidade", () => {
+  test("até 40% -> danger", () => {
+    assert.equal(faixaAcertoHabilidade(0), "danger");
+    assert.equal(faixaAcertoHabilidade(40), "danger");
+  });
+
+  test("41 a 60% -> warning", () => {
+    assert.equal(faixaAcertoHabilidade(41), "warning");
+    assert.equal(faixaAcertoHabilidade(60), "warning");
+  });
+
+  test("61 a 80% -> info", () => {
+    assert.equal(faixaAcertoHabilidade(61), "info");
+    assert.equal(faixaAcertoHabilidade(80), "info");
+  });
+
+  test("acima de 80% -> success", () => {
+    assert.equal(faixaAcertoHabilidade(81), "success");
+    assert.equal(faixaAcertoHabilidade(100), "success");
+  });
+});
+
+describe("ordemCicloCaed", () => {
+  test("extrai o número do ciclo pra ordenação (AV1 < AV2 < AV3)", () => {
+    assert.equal(ordemCicloCaed("AV1"), 1);
+    assert.equal(ordemCicloCaed("AV2"), 2);
+    assert.equal(ordemCicloCaed("AV3"), 3);
+  });
+
+  test("código desconhecido vai pro final da ordenação, nunca lança", () => {
+    assert.equal(ordemCicloCaed("XYZ"), Number.MAX_SAFE_INTEGER);
   });
 });

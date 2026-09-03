@@ -1,21 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import type { LinhaTabular } from "./parse-tabular";
-import type { CaedCodigoCiclo } from "@/lib/caed-catalogo";
+import type { CaedCodigoCiclo, CaedNomeCiclo } from "@/lib/caed-catalogo";
 
 /**
- * Importação em lote dos CSVs de indicadores agregados por turma do portal
+ * Importação em lote dos indicadores agregados por turma/escola do portal
  * Criança Alfabetizada (CAEd/UFJF) — Avaliação Contínua da Aprendizagem.
- * O portal não expõe API pública nem nível de aluno exportável (só nome em
- * tela, sem matrícula/CPF); por isso a importação para no nível de
- * turma/escola, casando a escola pelo código INEP embutido no texto da
- * coluna "Escola" do CSV (ex.: "ESCOLA MUNICIPAL ... - 24000531").
+ * Casa a escola pelo código INEP embutido no texto da coluna/campo "Escola"
+ * (ex.: "ESCOLA MUNICIPAL ... - 24000531"). Duas fontes alimentam o mesmo
+ * pipeline (`validarLinhasResultadoTurma`/`commitResultadosTurmaImportados`):
+ * o upload manual de CSV em `app/admin/avaliacoes/caed/importar`, e o
+ * extrator via API em `scripts/extrair-caed-escolas.ts` +
+ * `scripts/importar-caed-escola.ts` — este último não usa CSV, só monta o
+ * mesmo formato `LinhaTabular` a partir da resposta da API.
  *
  * O filtro (ciclo/ano/ano escolar/componente/rede) é sempre selecionado
- * explicitamente pelo usuário, não lido do CSV: o arquivo exportado só
- * marca "LÍNGUA PORTUGUESA" tanto para Leitura quanto pra Escrita — não dá
- * pra distinguir as duas só pelo conteúdo. Ano escolar e Rede do CSV são
- * usados apenas para conferência (linha sinalizada se não bater com o
- * filtro selecionado).
+ * explicitamente por quem chama, não lido da fonte: o CSV exportado pelo
+ * site só marca "LÍNGUA PORTUGUESA" tanto para Leitura quanto pra Escrita —
+ * não dá pra distinguir as duas só pelo conteúdo. Ano escolar e Rede da
+ * fonte são usados apenas para conferência (linha sinalizada se não bater
+ * com o filtro selecionado).
  *
  * Mesmo padrão de `avaliacoes-import.ts`: validação/resolução sem gravar
  * nada (usada no preview), reaproveitada tal-e-qual no commit.
@@ -23,7 +26,7 @@ import type { CaedCodigoCiclo } from "@/lib/caed-catalogo";
 
 export interface FiltroCaed {
   codigoCiclo: CaedCodigoCiclo;
-  nomeCiclo: "Ciclo I" | "Ciclo II";
+  nomeCiclo: CaedNomeCiclo;
   ano: number;
   anoEscolarValor: string;
   componenteSlug: string;
@@ -40,10 +43,15 @@ export interface ResultadoTurmaImportado {
   escolaTexto: string;
   escolaId: number | null;
   turma: string | null;
+  previstos: number | null;
+  avaliados: number | null;
   percentualParticipacao: number | null;
   percentualDefasagem: number | null;
   percentualIntermediario: number | null;
   percentualAdequado: number | null;
+  quantidadeDefasagem: number | null;
+  quantidadeIntermediario: number | null;
+  quantidadeAdequado: number | null;
   acertoPorHabilidade: Record<string, number> | null;
   status: StatusResultadoTurmaImportado;
   detalhe: string | null;
@@ -64,6 +72,15 @@ export function parsePercent(texto: string | undefined): number | null {
   if (limpo === "") return null;
   const valor = Number(limpo);
   return Number.isNaN(valor) ? null : valor;
+}
+
+/** Converte texto de contagem absoluta ("76", "76.0") em inteiro — null quando vazio ou não numérico. */
+export function parseInteiro(texto: string | undefined): number | null {
+  if (!texto) return null;
+  const limpo = texto.trim().replace(",", ".");
+  if (limpo === "") return null;
+  const valor = Number(limpo);
+  return Number.isNaN(valor) ? null : Math.round(valor);
 }
 
 /** Colunas "H 01 (%)".."H NN (%)" viram chaves normalizadas "h_01_(%)" etc. */
@@ -100,10 +117,15 @@ export async function validarLinhasResultadoTurma(linhas: LinhaTabular[], filtro
       escolaId = escola?.id ?? null;
     }
 
+    const previstos = parseInteiro(linha.previstos);
+    const avaliados = parseInteiro(linha.avaliados);
     const percentualParticipacao = parsePercent(linha["avaliados_(%)"]);
     const percentualDefasagem = parsePercent(linha.defasagem);
     const percentualIntermediario = parsePercent(linha.aprendizado_intermediario);
     const percentualAdequado = parsePercent(linha.aprendizado_adequado);
+    const quantidadeDefasagem = parseInteiro(linha.quantidade_defasagem);
+    const quantidadeIntermediario = parseInteiro(linha.quantidade_intermediario);
+    const quantidadeAdequado = parseInteiro(linha.quantidade_adequado);
     const acertoPorHabilidade = extrairAcertoPorHabilidade(linha);
 
     const anoEscolarDivergente = !!anoEscolarCsv && anoEscolarCsv.toUpperCase() !== filtro.anoEscolarValor.toUpperCase();
@@ -143,10 +165,15 @@ export async function validarLinhasResultadoTurma(linhas: LinhaTabular[], filtro
       escolaTexto,
       escolaId,
       turma,
+      previstos,
+      avaliados,
       percentualParticipacao,
       percentualDefasagem,
       percentualIntermediario,
       percentualAdequado,
+      quantidadeDefasagem,
+      quantidadeIntermediario,
+      quantidadeAdequado,
       acertoPorHabilidade,
       status,
       detalhe,
@@ -206,20 +233,30 @@ export async function commitResultadosTurmaImportados(filtro: FiltroCaed, linhas
     await prisma.avaliacaoResultadoTurma.upsert({
       where: { avaliacaoId_escolaId_turma: { avaliacaoId: avaliacao.id, escolaId: linha.escolaId!, turma: linha.turma! } },
       update: {
+        previstos: linha.previstos,
+        avaliados: linha.avaliados,
         percentualParticipacao: linha.percentualParticipacao,
         percentualDefasagem: linha.percentualDefasagem,
         percentualIntermediario: linha.percentualIntermediario,
         percentualAdequado: linha.percentualAdequado,
+        quantidadeDefasagem: linha.quantidadeDefasagem,
+        quantidadeIntermediario: linha.quantidadeIntermediario,
+        quantidadeAdequado: linha.quantidadeAdequado,
         ...(linha.acertoPorHabilidade ? { acertoPorHabilidade: linha.acertoPorHabilidade } : {}),
       },
       create: {
         avaliacaoId: avaliacao.id,
         escolaId: linha.escolaId!,
         turma: linha.turma!,
+        previstos: linha.previstos,
+        avaliados: linha.avaliados,
         percentualParticipacao: linha.percentualParticipacao,
         percentualDefasagem: linha.percentualDefasagem,
         percentualIntermediario: linha.percentualIntermediario,
         percentualAdequado: linha.percentualAdequado,
+        quantidadeDefasagem: linha.quantidadeDefasagem,
+        quantidadeIntermediario: linha.quantidadeIntermediario,
+        quantidadeAdequado: linha.quantidadeAdequado,
         acertoPorHabilidade: linha.acertoPorHabilidade ?? undefined,
       },
     });

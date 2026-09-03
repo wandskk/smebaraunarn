@@ -312,10 +312,16 @@ model AvaliacaoResultadoTurma {
   escolaId                Int
   escola                  Escola    @relation(fields: [escolaId], references: [id])
   turma                   String
+  previstos               Int?
+  avaliados               Int?
   percentualParticipacao  Float?
   percentualDefasagem     Float?
   percentualIntermediario Float?
   percentualAdequado      Float?
+  // Contagem real de estudantes por nível (quando a fonte traz — ex.: API do CAEd, campos NU_N01/N02/N03) — permite média ponderada exata em vez de aproximada a partir do percentual.
+  quantidadeDefasagem     Int?
+  quantidadeIntermediario Int?
+  quantidadeAdequado      Int?
   acertoPorHabilidade     Json?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt

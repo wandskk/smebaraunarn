@@ -5,12 +5,14 @@ import {
   calcularAnalisePorItem,
   calcularDistribuicaoFluencia,
   calcularResumoResultadosTurma,
+  ordemCicloCaed,
   type StatusAvaliacao,
   type AnaliseItemResultado,
   type AnaliseDescritorResultado,
   type DistribuicaoFluencia,
   type ResumoResultadosTurma,
 } from "@/lib/analytics/avaliacoes";
+import { CAED_ANOS_ESCOLARES, CAED_CICLOS, CAED_COMPONENTES } from "@/lib/caed-catalogo";
 
 export { STATUS_AVALIACAO_LABEL, type StatusAvaliacao } from "@/lib/analytics/avaliacoes";
 
@@ -555,11 +557,118 @@ export async function getResumoResultadosTurma(avaliacaoId: string): Promise<Res
       escolaId: l.escolaId,
       escolaNome: l.escola.nome,
       turma: l.turma,
+      previstos: l.previstos,
+      avaliados: l.avaliados,
       percentualParticipacao: l.percentualParticipacao,
       percentualDefasagem: l.percentualDefasagem,
       percentualIntermediario: l.percentualIntermediario,
       percentualAdequado: l.percentualAdequado,
+      quantidadeDefasagem: l.quantidadeDefasagem,
+      quantidadeIntermediario: l.quantidadeIntermediario,
+      quantidadeAdequado: l.quantidadeAdequado,
       acertoPorHabilidade: l.acertoPorHabilidade as Record<string, number> | null,
     })),
   );
+}
+
+/**
+ * `codigo` de uma `Avaliacao` CAEd é `CAED-{codigoCiclo}{ano}-{etapaSlug}-{componenteSlug}`
+ * (gerado em `resolverOuCriarAvaliacao`, lib/import/caed-turma-import.ts) —
+ * não há coluna própria pra ciclo/componente, então extrai do `codigo`
+ * sabendo o `ano` (coluna real) pra separar `{codigoCiclo}` do `{ano}`
+ * grudados no mesmo segmento. Reaproveitado por `getCaedFiltrosDisponiveis`
+ * e `getCaedResumoPorCiclo` — nenhuma migração nova precisa desses dois.
+ */
+function extrairCicloEComponenteDoCodigo(codigo: string, ano: number): { codigoCiclo: string; componenteSlug: string } {
+  const partes = codigo.split("-");
+  const cicloAnoSegmento = partes[1] ?? "";
+  const codigoCiclo = cicloAnoSegmento.slice(0, cicloAnoSegmento.length - String(ano).length);
+  const componenteSlug = partes[partes.length - 1] ?? "";
+  return { codigoCiclo, componenteSlug };
+}
+
+export interface CaedOpcaoAvaliacao {
+  codigoCiclo: string;
+  nomeCiclo: string;
+  ano: number;
+  label: string;
+}
+
+export interface CaedFiltroOpcoes {
+  /** Ordenado do mais recente para o mais antigo — mesmo critério do próprio CAEd (ciclo atual pré-selecionado). */
+  avaliacoes: CaedOpcaoAvaliacao[];
+  etapas: { valor: string; label: string }[];
+  componentes: { slug: string; label: string }[];
+}
+
+/**
+ * Só as combinações que realmente têm `Avaliacao` de CAEd importada — nunca
+ * lista ciclo/etapa/componente sem nenhum dado por trás (diferente do
+ * catálogo estático `CAED_CICLOS`/`CAED_ANOS_ESCOLARES`/`CAED_COMPONENTES`,
+ * que é usado nos formulários de importação porque ali o objetivo é
+ * cadastrar uma combinação nova).
+ */
+export async function getCaedFiltrosDisponiveis(): Promise<CaedFiltroOpcoes> {
+  const avaliacoes = await prisma.avaliacao.findMany({
+    where: { tipo: "AVALIACAO_CONTINUA_CAED" },
+    select: { codigo: true, ano: true, etapaEnsino: true },
+  });
+
+  const avaliacoesVistas = new Map<string, CaedOpcaoAvaliacao>();
+  const etapasVistas = new Set<string>();
+  const componentesVistos = new Set<string>();
+
+  for (const a of avaliacoes) {
+    const { codigoCiclo, componenteSlug } = extrairCicloEComponenteDoCodigo(a.codigo, a.ano);
+    const nomeCiclo = CAED_CICLOS.find((c) => c.codigoCiclo === codigoCiclo)?.nomeCiclo ?? codigoCiclo;
+    avaliacoesVistas.set(`${codigoCiclo}${a.ano}`, { codigoCiclo, nomeCiclo, ano: a.ano, label: `${nomeCiclo} / ${a.ano}` });
+    if (a.etapaEnsino) etapasVistas.add(a.etapaEnsino);
+    if (componenteSlug) componentesVistos.add(componenteSlug);
+  }
+
+  return {
+    avaliacoes: Array.from(avaliacoesVistas.values()).sort((a, b) => b.ano - a.ano || ordemCicloCaed(b.codigoCiclo) - ordemCicloCaed(a.codigoCiclo)),
+    etapas: CAED_ANOS_ESCOLARES.filter((e) => etapasVistas.has(e.valor)).map((e) => ({ valor: e.valor, label: e.label })),
+    componentes: CAED_COMPONENTES.filter((c) => componentesVistos.has(c.slug)).map((c) => ({ slug: c.slug, label: c.label })),
+  };
+}
+
+export interface CaedResumoCiclo {
+  avaliacaoId: string;
+  ano: number;
+  codigoCiclo: string;
+  nomeCiclo: string;
+  resumo: ResumoResultadosTurma;
+}
+
+/**
+ * Todos os ciclos (de todos os anos) já importados para uma combinação
+ * etapa+componente, cada um com seu resumo agregado — alimenta tanto os
+ * cards "lado a lado" de um mesmo ano (o chamador filtra por `ano`) quanto
+ * o gráfico de evolução histórica (o chamador usa a lista inteira). Ordenado
+ * cronologicamente (ano, depois ciclo dentro do ano).
+ */
+export async function getCaedResumoPorCiclo(params: { etapaEnsino: string; componenteSlug: string }): Promise<CaedResumoCiclo[]> {
+  const avaliacoes = await prisma.avaliacao.findMany({
+    where: {
+      tipo: "AVALIACAO_CONTINUA_CAED",
+      etapaEnsino: params.etapaEnsino,
+      codigo: { endsWith: `-${params.componenteSlug}` },
+    },
+    select: { id: true, codigo: true, ano: true },
+  });
+
+  const resultados = await Promise.all(
+    avaliacoes.map(async (a): Promise<CaedResumoCiclo | null> => {
+      const resumo = await getResumoResultadosTurma(a.id);
+      if (!resumo) return null;
+      const { codigoCiclo } = extrairCicloEComponenteDoCodigo(a.codigo, a.ano);
+      const nomeCiclo = CAED_CICLOS.find((c) => c.codigoCiclo === codigoCiclo)?.nomeCiclo ?? codigoCiclo;
+      return { avaliacaoId: a.id, ano: a.ano, codigoCiclo, nomeCiclo, resumo };
+    }),
+  );
+
+  return resultados
+    .filter((r): r is CaedResumoCiclo => r !== null)
+    .sort((a, b) => a.ano - b.ano || ordemCicloCaed(a.codigoCiclo) - ordemCicloCaed(b.codigoCiclo));
 }

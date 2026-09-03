@@ -12,12 +12,15 @@
  * CSV.
  */
 
+/** Nem todo ano tem os 3 ciclos — 2025 foi o primeiro com Ciclo III; anos anteriores param no Ciclo II. */
 export const CAED_CICLOS = [
   { codigoCiclo: "AV1", nomeCiclo: "Ciclo I" },
   { codigoCiclo: "AV2", nomeCiclo: "Ciclo II" },
+  { codigoCiclo: "AV3", nomeCiclo: "Ciclo III" },
 ] as const;
 
 export type CaedCodigoCiclo = (typeof CAED_CICLOS)[number]["codigoCiclo"];
+export type CaedNomeCiclo = (typeof CAED_CICLOS)[number]["nomeCiclo"];
 
 export const CAED_ANOS_ESCOLARES = [
   { valor: "ENSINO FUNDAMENTAL DE 9 ANOS - 1º ANO", label: "1º ano do Ensino Fundamental" },
