@@ -1,7 +1,7 @@
 # Progresso — Observação Multi-Ano nos Indicadores + Avaliações do Município
 
-**Última atualização:** 2026-09-10 (ETAPA 06 concluída — aguardando autorização
-para iniciar a ETAPA 07)
+**Última atualização:** 2026-09-10 (ETAPA 07 concluída — aguardando autorização
+para iniciar a ETAPA 08)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -18,7 +18,7 @@ com o Markdown correspondente em `etapas/`.
 | 04 | Queries de evolução histórica por indicador | **DONE** | 2026-09-10 |
 | 05 | Rollout: Frequência e Aprendizagem | **DONE** | 2026-09-10 |
 | 06 | Rollout: Fluxo-Trajetória e Comparativos | **DONE** | 2026-09-10 |
-| 07 | Rollout: Portal da Direção | PENDENTE | |
+| 07 | Rollout: Portal da Direção | **DONE** | 2026-09-10 |
 | 08 | Nova página `/admin/indicadores/avaliacoes` | PENDENTE | |
 | 09 | Atualizar a Central (`/admin/indicadores`) | PENDENTE | |
 | 10 | Validação final e fechamento | PENDENTE | |
@@ -285,6 +285,48 @@ npm run build      # sucesso, 52 rotas geradas
 ## Próximo passo permitido
 
 ETAPA 07 — Rollout: Portal da Direção (aguardando autorização explícita do usuário).
+
+## Resumo da ETAPA 07
+
+Rollout do seletor persistente de ano letivo (`AnosLetivosFiltro` + cookie
+`sme_anos_letivos`, ETAPA 02) na Home do Portal da Direção
+(`/portal/direcao`):
+- `/portal/direcao/page.tsx`: substituído o formulário local legado (`<Select>` +
+  `<Button>` + `resolverAnoLetivo`) pelo seletor persistente `AnosLetivosFiltro` no
+  `PageHeader`.
+- Escopo estrito por escola: a lista de anos disponíveis em
+  `getAnosLetivosDisponiveis({ escolaId })` permanece filtrada pela escola do
+  Diretor autenticado (`session.escolaId`), garantindo que o gestor nunca veja anos
+  sem histórico para a sua unidade.
+- Remoção limpa de código não utilizado: eliminados os imports locais de
+  `Select`, `Button` e `resolverAnoLetivo`.
+- Ancoragem pontual: `anoReferencia(selecao)` mantém os insights de atenção, a
+  comparação da escola com a rede (`SchoolOverview`) e os recortes temporais
+  ancorados no ano de referência.
+
+Detalhe completo em
+[`etapas/07-rollout-portal-direcao.md`](etapas/07-rollout-portal-direcao.md).
+
+## Testes executados
+
+```bash
+npm test        # 298/298 testes passando
+npm run typecheck  # sem erros
+npm run lint       # sem warnings/erros
+npm run build      # sucesso, 52 rotas geradas
+```
+
+## Critério de pronto
+
+- [x] Seletor persistente `AnosLetivosFiltro` integrado em `/portal/direcao`.
+- [x] Anos disponíveis filtrados por `escolaId` da sessão do Diretor.
+- [x] Remoção do formulário local legado (`<Select>` / `<Button>` / `resolverAnoLetivo`).
+- [x] `npm test`/`typecheck`/`lint`/`build` 100% limpos.
+
+## Próximo passo permitido
+
+ETAPA 08 — Nova página `/admin/indicadores/avaliacoes` (aguardando autorização explícita do usuário).
+
 
 
 

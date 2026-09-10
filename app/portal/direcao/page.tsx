@@ -1,32 +1,39 @@
+import { cookies } from "next/headers";
 import { CheckCircle2, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
-import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
+import {
+  getAnosLetivosDisponiveis,
+  ANOS_LETIVOS_COOKIE_NAME,
+  resolverSelecaoAnosLetivos,
+  anoReferencia,
+} from "@/lib/queries/anos-letivos";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { getInsightsAtencaoEscola } from "@/lib/queries/atencao";
 import { getStatusSincronizacao, ROTULO_MODULO } from "@/lib/queries/qualidade-dados";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
-import { resolverAnoLetivo } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard, type MetricCardAccent } from "@/components/ui/metric-card";
-import { Select } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { SchoolOverview } from "@/components/portal/school-overview";
 import { InsightCard } from "@/components/ui/insight-card";
 import { DataFreshnessBadge } from "@/components/ui/data-freshness-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+import { AnosLetivosFiltro } from "@/components/ui/anos-letivos-filtro";
 
 interface PageProps {
-  searchParams: { ano?: string };
+  searchParams: { anos?: string | string[]; ano?: string };
 }
 
 export default async function DirecaoHomePage({ searchParams }: PageProps) {
   const session = await requireSession(["DIRETOR"]);
   const escolaId = session.escolaId!;
 
+  const cookieStore = cookies();
+  const cookieValor = cookieStore.get(ANOS_LETIVOS_COOKIE_NAME)?.value;
   const anosDisponiveis = await getAnosLetivosDisponiveis({ escolaId });
-  const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+  const selecao = resolverSelecaoAnosLetivos(searchParams, cookieValor, anosDisponiveis);
+  const anoLetivo = anoReferencia(selecao);
 
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
 
@@ -61,20 +68,11 @@ export default async function DirecaoHomePage({ searchParams }: PageProps) {
         title="Painel da Direção"
         description="Cockpit da unidade escolar — mesmos cálculos do Admin, escopados à sua escola."
         actions={
-          anosDisponiveis.length > 1 && (
-            <form method="get" className="flex items-center gap-2">
-              <Select name="ano" defaultValue={anoLetivo}>
-                {anosDisponiveis.map((ano) => (
-                  <option key={ano} value={ano}>
-                    Ano letivo {ano}
-                  </option>
-                ))}
-              </Select>
-              <Button type="submit" variant="secondary">
-                Aplicar
-              </Button>
-            </form>
-          )
+          <AnosLetivosFiltro
+            anosDisponiveis={anosDisponiveis}
+            selecaoAtual={selecao}
+            pathname="/portal/direcao"
+          />
         }
       />
 
