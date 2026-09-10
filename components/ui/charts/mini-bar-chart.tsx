@@ -16,6 +16,8 @@ export interface MiniBarChartProps {
   accent?: ChartAccent;
   height?: number;
   className?: string;
+  /** Formata o valor mostrado no tooltip (ex.: `(v) => \`${v}%\``) — sem essa prop, o tooltip mostra o número cru (comportamento atual, inalterado). */
+  valueFormatter?: (value: number) => string;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface MiniBarChartProps {
  * comparar poucas categorias lado a lado (ex.: erros por módulo). Ver
  * ETAPA V0 do plano de redesign.
  */
-export function MiniBarChart({ data, accent = "primary", height = 140, className }: MiniBarChartProps) {
+export function MiniBarChart({ data, accent = "primary", height = 140, className, valueFormatter }: MiniBarChartProps) {
   return (
     <div className={cn("w-full", className)} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -42,6 +44,7 @@ export function MiniBarChart({ data, accent = "primary", height = 140, className
               fontSize: 12,
               backgroundColor: "hsl(var(--surface))",
             }}
+            formatter={valueFormatter ? (value) => (typeof value === "number" ? valueFormatter(value) : String(value)) : undefined}
           />
           <Bar dataKey="value" radius={[6, 6, 0, 0]} isAnimationActive>
             {data.map((d) => (

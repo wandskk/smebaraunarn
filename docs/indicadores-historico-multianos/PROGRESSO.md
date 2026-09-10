@@ -1,7 +1,7 @@
 # Progresso — Observação Multi-Ano nos Indicadores + Avaliações do Município
 
-**Última atualização:** 2026-09-10 (ETAPA 02 concluída — aguardando autorização
-para iniciar a ETAPA 03)
+**Última atualização:** 2026-09-10 (ETAPA 03 concluída — aguardando autorização
+para iniciar a ETAPA 04)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -14,7 +14,7 @@ com o Markdown correspondente em `etapas/`.
 | 00 | Fonte única de "anos letivos disponíveis" | **DONE** | 2026-09-10 |
 | 01 | Corrigir contagem de população histórica | **DONE** | 2026-09-10 |
 | 02 | Seletor de ano persistente (URL + cookie) | **DONE** | 2026-09-10 |
-| 03 | Componente de gráfico de evolução histórica | PENDENTE | |
+| 03 | Componente de gráfico de evolução histórica | **DONE** | 2026-09-10 |
 | 04 | Queries de evolução histórica por indicador | PENDENTE | |
 | 05 | Rollout: Frequência e Aprendizagem | PENDENTE | |
 | 06 | Rollout: Fluxo-Trajetória e Comparativos | PENDENTE | |
@@ -122,6 +122,24 @@ uma tentativa real de open-redirect que confirmou o bloqueio funcionando.
 `npm test` (277/277), `typecheck`/`lint`/`build` limpos. Detalhe completo em
 [`etapas/02-seletor-ano-persistente.md`](etapas/02-seletor-ano-persistente.md).
 
+## Resumo da ETAPA 03
+
+Novo `HistoricalEvolutionChart` (`components/ui/charts/historical-evolution-chart.tsx`),
+generalizando o padrão de evolução do painel CAEd: recebe `{ano, valor,
+label?}[]`, filtra nulos, plota com `MiniBarChart` (barras, não linha —
+poucos pontos discretos). Extensão aditiva `valueFormatter?` em
+`MiniBarChartProps` pro tooltip formatar "%"/decimais. `caed/page.tsx`
+migrado pra usar o componente novo no lugar do `MiniBarChart` direto.
+**Bug real pego na verificação** (não em `typecheck`/`build`, só em
+runtime): o componente foi escrito sem `"use client"` mas construía uma
+função (`valueFormatter`) e repassava pra um Client Component — React
+Server Components não permite função como prop cruzando essa fronteira.
+Corrigido com `"use client"`. Verificado com dado real, logado como ADMIN:
+7 ciclos (2024-2026) renderizando corretamente após o fix, mesmo resultado
+visual de antes da migração. `npm test` (277/277), `typecheck`/`lint`/`build`
+limpos. Detalhe completo em
+[`etapas/03-grafico-evolucao-historica.md`](etapas/03-grafico-evolucao-historica.md).
+
 ## Próximo passo permitido
 
-ETAPA 03 — aguardando autorização explícita do usuário.
+ETAPA 04 — aguardando autorização explícita do usuário.

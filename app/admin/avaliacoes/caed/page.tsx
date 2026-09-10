@@ -9,7 +9,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { MetricCard } from "@/components/ui/metric-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LevelDistributionBar } from "@/components/ui/charts/level-distribution-bar";
-import { MiniBarChart, type MiniBarDatum } from "@/components/ui/charts/mini-bar-chart";
+import {
+  HistoricalEvolutionChart,
+  TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL,
+  type EvolucaoAnualPonto,
+} from "@/components/ui/charts/historical-evolution-chart";
 import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell } from "@/components/ui/table";
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 import { Pagination } from "@/components/ui/pagination";
@@ -131,9 +135,11 @@ export default async function PainelCaedPage({ searchParams }: PageProps) {
     return `/admin/avaliacoes/caed?${params.toString()}`;
   }
 
-  const evolucaoData: MiniBarDatum[] = ciclos
-    .filter((c) => c.resumo.mediaAdequado !== null)
-    .map((c) => ({ label: `${c.nomeCiclo} ${c.ano}`, value: c.resumo.mediaAdequado!, accent: "education" as const }));
+  const evolucaoData: EvolucaoAnualPonto[] = ciclos.map((c) => ({
+    ano: c.ano,
+    valor: c.resumo.mediaAdequado,
+    label: `${c.nomeCiclo} ${c.ano}`,
+  }));
 
   return (
     <div>
@@ -198,21 +204,20 @@ export default async function PainelCaedPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      {evolucaoData.length > 1 && (
-        <div className="mt-8">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <TrendingUp className="h-4 w-4 text-foreground-muted" />
-            Evolução — % de aprendizagem adequada por ciclo
-          </h2>
-          <p className="mt-1 text-xs text-foreground-muted/70">
-            Todos os ciclos já importados para {etapaLabel} · {componenteLabel} — o próprio portal do CAEd não
-            mostra essa série, só o ciclo selecionado; aqui dá pra comparar ao longo do tempo.
-          </p>
-          <div className="mt-3 rounded-xl border border-border bg-surface p-5">
-            <MiniBarChart data={evolucaoData} height={200} />
-          </div>
+      <div className="mt-8">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <TrendingUp className="h-4 w-4 text-foreground-muted" />
+          Evolução — % de aprendizagem adequada por ciclo
+        </h2>
+        <p className="mt-1 text-xs text-foreground-muted/70">
+          Todos os ciclos já importados para {etapaLabel} · {componenteLabel} — o próprio portal do CAEd não
+          mostra essa série, só o ciclo selecionado; aqui dá pra comparar ao longo do tempo.{" "}
+          {TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL}
+        </p>
+        <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+          <HistoricalEvolutionChart data={evolucaoData} accent="education" height={200} unidade="percentual" />
         </div>
-      )}
+      </div>
 
       <div className="mt-8">
         <h2 className="text-sm font-semibold text-foreground">Percentual de acerto por habilidade</h2>
