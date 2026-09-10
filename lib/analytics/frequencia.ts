@@ -213,3 +213,44 @@ export function classificarFaixaFrequencia(
   if (percentual >= faixas.minimoAtencao) return "atencao";
   return "critica";
 }
+
+export interface PontoEvolucaoAnual {
+  ano: number;
+  /** Percentual ou valor da métrica. Null indica ausência de dados no ano. */
+  valor: number | null;
+}
+
+/**
+ * Transforma agregações diárias de frequência (já reduzidas por dia via `groupBy`
+ * no banco) em evolução ponderada por ano letivo — parte pura/testável da query
+ * `getEvolucaoFrequenciaPorAno`.
+ *
+ * Agrupa as aulas e faltas pelo ano extraído da data (`YYYY-MM-DD`), calcula o
+ * percentual ponderado de presença `((aulas - faltas) / aulas) * 100`, e retorna
+ * os pontos ordenados cronologicamente (ascendente) para todos os anos pedidos.
+ */
+export function calcularEvolucaoFrequenciaPorAno(
+  anos: number[],
+  registrosDiarios: { data: string; aulas: number; faltas: number }[],
+): PontoEvolucaoAnual[] {
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+  const anosValidos = new Set(anosOrdenados);
+
+  const totaisPorAno = new Map<number, { aulas: number; faltas: number }>();
+  for (const r of registrosDiarios) {
+    const ano = Number(r.data.slice(0, 4));
+    if (!anosValidos.has(ano)) continue;
+
+    const acum = totaisPorAno.get(ano) ?? { aulas: 0, faltas: 0 };
+    acum.aulas += r.aulas;
+    acum.faltas += r.faltas;
+    totaisPorAno.set(ano, acum);
+  }
+
+  return anosOrdenados.map((ano) => {
+    const acum = totaisPorAno.get(ano);
+    const valor = acum && acum.aulas > 0 ? calcularPercentualFrequencia(acum.aulas, acum.faltas) : null;
+    return { ano, valor };
+  });
+}
+

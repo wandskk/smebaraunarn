@@ -7,6 +7,7 @@ import {
   calcularHistograma,
   type BucketHistograma,
 } from "@/lib/analytics/estatistica";
+import type { PontoEvolucaoAnual } from "@/lib/analytics/frequencia";
 
 /**
  * Nota mínima considerada "esperada" — padrão comum de aprovação em redes
@@ -144,3 +145,75 @@ export async function getDisciplinasComNota(anoLetivo: number): Promise<string[]
   });
   return linhas.map((l) => l.disciplina);
 }
+
+export type { PontoEvolucaoAnual };
+
+export interface FiltroEvolucaoDesempenho {
+  /** Sem filtro, calcula sobre todas as disciplinas. */
+  disciplina?: string;
+  /** Bimestre (1-4). */
+  unidade?: number;
+  /** Escopo por escola (Portal da Direção ou detalhe de escola). */
+  escolaId?: number;
+}
+
+/**
+ * Evolução da média de notas lançadas ano a ano (rede ou escopada por escola).
+ *
+ * Agrega as notas diretamente no PostgreSQL via 1 único `groupBy` por `ano` com
+ * `_avg: { nota: true }`, sem N+1. Preserva a ordem cronológica (ascendente).
+ */
+export async function getEvolucaoDesempenhoPorAno(
+  anos: number[],
+  filtro?: FiltroEvolucaoDesempenho,
+): Promise<PontoEvolucaoAnual[]> {
+  if (anos.length === 0) return [];
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+
+  let whereEscola: { OR: ({ escola: string | null } | { escola: null; estudante: { escolaId: number } })[] } | undefined;
+  if (filtro?.escolaId !== undefined) {
+    const escola = await prisma.escola.findUnique({ where: { id: filtro.escolaId }, select: { nome: true } });
+    const nomeEscola = escola?.nome ?? null;
+    whereEscola = {
+      OR: [{ escola: nomeEscola }, { escola: null, estudante: { escolaId: filtro.escolaId } }],
+    };
+  }
+
+  const linhas = await prisma.notaEstudante.groupBy({
+    by: ["ano"],
+    where: {
+      ano: { in: anosOrdenados },
+      ...(filtro?.disciplina ? { disciplina: filtro.disciplina } : {}),
+      ...(filtro?.unidade ? { unidade: filtro.unidade } : {}),
+      ...(whereEscola ? whereEscola : {}),
+    },
+    _avg: { nota: true },
+  });
+
+  return mapearEvolucaoDesempenho(
+    anosOrdenados,
+    linhas.map((l) => ({ ano: l.ano, media: l._avg.nota ?? null })),
+  );
+}
+
+/**
+ * Transforma linhas agregadas de notas em pontos de evolução ordenados cronologicamente,
+ * preenchendo anos sem dados com `valor: null` — parte pura/testável da query.
+ */
+export function mapearEvolucaoDesempenho(
+  anos: number[],
+  linhasAgrupadas: { ano: number; media: number | null }[],
+): PontoEvolucaoAnual[] {
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+  const mediaPorAno = new Map<number, number | null>();
+  for (const l of linhasAgrupadas) {
+    mediaPorAno.set(l.ano, l.media);
+  }
+
+  return anosOrdenados.map((ano) => ({
+    ano,
+    valor: mediaPorAno.get(ano) ?? null,
+  }));
+}
+
+

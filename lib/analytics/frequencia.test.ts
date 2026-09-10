@@ -8,6 +8,7 @@ import {
   classificarFaixaFrequencia,
   calcularPercentualFrequencia,
   calcularEvolucaoFrequencia,
+  calcularEvolucaoFrequenciaPorAno,
   calcularJanelaDias,
   FAIXAS_PADRAO_FREQUENCIA,
   LIMIARES_PADRAO_FALTAS_CONSECUTIVAS,
@@ -233,3 +234,77 @@ describe("calcularEvolucaoFrequencia", () => {
     assert.equal(resultado[0]!.percentual, null);
   });
 });
+
+describe("calcularEvolucaoFrequenciaPorAno", () => {
+  test("lista de anos vazia retorna array vazio", () => {
+    assert.deepEqual(calcularEvolucaoFrequenciaPorAno([], [{ data: "2025-05-10", aulas: 100, faltas: 10 }]), []);
+  });
+
+  test("calcula evolução ponderada por ano com fixture multi-ano (2024-2026)", () => {
+    const fixture = [
+      // 2024: 100 + 100 aulas, 10 + 10 faltas -> 200 aulas, 20 faltas = 90%
+      { data: "2024-03-15", aulas: 100, faltas: 10 },
+      { data: "2024-08-20", aulas: 100, faltas: 10 },
+      // 2025: 50 + 50 aulas, 5 + 1 faltas -> 100 aulas, 6 faltas = 94%
+      { data: "2025-04-10", aulas: 50, faltas: 5 },
+      { data: "2025-10-12", aulas: 50, faltas: 1 },
+      // 2026: 200 aulas, 40 faltas -> 200 aulas, 40 faltas = 80%
+      { data: "2026-06-01", aulas: 200, faltas: 40 },
+    ];
+
+    const evolucao = calcularEvolucaoFrequenciaPorAno([2024, 2025, 2026], fixture);
+    assert.deepEqual(evolucao, [
+      { ano: 2024, valor: 90 },
+      { ano: 2025, valor: 94 },
+      { ano: 2026, valor: 80 },
+    ]);
+  });
+
+  test("ordena anos em ordem cronológica ascendente mesmo se fornecidos fora de ordem", () => {
+    const fixture = [
+      { data: "2024-05-01", aulas: 100, faltas: 10 },
+      { data: "2026-05-01", aulas: 100, faltas: 20 },
+      { data: "2025-05-01", aulas: 100, faltas: 15 },
+    ];
+
+    const evolucao = calcularEvolucaoFrequenciaPorAno([2026, 2024, 2025], fixture);
+    assert.deepEqual(
+      evolucao.map((p) => p.ano),
+      [2024, 2025, 2026],
+    );
+    assert.equal(evolucao[0]!.valor, 90);
+    assert.equal(evolucao[1]!.valor, 85);
+    assert.equal(evolucao[2]!.valor, 80);
+  });
+
+  test("ano pedido sem dados na fixture retorna valor: null", () => {
+    const fixture = [
+      { data: "2024-05-01", aulas: 100, faltas: 10 },
+      { data: "2026-05-01", aulas: 100, faltas: 20 },
+    ];
+
+    const evolucao = calcularEvolucaoFrequenciaPorAno([2024, 2025, 2026], fixture);
+    assert.deepEqual(evolucao, [
+      { ano: 2024, valor: 90 },
+      { ano: 2025, valor: null },
+      { ano: 2026, valor: 80 },
+    ]);
+  });
+
+  test("ignora dados de anos que não estão na lista de anos solicitados", () => {
+    const fixture = [
+      { data: "2023-05-01", aulas: 100, faltas: 50 },
+      { data: "2024-05-01", aulas: 100, faltas: 10 },
+    ];
+
+    const evolucao = calcularEvolucaoFrequenciaPorAno([2024], fixture);
+    assert.deepEqual(evolucao, [{ ano: 2024, valor: 90 }]);
+  });
+
+  test("deduplica anos repetidos no input", () => {
+    const fixture = [{ data: "2025-05-01", aulas: 100, faltas: 10 }];
+    const evolucao = calcularEvolucaoFrequenciaPorAno([2025, 2025], fixture);
+    assert.deepEqual(evolucao, [{ ano: 2025, valor: 90 }]);
+  });
+});
+

@@ -1,7 +1,7 @@
 # Progresso — Observação Multi-Ano nos Indicadores + Avaliações do Município
 
-**Última atualização:** 2026-09-10 (ETAPA 03 concluída — aguardando autorização
-para iniciar a ETAPA 04)
+**Última atualização:** 2026-09-10 (ETAPA 04 concluída — aguardando autorização
+para iniciar a ETAPA 05)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -15,7 +15,7 @@ com o Markdown correspondente em `etapas/`.
 | 01 | Corrigir contagem de população histórica | **DONE** | 2026-09-10 |
 | 02 | Seletor de ano persistente (URL + cookie) | **DONE** | 2026-09-10 |
 | 03 | Componente de gráfico de evolução histórica | **DONE** | 2026-09-10 |
-| 04 | Queries de evolução histórica por indicador | PENDENTE | |
+| 04 | Queries de evolução histórica por indicador | **DONE** | 2026-09-10 |
 | 05 | Rollout: Frequência e Aprendizagem | PENDENTE | |
 | 06 | Rollout: Fluxo-Trajetória e Comparativos | PENDENTE | |
 | 07 | Rollout: Portal da Direção | PENDENTE | |
@@ -140,6 +140,54 @@ visual de antes da migração. `npm test` (277/277), `typecheck`/`lint`/`build`
 limpos. Detalhe completo em
 [`etapas/03-grafico-evolucao-historica.md`](etapas/03-grafico-evolucao-historica.md).
 
+## Resumo da ETAPA 04
+
+Implementação das 3 queries de evolução histórica por indicador sem N+1:
+- `getEvolucaoFrequenciaPorAno(anos, escolaId?)` (`lib/queries/frequencia.ts`):
+  1 único `groupBy(by: ["data"])` cobrindo todos os anos pedidos (~600 linhas
+  agregadas para 3 anos em vez de 2,6 milhões de registros individuais), reduzido
+  em memória pelo motor puro `calcularEvolucaoFrequenciaPorAno`
+  (`lib/analytics/frequencia.ts`).
+- `getEvolucaoDesempenhoPorAno(anos, filtro?)` (`lib/queries/desempenho.ts`):
+  1 único `groupBy(by: ["ano"])` direto no PostgreSQL com `_avg: { nota: true }`,
+  com suporte a filtro por disciplina, unidade e `escolaId`.
+- `getEvolucaoDistorcaoPorAno(anos, escolaId?)` (`lib/queries/distorcao.ts`):
+  construída sobre `resolverMatriculaPorAnos(anos)` (ETAPA 01), que faz apenas 3
+  queries no banco para os $N$ anos pedidos de uma única vez, e calcula a
+  distorção em memória ano a ano via `calcularEvolucaoDistorcaoPorAno`
+  (`lib/analytics/distorcao.ts`). Sem nenhum loop por ano sobre
+  `getDistorcaoPorEscolaESerie`.
+
+**Verificação com dado real (Postgres local):**
+Paridade 100% exata confirmada contra cálculos individuais: frequência 2024
+(88.9%), 2025 (89.7%), 2026 (87.8%); desempenho 2024 (6.86), 2025 (7.27), 2026
+(7.04); distorção 2024 (11.7%), 2025 (10.3%), 2026 (6.9%). Testado também com
+escopo por escola (`escolaId: 52266078` - CEJAB, EJA), retornando 0 elegíveis e
+`valor: null` em paridade com a query individual.
+
+Testes unitários adicionados com fixtures multi-ano (2024-2026): 18 novos
+testes, totalizando 295/295 testes passando. Detalhe completo em
+[`etapas/04-queries-evolucao-historica.md`](etapas/04-queries-evolucao-historica.md).
+
+## Testes executados
+
+```bash
+npm test        # 295/295 (18 novos testes de fixtures multi-ano)
+npm run typecheck  # sem erros
+npm run lint       # sem warnings/erros
+npm run build      # sucesso, 52 rotas estáticas
+```
+
+## Critério de pronto
+
+- [x] `getEvolucaoFrequenciaPorAno` implementada sem N+1.
+- [x] `getEvolucaoDesempenhoPorAno` implementada sem N+1.
+- [x] `getEvolucaoDistorcaoPorAno` implementada sobre `resolverMatriculaPorAnos` sem N+1.
+- [x] Paridade exata confirmada contra agregações individuais no banco real.
+- [x] 18 testes unitários cobrindo 2-3 anos de fixture e casos de borda adicionados.
+- [x] `npm test`/`typecheck`/`lint`/`build` passam limpos.
+
 ## Próximo passo permitido
 
-ETAPA 04 — aguardando autorização explícita do usuário.
+ETAPA 05 — Rollout: Frequência e Aprendizagem (aguardando autorização explícita do usuário).
+

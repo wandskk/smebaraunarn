@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import {
   calcularDistorcaoIdadeSerie,
+  calcularEvolucaoDistorcaoPorAno,
   classificarIntensidadeDefasagem,
   IDADE_ESPERADA_POR_SERIE,
   LIMIAR_DISTORCAO_ANOS,
   type SerieEnsino,
 } from "@/lib/analytics/distorcao";
+import type { PontoEvolucaoAnual } from "@/lib/analytics/frequencia";
 import { normalizarSerie } from "@/lib/analytics/mapeamento-serie";
 import { getSeriePorTurma } from "@/lib/queries/academico";
 
@@ -231,3 +233,25 @@ export async function getDistorcaoPorEscolaESerie(filtro: FiltroDistorcao): Prom
 
   return { porEscola: resultadoPorEscola, porSerie: resultadoPorSerie };
 }
+
+export type { PontoEvolucaoAnual };
+
+/**
+ * Evolução da taxa de distorção idade-série ano a ano (para a rede inteira ou escopada a uma escola).
+ *
+ * Batcha a resolução de matrículas históricas para todos os anos pedidos em
+ * apenas 3 consultas via `resolverMatriculaPorAnos` (ETAPA 01), eliminando
+ * qualquer risco de N+1, e calcula a distorção em memória via
+ * `calcularEvolucaoDistorcaoPorAno`.
+ */
+export async function getEvolucaoDistorcaoPorAno(
+  anos: number[],
+  escolaId?: number,
+): Promise<PontoEvolucaoAnual[]> {
+  if (anos.length === 0) return [];
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+
+  const matriculasPorAnos = await resolverMatriculaPorAnos(anosOrdenados);
+  return calcularEvolucaoDistorcaoPorAno(anosOrdenados, matriculasPorAnos, escolaId);
+}
+

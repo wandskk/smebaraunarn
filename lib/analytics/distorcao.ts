@@ -19,6 +19,9 @@
  * distorção idade-série (o próprio indicador do INEP não se aplica a ela).
  */
 
+import { normalizarSerie } from "./mapeamento-serie";
+import type { PontoEvolucaoAnual } from "./frequencia";
+
 interface DataComposta {
   ano: number;
   mes: number;
@@ -129,3 +132,64 @@ export function classificarIntensidadeDefasagem(defasagemAnos: number): Intensid
   if (defasagemAnos >= LIMIAR_DISTORCAO_ANOS) return "moderada";
   return "nenhuma";
 }
+
+export interface MatriculaParaDistorcao {
+  dataNascimento: string | null;
+  escolaId: number | null;
+  serieTexto: string | null;
+}
+
+/**
+ * Calcula a evolução da taxa de distorção idade-série por ano em memória a
+ * partir do mapa de matrículas resolvidas — parte pura/testável da query
+ * `getEvolucaoDistorcaoPorAno`.
+ *
+ * Para cada ano pedido (em ordem cronológica ascendente), filtra por escolaId se
+ * especificado, calcula a distorção para os alunos elegíveis (com data de
+ * nascimento válida e série regular normalizada) na data de referência padrão
+ * `${ano}-03-31`, e retorna o percentual de distorção (ou null se não houver
+ * alunos elegíveis no ano).
+ */
+export function calcularEvolucaoDistorcaoPorAno(
+  anos: number[],
+  matriculasPorAno: Map<number, Map<string, MatriculaParaDistorcao>>,
+  escolaId?: number,
+  limiarAnos: number = LIMIAR_DISTORCAO_ANOS,
+): PontoEvolucaoAnual[] {
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+
+  return anosOrdenados.map((ano) => {
+    const matriculaDoAno = matriculasPorAno.get(ano);
+    if (!matriculaDoAno || matriculaDoAno.size === 0) {
+      return { ano, valor: null };
+    }
+
+    const dataReferencia = `${ano}-03-31`;
+    let totalElegiveis = 0;
+    let emDistorcao = 0;
+
+    for (const dados of matriculaDoAno.values()) {
+      if (escolaId !== undefined && dados.escolaId !== escolaId) {
+        continue;
+      }
+
+      const serie = normalizarSerie(dados.serieTexto);
+      const resultado = serie && dados.dataNascimento
+        ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, dataReferencia, limiarAnos)
+        : null;
+
+      if (resultado === null || !serie) {
+        continue;
+      }
+
+      totalElegiveis += 1;
+      if (resultado.emDistorcao) {
+        emDistorcao += 1;
+      }
+    }
+
+    const valor = totalElegiveis > 0 ? (emDistorcao / totalElegiveis) * 100 : null;
+    return { ano, valor };
+  });
+}
+

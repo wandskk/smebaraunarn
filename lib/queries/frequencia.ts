@@ -4,6 +4,7 @@ import {
   calcularPercentualFrequencia,
   calcularVariacaoFrequencia,
   calcularEvolucaoFrequencia,
+  calcularEvolucaoFrequenciaPorAno,
   classificarFaixaFrequencia,
   faltasConsecutivasAtuais,
   classificarGravidadeFaltasConsecutivas,
@@ -15,6 +16,7 @@ import {
   type RegistroDiario,
   type GravidadeFaltasConsecutivas,
   type PontoEvolucaoFrequencia,
+  type PontoEvolucaoAnual,
 } from "@/lib/analytics/frequencia";
 import { resolverMatriculaPorAno } from "@/lib/queries/distorcao";
 
@@ -304,3 +306,58 @@ export function calcularJanelaComparativaPadrao(hoje: Date, diasPorJanela = 30):
     anteriorFim: anterior.fim,
   };
 }
+
+export type { PontoEvolucaoAnual };
+
+/**
+ * Evolução da frequência ano a ano (para a rede inteira ou escopada a uma escola).
+ *
+ * Agrega as aulas e faltas em um único `groupBy` por `data` cobrindo todos os
+ * anos solicitados (sem N+1), reduzindo os dias para anos em memória via
+ * `calcularEvolucaoFrequenciaPorAno`.
+ *
+ * Quando `escolaId` é fornecido, filtra com o mesmo padrão consistente de
+ * fallback (`NotaEstudante.escola` / `Estudante.escolaId`) já validado nas
+ * etapas anteriores.
+ */
+export async function getEvolucaoFrequenciaPorAno(
+  anos: number[],
+  escolaId?: number,
+): Promise<PontoEvolucaoAnual[]> {
+  if (anos.length === 0) return [];
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+
+  let whereEscola: { OR: ({ escola: string | null } | { escola: null; estudante: { escolaId: number } })[] } | undefined;
+  if (escolaId !== undefined) {
+    const escola = await prisma.escola.findUnique({ where: { id: escolaId }, select: { nome: true } });
+    const nomeEscola = escola?.nome ?? null;
+    whereEscola = {
+      OR: [{ escola: nomeEscola }, { escola: null, estudante: { escolaId } }],
+    };
+  }
+
+  const whereClausula = {
+    AND: [
+      {
+        OR: anosOrdenados.map((a) => ({ data: { gte: `${a}-01-01`, lte: `${a}-12-31` } })),
+      },
+      ...(whereEscola ? [whereEscola] : []),
+    ],
+  };
+
+  const linhas = await prisma.frequenciaEstudante.groupBy({
+    by: ["data"],
+    where: whereClausula,
+    _sum: { falta: true, quantidadeAula: true },
+  });
+
+  return calcularEvolucaoFrequenciaPorAno(
+    anosOrdenados,
+    linhas.map((l) => ({
+      data: l.data,
+      aulas: l._sum.quantidadeAula ?? 0,
+      faltas: l._sum.falta ?? 0,
+    })),
+  );
+}
+
