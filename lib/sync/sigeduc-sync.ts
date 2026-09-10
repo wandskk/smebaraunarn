@@ -283,6 +283,7 @@ export async function syncEstudantesChunk(
   ano: number,
   startIndex = 0,
   budgetMs = DEFAULT_BUDGET_MS,
+  onProgress?: (atual: number, total: number) => void,
 ): Promise<ChunkResult> {
   const start = Date.now();
   let registros = 0;
@@ -310,6 +311,7 @@ export async function syncEstudantesChunk(
         pagina += 1;
       }
       index += 1;
+      onProgress?.(index, escolas.length);
     }
 
     const done = index >= escolas.length;
@@ -385,6 +387,7 @@ export async function syncNotasChunk(
   ano: number,
   startPagina = 0,
   budgetMs = DEFAULT_BUDGET_MS,
+  onProgress?: (atual: number, total: number) => void,
 ): Promise<PageChunkResult> {
   const start = Date.now();
   let registros = 0;
@@ -407,6 +410,7 @@ export async function syncNotasChunk(
       registros += await aplicarPaginaNotas(ano, estudantesValidos, resposta.dados);
 
       pagina += 1;
+      onProgress?.(pagina, totalPaginas);
       if (!resposta.temProximaPagina) {
         done = true;
         break;
@@ -552,6 +556,7 @@ export async function syncFrequenciaChunk(
   dataFim: string,
   startPagina = 0,
   budgetMs = DEFAULT_BUDGET_MS,
+  onProgress?: (atual: number, total: number) => void,
 ): Promise<PageChunkResult> {
   const start = Date.now();
   let registros = 0;
@@ -574,6 +579,7 @@ export async function syncFrequenciaChunk(
       registros += await aplicarPaginaFrequencia(dataInicio, dataFim, estudantesValidos, resposta.dados);
 
       pagina += 1;
+      onProgress?.(pagina, totalPaginas);
       if (!resposta.temProximaPagina) {
         done = true;
         break;

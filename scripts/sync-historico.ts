@@ -2,9 +2,14 @@
  * Carga histórica de dados do SIGEduc, fora do fluxo normal de sync diário.
  *
  * Uso:
+ *   npx tsx scripts/sync-historico.ts                              (modo interativo: pergunta ano/módulos)
  *   npx tsx scripts/sync-historico.ts --anos=2024,2025
  *   npx tsx scripts/sync-historico.ts --anos=2024-2025 --modulos=estudantes,notas
  *   npx tsx scripts/sync-historico.ts --anos=2024 --continuar   (retoma de onde parou)
+ *
+ * Sem --anos e rodando num terminal interativo, pergunta o(s) ano(s) e
+ * módulos antes de começar. Com --anos informado (ou fora de um terminal,
+ * ex. cron), segue direto sem perguntar — mantém compatível com automação.
  *
  * Por ano, roda nesta ordem (a ordem importa: Notas/Frequência só gravam
  * quem já existe em Estudante — ver upsertEstudante em lib/sync/sigeduc-sync.ts):
@@ -21,6 +26,7 @@
 import { syncEstudantesChunk, syncNotasChunk, syncFrequenciaChunk } from "../lib/sync/sigeduc-sync";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
+import { createInterface } from "readline/promises";
 
 const PROGRESSO_PATH = join(__dirname, ".sync-historico-progresso.json");
 
@@ -40,34 +46,128 @@ function salvarProgresso(concluidas: Set<ChaveEtapa>) {
   writeFileSync(PROGRESSO_PATH, JSON.stringify([...concluidas]));
 }
 
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const get = (nome: string) => args.find((a) => a.startsWith(`--${nome}=`))?.split("=")[1];
+const MODULOS_VALIDOS: Modulo[] = ["estudantes", "notas", "frequencia"];
 
-  const anosArg = get("anos");
-  if (!anosArg) {
-    console.error("Uso: npx tsx scripts/sync-historico.ts --anos=2024,2025 [--modulos=estudantes,notas,frequencia] [--continuar]");
-    process.exit(1);
-  }
-  const anos: number[] = anosArg.includes("-") && !anosArg.includes(",")
+function parseAnos(anosArg: string): number[] {
+  return anosArg.includes("-") && !anosArg.includes(",")
     ? (() => {
         const partes = anosArg.split("-").map(Number);
         const de = partes[0]!;
         const ate = partes[1]!;
         return Array.from({ length: ate - de + 1 }, (_, i) => de + i);
       })()
-    : anosArg.split(",").map(Number);
+    : anosArg.split(",").map((s) => Number(s.trim()));
+}
 
+interface Configuracao {
+  anos: number[];
+  modulos: Modulo[];
+  continuar: boolean;
+}
+
+/** Lê configuração das flags de linha de comando (uso não-interativo / cron). */
+function lerFlags(): Configuracao {
+  const args = process.argv.slice(2);
+  const get = (nome: string) => args.find((a) => a.startsWith(`--${nome}=`))?.split("=")[1];
+
+  const anos = parseAnos(get("anos")!);
   const modulosArg = get("modulos");
-  const modulos: Modulo[] = (modulosArg ? modulosArg.split(",") : ["estudantes", "notas", "frequencia"]) as Modulo[];
-
+  const modulos: Modulo[] = (modulosArg ? modulosArg.split(",") : MODULOS_VALIDOS) as Modulo[];
   const continuar = args.includes("--continuar");
 
   return { anos, modulos, continuar };
 }
 
+/** Pergunta ano(s) e módulos no terminal — usado quando --anos não foi passado. */
+async function perguntarInterativo(): Promise<Configuracao> {
+  const anoAtual = new Date().getFullYear();
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    let anos: number[] = [];
+    while (anos.length === 0) {
+      const resposta = (
+        await rl.question(
+          `Ano(s) para sincronizar (ex: ${anoAtual} | ${anoAtual - 1},${anoAtual} | ${anoAtual - 2}-${anoAtual}) [${anoAtual}]: `,
+        )
+      ).trim();
+      const candidatos = parseAnos(resposta || String(anoAtual));
+      anos = candidatos.filter((a) => Number.isInteger(a) && a >= 2000 && a <= anoAtual + 1);
+      if (anos.length === 0) console.log("  Entrada inválida, tente de novo (ex: 2025 ou 2024,2025 ou 2024-2025).");
+    }
+
+    const respostaModulos = (
+      await rl.question(`Módulos — ${MODULOS_VALIDOS.join(",")} [Enter = todos]: `)
+    ).trim();
+    const modulos = respostaModulos
+      ? respostaModulos
+          .split(",")
+          .map((m) => m.trim().toLowerCase())
+          .filter((m): m is Modulo => (MODULOS_VALIDOS as string[]).includes(m))
+      : MODULOS_VALIDOS;
+
+    const progressoExistente = existsSync(PROGRESSO_PATH);
+    const respostaContinuar = (
+      await rl.question(
+        progressoExistente
+          ? "Encontrado progresso salvo de uma execução anterior. Retomar de onde parou? (S/n): "
+          : "Retomar progresso salvo anteriormente, se houver? (s/N): ",
+      )
+    )
+      .trim()
+      .toLowerCase();
+    const continuar = progressoExistente
+      ? respostaContinuar !== "n" && respostaContinuar !== "não"
+      : respostaContinuar === "s" || respostaContinuar === "sim";
+
+    return { anos, modulos: modulos.length > 0 ? modulos : MODULOS_VALIDOS, continuar };
+  } finally {
+    rl.close();
+  }
+}
+
+async function resolverConfiguracao(): Promise<Configuracao> {
+  const anosArg = process.argv.slice(2).find((a) => a.startsWith("--anos="));
+  if (anosArg) return lerFlags();
+
+  if (!process.stdin.isTTY) {
+    console.error("Uso: npx tsx scripts/sync-historico.ts --anos=2024,2025 [--modulos=estudantes,notas,frequencia] [--continuar]");
+    process.exit(1);
+  }
+
+  console.log("=== Sincronização histórica (modo interativo) ===");
+  return perguntarInterativo();
+}
+
 function fmtMs(ms: number) {
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** Largura da barra em caracteres (só o miolo, sem contar "[" "]" e o texto). */
+const LARGURA_BARRA = 28;
+
+/**
+ * Redesenha a barra na mesma linha (via \r) quando a saída é um terminal
+ * interativo. Fora de um TTY (saída redirecionada pra arquivo, cron), imprime
+ * uma linha por atualização — \r não faz sentido num arquivo de log, e isso
+ * preserva o histórico de progresso nesse caso, como o comportamento antigo.
+ */
+function desenharBarra(atual: number, total: number, prefixo: string) {
+  const pct = total > 0 ? Math.min(1, atual / total) : 0;
+  const preenchidos = Math.round(LARGURA_BARRA * pct);
+  const barra = "#".repeat(preenchidos) + "-".repeat(LARGURA_BARRA - preenchidos);
+  const linha = `  ${prefixo} [${barra}] ${String(Math.round(pct * 100)).padStart(3)}% (${atual}/${total})`;
+  if (process.stdout.isTTY) {
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+    process.stdout.write(linha);
+  } else {
+    console.log(linha);
+  }
+}
+
+/** Fecha a linha da barra antes de seguir para o próximo log normal. */
+function finalizarBarra() {
+  if (process.stdout.isTTY) process.stdout.write("\n");
 }
 
 function diasNoMes(ano: number, mes: number): number {
@@ -80,6 +180,7 @@ async function rodarComRetentativa<T>(descricao: string, fn: () => Promise<T>): 
     try {
       return await fn();
     } catch (err) {
+      finalizarBarra();
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`  [ERRO] ${descricao} (tentativa ${tentativa}/${MAX_TENTATIVAS}): ${msg}`);
       if (tentativa === MAX_TENTATIVAS) {
@@ -99,56 +200,77 @@ interface ResultadoEtapa {
 }
 
 async function syncEstudantesAno(ano: number): Promise<ResultadoEtapa> {
+  const prefixo = `Estudantes ${ano}`;
   let index = 0;
   let total = 0;
   let done = false;
   while (!done) {
-    const result = await rodarComRetentativa(`Estudantes ${ano} (índice ${index})`, () => syncEstudantesChunk(ano, index));
-    if (result === null) return { total, completo: false };
+    const result = await rodarComRetentativa(`${prefixo} (índice ${index})`, () =>
+      syncEstudantesChunk(ano, index, undefined, (atual, totalEscolas) => desenharBarra(atual, totalEscolas, prefixo)),
+    );
+    if (result === null) {
+      finalizarBarra();
+      return { total, completo: false };
+    }
     total += result.registrosNestaExecucao;
     done = result.done;
     index = result.nextIndex;
-    console.log(`  Estudantes ${ano}: ${index}/${result.totalEscolas} escolas · +${result.registrosNestaExecucao}`);
+    desenharBarra(index, result.totalEscolas, prefixo);
   }
+  finalizarBarra();
   return { total, completo: true };
 }
 
 async function syncNotasAno(ano: number): Promise<ResultadoEtapa> {
+  const prefixo = `Notas ${ano}`;
   let pagina = 0;
   let total = 0;
   let done = false;
   while (!done) {
-    const result = await rodarComRetentativa(`Notas ${ano} (página ${pagina})`, () => syncNotasChunk(ano, pagina));
-    if (result === null) return { total, completo: false };
+    const result = await rodarComRetentativa(`${prefixo} (página ${pagina})`, () =>
+      syncNotasChunk(ano, pagina, undefined, (atual, totalPaginas) => desenharBarra(atual, totalPaginas, prefixo)),
+    );
+    if (result === null) {
+      finalizarBarra();
+      return { total, completo: false };
+    }
     total += result.registrosNestaExecucao;
     done = result.done;
     pagina = result.nextPagina;
-    console.log(`  Notas ${ano}: página ${pagina}/${result.totalPaginas} · +${result.registrosNestaExecucao}`);
+    desenharBarra(pagina, result.totalPaginas, prefixo);
   }
+  finalizarBarra();
   return { total, completo: true };
 }
 
 async function syncFrequenciaMes(ano: number, mes: number): Promise<ResultadoEtapa> {
   const dataInicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
   const dataFim = `${ano}-${String(mes).padStart(2, "0")}-${diasNoMes(ano, mes)}`;
+  const prefixo = `Frequência ${ano}-${String(mes).padStart(2, "0")}`;
   let pagina = 0;
   let total = 0;
   let done = false;
   while (!done) {
-    const result = await rodarComRetentativa(
-      `Frequência ${ano}-${mes} (página ${pagina})`,
-      () => syncFrequenciaChunk(dataInicio, dataFim, pagina),
+    const result = await rodarComRetentativa(`${prefixo} (página ${pagina})`, () =>
+      syncFrequenciaChunk(dataInicio, dataFim, pagina, undefined, (atual, totalPaginas) =>
+        desenharBarra(atual, totalPaginas, prefixo),
+      ),
     );
-    if (result === null) return { total, completo: false };
+    if (result === null) {
+      finalizarBarra();
+      return { total, completo: false };
+    }
     total += result.registrosNestaExecucao;
     done = result.done;
     pagina = result.nextPagina;
+    desenharBarra(pagina, result.totalPaginas, prefixo);
   }
+  finalizarBarra();
   return { total, completo: true };
 }
 
 async function main() {
-  const { anos, modulos, continuar } = parseArgs();
+  const { anos, modulos, continuar } = await resolverConfiguracao();
   const concluidas = continuar ? carregarProgresso() : new Set<ChaveEtapa>();
 
   console.log(`=== Sincronização histórica: anos [${anos.join(", ")}], módulos [${modulos.join(", ")}] ===`);
