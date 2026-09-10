@@ -1,11 +1,19 @@
 import Link from "next/link";
-import { ArrowLeft, Award, FileText, School, TrendingDown } from "lucide-react";
-import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
-import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
+import { cookies } from "next/headers";
+import { ArrowLeft, Award, FileText, School, TrendingDown, TrendingUp } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
+import {
+  getAnosLetivosDisponiveis,
+  ANOS_LETIVOS_COOKIE_NAME,
+  resolverSelecaoAnosLetivos,
+  anoReferencia,
+  anosParaEvolucao,
+} from "@/lib/queries/anos-letivos";
 import {
   getDesempenhoPorEscola,
   getDistribuicaoNotasRede,
   getDisciplinasComNota,
+  getEvolucaoDesempenhoPorAno,
   NOTA_MINIMA_ESPERADA_PADRAO,
 } from "@/lib/queries/desempenho";
 import { getPainelAtencaoEscolas } from "@/lib/queries/atencao";
@@ -21,9 +29,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { MiniBarChart, type MiniBarDatum } from "@/components/ui/charts/mini-bar-chart";
 import { HorizontalBarChart, type HorizontalBarDatum } from "@/components/ui/charts/horizontal-bar-chart";
+import {
+  HistoricalEvolutionChart,
+  TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL,
+} from "@/components/ui/charts/historical-evolution-chart";
+import { AnosLetivosFiltro } from "@/components/ui/anos-letivos-filtro";
 
 interface PageProps {
-  searchParams: { ano?: string; disciplina?: string; unidade?: string };
+  searchParams: { anos?: string | string[]; ano?: string; disciplina?: string; unidade?: string };
 }
 
 const MAXIMO_ESCOLAS_NO_GRAFICO = 10;
@@ -33,17 +46,22 @@ function formatarNota(valor: number | null): string {
 }
 
 export default async function AprendizagemPage({ searchParams }: PageProps) {
+  const cookieStore = cookies();
+  const cookieValor = cookieStore.get(ANOS_LETIVOS_COOKIE_NAME)?.value;
   const anosDisponiveis = await getAnosLetivosDisponiveis();
-  const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+  const selecao = resolverSelecaoAnosLetivos(searchParams, cookieValor, anosDisponiveis);
+  const anoLetivo = anoReferencia(selecao);
+  const anosParaGrafico = anosParaEvolucao(selecao);
   const disciplina = searchParams.disciplina?.trim() || undefined;
   const unidade = searchParams.unidade ? Number(searchParams.unidade) : undefined;
   const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
 
-  const [escolas, disciplinasDisponiveis, histograma, painelEscolas] = await Promise.all([
+  const [escolas, disciplinasDisponiveis, histograma, painelEscolas, evolucaoAnual] = await Promise.all([
     getDesempenhoPorEscola({ anoLetivo, disciplina, unidade }),
     getDisciplinasComNota(anoLetivo),
     getDistribuicaoNotasRede({ anoLetivo, disciplina, unidade }),
     getPainelAtencaoEscolas(anoLetivo),
+    getEvolucaoDesempenhoPorAno(anosParaGrafico, { disciplina, unidade }),
   ]);
 
   const totalNotas = escolas.reduce((acc, e) => acc + e.totalNotasLancadas, 0);
@@ -66,6 +84,13 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
     .reverse() // recharts layout="vertical" desenha de baixo para cima — reverte para a menor média ficar no topo
     .map((e) => ({ label: e.nomeEscola, value: e.media as number, valueLabel: formatarNota(e.media), accent: "education" }));
 
+  const limparFiltrosHref =
+    selecao.modo === "todos"
+      ? "/admin/indicadores/aprendizagem?anos=todos"
+      : selecao.modo === "multiplos"
+        ? `/admin/indicadores/aprendizagem?${selecao.anos.map((a) => `anos=${a}`).join("&")}`
+        : `/admin/indicadores/aprendizagem?anos=${selecao.ano}`;
+
   return (
     <div>
       <Link href={comAno("/admin/indicadores")} className="inline-flex items-center gap-1 text-sm text-education-subtle-foreground hover:underline">
@@ -86,6 +111,17 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
             {disciplina && ` · ${disciplina}`}
             {unidade && ` · ${unidade}ª unidade`}. Tabela ordenada da média mais baixa para a mais alta.
           </>
+        }
+        actions={
+          <AnosLetivosFiltro
+            anosDisponiveis={anosDisponiveis}
+            selecaoAtual={selecao}
+            pathname="/admin/indicadores/aprendizagem"
+            preservarQueryParams={{
+              ...(disciplina ? { disciplina } : {}),
+              ...(unidade ? { unidade: String(unidade) } : {}),
+            }}
+          />
         }
       />
 
@@ -154,8 +190,27 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
         </div>
       </div>
 
+      <div className="mt-8">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <TrendingUp className="h-4 w-4 text-foreground-muted" />
+          Evolução por ano letivo — Desempenho médio da rede
+        </h2>
+        <p className="mt-1 text-xs text-foreground-muted/70">
+          Média anual de notas lançadas nos anos selecionados. {TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL}
+        </p>
+        <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+          <HistoricalEvolutionChart data={evolucaoAnual} accent="education" height={200} unidade="numero" />
+        </div>
+      </div>
+
       <form method="get" className="mt-6 flex flex-wrap items-end gap-3">
-        {searchParams.ano && <input type="hidden" name="ano" value={searchParams.ano} />}
+        {selecao.modo === "todos" ? (
+          <input type="hidden" name="anos" value="todos" />
+        ) : selecao.modo === "multiplos" ? (
+          selecao.anos.map((a) => <input key={a} type="hidden" name="anos" value={a} />)
+        ) : (
+          <input type="hidden" name="anos" value={selecao.ano} />
+        )}
         <div className="w-56">
           <label className="mb-1 block text-xs text-foreground-muted">Disciplina</label>
           <Select name="disciplina" defaultValue={searchParams.disciplina ?? ""}>
@@ -182,10 +237,7 @@ export default async function AprendizagemPage({ searchParams }: PageProps) {
           Filtrar
         </Button>
         {(disciplina || unidade) && (
-          <Link
-            href={searchParams.ano ? `/admin/indicadores/aprendizagem?ano=${searchParams.ano}` : "/admin/indicadores/aprendizagem"}
-            className="text-sm text-primary hover:underline"
-          >
+          <Link href={limparFiltrosHref} className="text-sm text-primary hover:underline">
             Limpar filtros
           </Link>
         )}

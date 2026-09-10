@@ -1,10 +1,18 @@
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, LineChart, Percent, School, TrendingDown, Users2 } from "lucide-react";
-import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
-import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
+import { cookies } from "next/headers";
+import { ArrowLeft, AlertTriangle, LineChart, Percent, School, TrendingDown, TrendingUp, Users2 } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
+import {
+  getAnosLetivosDisponiveis,
+  ANOS_LETIVOS_COOKIE_NAME,
+  resolverSelecaoAnosLetivos,
+  anoReferencia,
+  anosParaEvolucao,
+} from "@/lib/queries/anos-letivos";
 import {
   getFrequenciaPorEscola,
   getEvolucaoFrequenciaRede,
+  getEvolucaoFrequenciaPorAno,
   calcularJanelaComparativaPadrao,
   resolverDataReferenciaJanela,
   getContagemFaltasConsecutivasPorEscola,
@@ -21,13 +29,18 @@ import { TableEmptyState } from "@/components/ui/table-empty-state";
 import { DonutChart, type DonutChartDatum } from "@/components/ui/charts/donut-chart";
 import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { TimeSeriesChart } from "@/components/ui/charts/time-series-chart";
+import {
+  HistoricalEvolutionChart,
+  TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL,
+} from "@/components/ui/charts/historical-evolution-chart";
+import { AnosLetivosFiltro } from "@/components/ui/anos-letivos-filtro";
 import type { ChartAccent } from "@/components/ui/charts/accent-colors";
 
 const FAIXA_DONUT_LABEL: Record<FaixaFrequencia, string> = { adequada: "Adequada", atencao: "Atenção", critica: "Crítica" };
 const FAIXA_RING_ACCENT: Record<FaixaFrequencia, ChartAccent> = { adequada: "success", atencao: "warning", critica: "danger" };
 
 interface PageProps {
-  searchParams: { ano?: string };
+  searchParams: { anos?: string | string[]; ano?: string };
 }
 
 /** Frequência mais alta é sempre favorável — variação temporal, não espacial (ver ComparisonDelta). */
@@ -42,15 +55,20 @@ function TendenciaCell({ variacao }: { variacao: VariacaoFrequencia | null }) {
 }
 
 export default async function FrequenciaPorEscolaPage({ searchParams }: PageProps) {
+  const cookieStore = cookies();
+  const cookieValor = cookieStore.get(ANOS_LETIVOS_COOKIE_NAME)?.value;
   const anosDisponiveis = await getAnosLetivosDisponiveis();
-  const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+  const selecao = resolverSelecaoAnosLetivos(searchParams, cookieValor, anosDisponiveis);
+  const anoLetivo = anoReferencia(selecao);
+  const anosParaGrafico = anosParaEvolucao(selecao);
 
   const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
 
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
-  const [escolas, evolucaoFrequenciaRede] = await Promise.all([
+  const [escolas, evolucaoFrequenciaRede, evolucaoAnual] = await Promise.all([
     getFrequenciaPorEscola({ anoLetivo, ...janela }),
     getEvolucaoFrequenciaRede({ inicio: janela.atualInicio, fim: janela.atualFim }),
+    getEvolucaoFrequenciaPorAno(anosParaGrafico),
   ]);
   const semHistoricoParaTendencia = escolas.length > 0 && escolas.every((e) => e.variacao === null);
 
@@ -114,6 +132,13 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
             Compara {janela.atualInicio} a {janela.atualFim} com os 30 dias anteriores a esse período (
             {janela.anteriorInicio} a {janela.anteriorFim}). Ano letivo {anoLetivo}.
           </>
+        }
+        actions={
+          <AnosLetivosFiltro
+            anosDisponiveis={anosDisponiveis}
+            selecaoAtual={selecao}
+            pathname="/admin/indicadores/frequencia"
+          />
         }
       />
 
@@ -203,6 +228,20 @@ export default async function FrequenciaPorEscolaPage({ searchParams }: PageProp
           </div>
         </div>
       )}
+
+      <div className="mt-8">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <TrendingUp className="h-4 w-4 text-foreground-muted" />
+          Evolução por ano letivo — Frequência média da rede
+        </h2>
+        <p className="mt-1 text-xs text-foreground-muted/70">
+          Média anual ponderada de presença nos anos selecionados. {TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL}
+        </p>
+        <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+          <HistoricalEvolutionChart data={evolucaoAnual} accent="attendance" height={200} unidade="percentual" />
+        </div>
+      </div>
+
 
       {anoCorrente && (
         <div className="mt-6">

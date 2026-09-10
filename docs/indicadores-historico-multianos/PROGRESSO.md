@@ -1,7 +1,7 @@
 # Progresso — Observação Multi-Ano nos Indicadores + Avaliações do Município
 
-**Última atualização:** 2026-09-10 (ETAPA 04 concluída — aguardando autorização
-para iniciar a ETAPA 05)
+**Última atualização:** 2026-09-10 (ETAPA 05 concluída — aguardando autorização
+para iniciar a ETAPA 06)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -16,7 +16,7 @@ com o Markdown correspondente em `etapas/`.
 | 02 | Seletor de ano persistente (URL + cookie) | **DONE** | 2026-09-10 |
 | 03 | Componente de gráfico de evolução histórica | **DONE** | 2026-09-10 |
 | 04 | Queries de evolução histórica por indicador | **DONE** | 2026-09-10 |
-| 05 | Rollout: Frequência e Aprendizagem | PENDENTE | |
+| 05 | Rollout: Frequência e Aprendizagem | **DONE** | 2026-09-10 |
 | 06 | Rollout: Fluxo-Trajetória e Comparativos | PENDENTE | |
 | 07 | Rollout: Portal da Direção | PENDENTE | |
 | 08 | Nova página `/admin/indicadores/avaliacoes` | PENDENTE | |
@@ -190,4 +190,52 @@ npm run build      # sucesso, 52 rotas estáticas
 ## Próximo passo permitido
 
 ETAPA 05 — Rollout: Frequência e Aprendizagem (aguardando autorização explícita do usuário).
+
+## Resumo da ETAPA 05
+
+Rollout do seletor persistente de ano letivo (`AnosLetivosFiltro` + cookie
+`sme_anos_letivos`, ETAPA 02) e do gráfico de evolução histórica
+(`HistoricalEvolutionChart`, ETAPA 03) alimentado pelas queries batch
+multi-ano (ETAPA 04) nas páginas `/admin/indicadores/frequencia` e
+`/admin/indicadores/aprendizagem`:
+- `/admin/indicadores/frequencia`: integrado `AnosLetivosFiltro` no
+  `PageHeader`, `anoReferencia(selecao)` ancorando KPIs pontuais e tabelas, e
+  nova seção "Evolução por ano letivo — Frequência média da rede" com
+  `HistoricalEvolutionChart` (`accent="attendance"`, `unidade="percentual"`),
+  acompanhado de `TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL`.
+- `/admin/indicadores/aprendizagem`: integrado `AnosLetivosFiltro` com
+  `preservarQueryParams={{ disciplina, unidade }}`, `anoReferencia(selecao)`
+  para cards e tabela, e nova seção "Evolução por ano letivo — Desempenho médio da
+  rede" com `HistoricalEvolutionChart` (`accent="education"`, `unidade="numero"`),
+  também com `TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL`.
+- Preservação bidirecional de parâmetros em Aprendizagem: o `<form method="get">`
+  preserva a seleção de anos (`selecao.modo` com `anos=todos`, múltiplos inputs
+  ou ano único) ao filtrar por disciplina/unidade, e o link "Limpar filtros"
+  mantém os anos ativos ao limpar os filtros pedagógicos.
+
+Detalhe completo em
+[`etapas/05-rollout-frequencia-aprendizagem.md`](etapas/05-rollout-frequencia-aprendizagem.md).
+
+## Testes executados
+
+```bash
+npm test        # 295/295 testes passando
+npm run typecheck  # sem erros
+npm run lint       # sem warnings/erros
+npm run build      # sucesso, 52 rotas geradas
+```
+
+## Critério de pronto
+
+- [x] Seletor persistente `AnosLetivosFiltro` integrado em `/admin/indicadores/frequencia`.
+- [x] Gráfico `HistoricalEvolutionChart` com texto de transparência em `/admin/indicadores/frequencia`.
+- [x] Seletor persistente `AnosLetivosFiltro` integrado em `/admin/indicadores/aprendizagem` com `preservarQueryParams`.
+- [x] Gráfico `HistoricalEvolutionChart` com texto de transparência em `/admin/indicadores/aprendizagem`.
+- [x] Preservação da seleção de anos no filtro e limpeza de disciplina/unidade.
+- [x] `npm test`/`typecheck`/`lint`/`build` 100% limpos.
+
+## Próximo passo permitido
+
+ETAPA 06 — Rollout: Fluxo-Trajetória e Comparativos (aguardando autorização explícita do usuário).
+
 
