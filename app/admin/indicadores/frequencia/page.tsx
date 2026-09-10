@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle, LineChart, Percent, School, TrendingDown, Users2 } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import {
   getFrequenciaPorEscola,
   getEvolucaoFrequenciaRede,
@@ -42,8 +42,7 @@ function TendenciaCell({ variacao }: { variacao: VariacaoFrequencia | null }) {
 }
 
 export default async function FrequenciaPorEscolaPage({ searchParams }: PageProps) {
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis();
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
 
   const comAno = (href: string) => `${href}?ano=${anoLetivo}`;

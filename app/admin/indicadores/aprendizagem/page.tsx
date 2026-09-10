@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Award, FileText, School, TrendingDown } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import {
   getDesempenhoPorEscola,
   getDistribuicaoNotasRede,
@@ -33,8 +33,7 @@ function formatarNota(valor: number | null): string {
 }
 
 export default async function AprendizagemPage({ searchParams }: PageProps) {
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis();
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
   const disciplina = searchParams.disciplina?.trim() || undefined;
   const unidade = searchParams.unidade ? Number(searchParams.unidade) : undefined;

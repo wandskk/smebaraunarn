@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Users, LayoutGrid } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { formatTurmaLabel, getTurmasDaEscola } from "@/lib/queries/academico";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
@@ -25,8 +26,7 @@ export default async function AdminEscolaDetalhePage({ params, searchParams }: P
   const escola = await prisma.escola.findUnique({ where: { id: escolaId } });
   if (!escola) notFound();
 
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], where: { escolaId }, orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis({ escolaId });
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
 
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));

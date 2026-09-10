@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle, TrendingDown, Users2 } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { getDistorcaoPorEscolaESerie } from "@/lib/queries/distorcao";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
@@ -38,8 +38,7 @@ function formatarPercentual(valor: number | null): string {
 }
 
 export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis();
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
   const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
 

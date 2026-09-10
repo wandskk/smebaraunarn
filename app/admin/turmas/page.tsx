@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { getTurmasRede } from "@/lib/queries/academico";
 import { classificarFaixaFrequencia } from "@/lib/analytics/frequencia";
 import { FaixaBadge } from "@/components/admin/faixa-badge";
@@ -26,8 +27,7 @@ function formatarNota(valor: number | null): string {
 }
 
 export default async function AdminTurmasPage({ searchParams }: PageProps) {
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis();
   const ano = resolverAnoLetivo(searchParams, anosDisponiveis);
   const escolaId = searchParams.escolaId ? Number(searchParams.escolaId) : undefined;
   const serie = searchParams.serie?.trim() || undefined;

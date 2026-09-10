@@ -1,6 +1,7 @@
 import { CheckCircle2, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { requireSession } from "@/lib/require-session";
 import { prisma } from "@/lib/prisma";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { getInsightsAtencaoEscola } from "@/lib/queries/atencao";
 import { getStatusSincronizacao, ROTULO_MODULO } from "@/lib/queries/qualidade-dados";
@@ -24,8 +25,7 @@ export default async function DirecaoHomePage({ searchParams }: PageProps) {
   const session = await requireSession(["DIRETOR"]);
   const escolaId = session.escolaId!;
 
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], where: { escolaId }, orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis({ escolaId });
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
 
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));

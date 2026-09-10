@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import { parsePaginationParams, totalPagesFor } from "@/lib/pagination";
@@ -21,7 +22,7 @@ export default async function AdminEstudantesPage({ searchParams }: PageProps) {
 
   const [escolas, anosDisponiveis] = await Promise.all([
     prisma.escola.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
-    prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } }).then((rows) => rows.map((r) => r.ano)),
+    getAnosLetivosDisponiveis(),
   ]);
 
   const where = {

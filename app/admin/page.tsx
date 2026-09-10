@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CheckCircle2, ClipboardList, FileText, GraduationCap, Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { getStatusSincronizacao, ROTULO_MODULO } from "@/lib/queries/qualidade-dados";
 import { getInsightsAtencao } from "@/lib/queries/atencao";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,8 +20,8 @@ function staggerStyle(index: number): React.CSSProperties {
 }
 
 export default async function AdminDashboardPage() {
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
-  const anoLetivo = anosRows[0]?.ano ?? new Date().getFullYear();
+  const anosDisponiveis = await getAnosLetivosDisponiveis();
+  const anoLetivo = anosDisponiveis[0] ?? new Date().getFullYear();
 
   const [totalPosts, totalServidores, totalEstudantes, totalAvaliacoes, { modulos }, insights] = await Promise.all([
     prisma.post.count(),

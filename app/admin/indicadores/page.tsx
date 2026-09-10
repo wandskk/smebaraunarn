@@ -10,8 +10,8 @@ import {
   ShieldCheck,
   TrendingDown,
 } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { cn, formatNumber, resolverAnoLetivo } from "@/lib/utils";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { getIndicadoresGeraisRede } from "@/lib/queries/indicadores-gerais";
 import { getStatusSincronizacao, ROTULO_MODULO, type StatusModuloSincronizacao } from "@/lib/queries/qualidade-dados";
 import {
@@ -123,8 +123,7 @@ function DeltaFrequenciaRede({ diferenca, tendencia }: { diferenca: number; tend
 }
 
 export default async function AdminIndicadoresPage({ searchParams }: PageProps) {
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis();
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
   // Preserva o ano letivo selecionado ao navegar para os drill-downs, em vez
   // de deixar cada um cair no próprio padrão (achado do master prompt:

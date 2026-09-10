@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { formatNumber, resolverAnoLetivo, cn } from "@/lib/utils";
+import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { getPainelAtencaoEscolas } from "@/lib/queries/atencao";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
@@ -50,8 +50,7 @@ function DiferencaRede({
 }
 
 export default async function ComparativosPage({ searchParams }: PageProps) {
-  const anosRows = await prisma.estudante.groupBy({ by: ["ano"], orderBy: { ano: "desc" } });
-  const anosDisponiveis = anosRows.map((r) => r.ano);
+  const anosDisponiveis = await getAnosLetivosDisponiveis();
   const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
   const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
   const somenteComSinal = searchParams.sinal === "1";
