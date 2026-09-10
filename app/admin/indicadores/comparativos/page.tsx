@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { formatNumber, resolverAnoLetivo, cn } from "@/lib/utils";
-import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
+import { cookies } from "next/headers";
+import { ArrowLeft, ArrowRight, TrendingUp } from "lucide-react";
+import { formatNumber, cn } from "@/lib/utils";
+import {
+  getAnosLetivosDisponiveis,
+  ANOS_LETIVOS_COOKIE_NAME,
+  resolverSelecaoAnosLetivos,
+  anoReferencia,
+  montarQueryStringAnos,
+} from "@/lib/queries/anos-letivos";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { getPainelAtencaoEscolas } from "@/lib/queries/atencao";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
@@ -13,9 +20,10 @@ import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell }
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { DonutChart, type DonutChartDatum } from "@/components/ui/charts/donut-chart";
+import { AnosLetivosFiltro } from "@/components/ui/anos-letivos-filtro";
 
 interface PageProps {
-  searchParams: { ano?: string; sinal?: string };
+  searchParams: { anos?: string | string[]; ano?: string; sinal?: string };
 }
 
 function formatarPercentual(valor: number | null): string {
@@ -50,8 +58,12 @@ function DiferencaRede({
 }
 
 export default async function ComparativosPage({ searchParams }: PageProps) {
+  const cookieStore = cookies();
+  const cookieValor = cookieStore.get(ANOS_LETIVOS_COOKIE_NAME)?.value;
   const anosDisponiveis = await getAnosLetivosDisponiveis();
-  const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+  const selecao = resolverSelecaoAnosLetivos(searchParams, cookieValor, anosDisponiveis);
+  const anoLetivo = anoReferencia(selecao);
+  const queryStringAnos = montarQueryStringAnos(selecao);
   const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
   const somenteComSinal = searchParams.sinal === "1";
 
@@ -103,11 +115,19 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
             {janela.atualFim}. Ano letivo {anoLetivo}.
           </>
         }
+        actions={
+          <AnosLetivosFiltro
+            anosDisponiveis={anosDisponiveis}
+            selecaoAtual={selecao}
+            pathname="/admin/indicadores/comparativos"
+            preservarQueryParams={{ ...(somenteComSinal ? { sinal: "1" } : {}) }}
+          />
+        }
       />
 
       <div className="mt-4 flex flex-wrap gap-1.5">
         <Link
-          href={comAno("/admin/indicadores/comparativos")}
+          href={`/admin/indicadores/comparativos?${queryStringAnos}`}
           className={cn(
             "rounded-full px-3 py-1 text-xs font-medium transition",
             !somenteComSinal ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground-muted hover:text-foreground",
@@ -116,7 +136,7 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
           Todas as escolas
         </Link>
         <Link
-          href={`${comAno("/admin/indicadores/comparativos")}&sinal=1`}
+          href={`/admin/indicadores/comparativos?${queryStringAnos}&sinal=1`}
           className={cn(
             "rounded-full px-3 py-1 text-xs font-medium transition",
             somenteComSinal ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground-muted hover:text-foreground",
@@ -167,6 +187,39 @@ export default async function ComparativosPage({ searchParams }: PageProps) {
           </div>
         </div>
       )}
+
+      <div className="mt-6 rounded-xl border border-border bg-surface p-5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <TrendingUp className="h-4 w-4 text-foreground-muted" />
+          Evolução histórica por indicador
+        </h2>
+        <p className="mt-1 text-xs text-foreground-muted/70">
+          Para acompanhar a evolução ano a ano da rede em gráficos dedicados, acesse a página de cada indicador:
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Link
+            href={`/admin/indicadores/frequencia?${queryStringAnos}`}
+            className="flex items-center justify-between rounded-lg border border-border bg-surface-muted/50 p-3 text-sm font-medium text-foreground transition hover:border-attendance hover:bg-attendance-subtle/30"
+          >
+            <span>Frequência e Permanência</span>
+            <ArrowRight className="h-4 w-4 text-foreground-muted" />
+          </Link>
+          <Link
+            href={`/admin/indicadores/aprendizagem?${queryStringAnos}`}
+            className="flex items-center justify-between rounded-lg border border-border bg-surface-muted/50 p-3 text-sm font-medium text-foreground transition hover:border-education hover:bg-education-subtle/30"
+          >
+            <span>Aprendizagem e Desempenho</span>
+            <ArrowRight className="h-4 w-4 text-foreground-muted" />
+          </Link>
+          <Link
+            href={`/admin/indicadores/fluxo-trajetoria?${queryStringAnos}`}
+            className="flex items-center justify-between rounded-lg border border-border bg-surface-muted/50 p-3 text-sm font-medium text-foreground transition hover:border-warning hover:bg-warning-subtle/30"
+          >
+            <span>Fluxo e Trajetória Escolar</span>
+            <ArrowRight className="h-4 w-4 text-foreground-muted" />
+          </Link>
+        </div>
+      </div>
 
       <div className="mt-6">
         <DataTable>

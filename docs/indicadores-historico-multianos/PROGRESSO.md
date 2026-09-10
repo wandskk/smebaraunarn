@@ -1,7 +1,7 @@
 # Progresso — Observação Multi-Ano nos Indicadores + Avaliações do Município
 
-**Última atualização:** 2026-09-10 (ETAPA 05 concluída — aguardando autorização
-para iniciar a ETAPA 06)
+**Última atualização:** 2026-09-10 (ETAPA 06 concluída — aguardando autorização
+para iniciar a ETAPA 07)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -17,7 +17,7 @@ com o Markdown correspondente em `etapas/`.
 | 03 | Componente de gráfico de evolução histórica | **DONE** | 2026-09-10 |
 | 04 | Queries de evolução histórica por indicador | **DONE** | 2026-09-10 |
 | 05 | Rollout: Frequência e Aprendizagem | **DONE** | 2026-09-10 |
-| 06 | Rollout: Fluxo-Trajetória e Comparativos | PENDENTE | |
+| 06 | Rollout: Fluxo-Trajetória e Comparativos | **DONE** | 2026-09-10 |
 | 07 | Rollout: Portal da Direção | PENDENTE | |
 | 08 | Nova página `/admin/indicadores/avaliacoes` | PENDENTE | |
 | 09 | Atualizar a Central (`/admin/indicadores`) | PENDENTE | |
@@ -237,5 +237,54 @@ npm run build      # sucesso, 52 rotas geradas
 ## Próximo passo permitido
 
 ETAPA 06 — Rollout: Fluxo-Trajetória e Comparativos (aguardando autorização explícita do usuário).
+
+## Resumo da ETAPA 06
+
+Rollout do seletor persistente de ano letivo (`AnosLetivosFiltro` + cookie
+`sme_anos_letivos`, ETAPA 02) nas páginas `/admin/indicadores/fluxo-trajetoria`
+e `/admin/indicadores/comparativos`:
+- `lib/queries/anos-letivos.ts`: adicionado helper puro
+  `montarQueryStringAnos(selecao)` com 3 testes unitários novos cobrindo os modos
+  `todos`, `multiplos` e `unico`.
+- `/admin/indicadores/fluxo-trajetoria`: integrado `AnosLetivosFiltro` no
+  `PageHeader`, `anoReferencia(selecao)` ancorando KPIs pontuais, distribuição por
+  série e tabela de escolas, e nova seção "Evolução por ano letivo — Distorção
+  idade-série da rede" com `HistoricalEvolutionChart` (`accent="warning"`,
+  `unidade="percentual"`), alimentada por `getEvolucaoDistorcaoPorAno` (ETAPA 04)
+  e acompanhada de `TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL`.
+- `/admin/indicadores/comparativos`: adicionado pela primeira vez o seletor
+  persistente `AnosLetivosFiltro` no `PageHeader` com
+  `preservarQueryParams={{ sinal: "1" }}`. Os botões de alternância de visualização
+  ("Todas as escolas" e "Só com sinal de atenção") preservam `queryStringAnos` na URL.
+  Nova seção "Evolução histórica por indicador" que guia o usuário com links
+  diretos para as visualizações dedicadas de evolução (`/frequencia`,
+  `/aprendizagem`, `/fluxo-trajetoria`) mantendo a seleção temporal ativa, sem
+  duplicar 3 gráficos e sem criar ranking artificial de escolas.
+
+Detalhe completo em
+[`etapas/06-rollout-fluxo-comparativos.md`](etapas/06-rollout-fluxo-comparativos.md).
+
+## Testes executados
+
+```bash
+npm test        # 298/298 testes passando (+3 testes novos de query string)
+npm run typecheck  # sem erros
+npm run lint       # sem warnings/erros
+npm run build      # sucesso, 52 rotas geradas
+```
+
+## Critério de pronto
+
+- [x] Seletor persistente `AnosLetivosFiltro` integrado em `/admin/indicadores/fluxo-trajetoria`.
+- [x] Gráfico `HistoricalEvolutionChart` com texto de transparência em `/admin/indicadores/fluxo-trajetoria`.
+- [x] Seletor persistente `AnosLetivosFiltro` integrado em `/admin/indicadores/comparativos` com `preservarQueryParams`.
+- [x] Preservação da seleção de anos na alternância de visualização de Comparativos.
+- [x] Seção de navegação para evolução histórica dos 3 indicadores em Comparativos.
+- [x] `npm test`/`typecheck`/`lint`/`build` 100% limpos.
+
+## Próximo passo permitido
+
+ETAPA 07 — Rollout: Portal da Direção (aguardando autorização explícita do usuário).
+
 
 

@@ -1,8 +1,15 @@
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, TrendingDown, Users2 } from "lucide-react";
-import { formatNumber, resolverAnoLetivo } from "@/lib/utils";
-import { getAnosLetivosDisponiveis } from "@/lib/queries/anos-letivos";
-import { getDistorcaoPorEscolaESerie } from "@/lib/queries/distorcao";
+import { cookies } from "next/headers";
+import { ArrowLeft, AlertTriangle, TrendingDown, TrendingUp, Users2 } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
+import {
+  getAnosLetivosDisponiveis,
+  ANOS_LETIVOS_COOKIE_NAME,
+  resolverSelecaoAnosLetivos,
+  anoReferencia,
+  anosParaEvolucao,
+} from "@/lib/queries/anos-letivos";
+import { getDistorcaoPorEscolaESerie, getEvolucaoDistorcaoPorAno } from "@/lib/queries/distorcao";
 import { getComparativosPorEscola } from "@/lib/queries/comparativos";
 import { calcularJanelaComparativaPadrao, resolverDataReferenciaJanela } from "@/lib/queries/frequencia";
 import type { SerieEnsino } from "@/lib/analytics/distorcao";
@@ -13,9 +20,14 @@ import { DataTable, TableHeader, TableBody, TableRow, TableHeadCell, TableCell }
 import { TableEmptyState } from "@/components/ui/table-empty-state";
 import { RingProgress } from "@/components/ui/charts/ring-progress";
 import { HorizontalBarChart, type HorizontalBarDatum } from "@/components/ui/charts/horizontal-bar-chart";
+import {
+  HistoricalEvolutionChart,
+  TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL,
+} from "@/components/ui/charts/historical-evolution-chart";
+import { AnosLetivosFiltro } from "@/components/ui/anos-letivos-filtro";
 
 interface PageProps {
-  searchParams: { ano?: string };
+  searchParams: { anos?: string | string[]; ano?: string };
 }
 
 const ROTULO_SERIE: Record<SerieEnsino, string> = {
@@ -38,14 +50,19 @@ function formatarPercentual(valor: number | null): string {
 }
 
 export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
+  const cookieStore = cookies();
+  const cookieValor = cookieStore.get(ANOS_LETIVOS_COOKIE_NAME)?.value;
   const anosDisponiveis = await getAnosLetivosDisponiveis();
-  const anoLetivo = resolverAnoLetivo(searchParams, anosDisponiveis);
+  const selecao = resolverSelecaoAnosLetivos(searchParams, cookieValor, anosDisponiveis);
+  const anoLetivo = anoReferencia(selecao);
+  const anosParaGrafico = anosParaEvolucao(selecao);
   const comAno = (href: string) => `${href}?ano=${anoLetivo}`;
 
   const janela = calcularJanelaComparativaPadrao(resolverDataReferenciaJanela(anoLetivo));
-  const [{ porEscola, porSerie }, { escolas: comparativos }] = await Promise.all([
+  const [{ porEscola, porSerie }, { escolas: comparativos }, evolucaoAnual] = await Promise.all([
     getDistorcaoPorEscolaESerie({ anoLetivo }),
     getComparativosPorEscola({ anoLetivo, ...janela }),
+    getEvolucaoDistorcaoPorAno(anosParaGrafico),
   ]);
   const diferencaRedePorEscola = new Map(comparativos.map((e) => [e.escolaId, e.distorcaoDiferencaRede]));
 
@@ -79,6 +96,13 @@ export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
             Onde a distorção idade-série está concentrada e em quais etapas ela começa a crescer? Ano letivo{" "}
             {anoLetivo}.
           </>
+        }
+        actions={
+          <AnosLetivosFiltro
+            anosDisponiveis={anosDisponiveis}
+            selecaoAtual={selecao}
+            pathname="/admin/indicadores/fluxo-trajetoria"
+          />
         }
       />
 
@@ -131,6 +155,19 @@ export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
         ) : (
           <HorizontalBarChart data={barrasPorSerie} accent="warning" />
         )}
+      </div>
+
+      <div className="mt-8">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <TrendingUp className="h-4 w-4 text-foreground-muted" />
+          Evolução por ano letivo — Distorção idade-série da rede
+        </h2>
+        <p className="mt-1 text-xs text-foreground-muted/70">
+          Percentual anual de estudantes com 2 ou mais anos de defasagem idade-série nos anos selecionados. {TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL}
+        </p>
+        <div className="mt-3 rounded-xl border border-border bg-surface p-5">
+          <HistoricalEvolutionChart data={evolucaoAnual} accent="warning" height={200} unidade="percentual" />
+        </div>
       </div>
 
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-foreground-muted">Por escola</h2>

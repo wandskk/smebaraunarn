@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { resolverSelecaoAnosLetivos, anoReferencia, anosParaEvolucao } from "./anos-letivos";
+import { resolverSelecaoAnosLetivos, anoReferencia, anosParaEvolucao, montarQueryStringAnos } from "./anos-letivos";
 
 const ANOS_DISPONIVEIS = [2026, 2025, 2024];
 
@@ -78,3 +78,18 @@ describe("anosParaEvolucao", () => {
     assert.deepEqual(anosParaEvolucao({ modo: "multiplos", anos: [2026, 2024, 2025] }), [2024, 2025, 2026]);
   });
 });
+
+describe("montarQueryStringAnos", () => {
+  test("modo 'todos' retorna 'anos=todos'", () => {
+    assert.equal(montarQueryStringAnos({ modo: "todos", anos: [2024, 2025, 2026] }), "anos=todos");
+  });
+
+  test("modo 'multiplos' junta anos repetindo a chave", () => {
+    assert.equal(montarQueryStringAnos({ modo: "multiplos", anos: [2024, 2025] }), "anos=2024&anos=2025");
+  });
+
+  test("modo 'unico' retorna 'anos=ANO'", () => {
+    assert.equal(montarQueryStringAnos({ modo: "unico", ano: 2025 }), "anos=2025");
+  });
+});
+

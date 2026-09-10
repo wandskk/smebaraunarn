@@ -172,3 +172,11 @@ export function anoReferencia(selecao: SelecaoAnosLetivos): number {
 export function anosParaEvolucao(selecao: SelecaoAnosLetivos): number[] {
   return selecao.modo === "unico" ? [selecao.ano] : [...selecao.anos].sort((a, b) => a - b);
 }
+
+/** Constrói os query parameters de anos letivos correspondentes a uma seleção (ex.: "anos=todos", "anos=2024&anos=2025" ou "anos=2024"). */
+export function montarQueryStringAnos(selecao: SelecaoAnosLetivos): string {
+  if (selecao.modo === "todos") return "anos=todos";
+  if (selecao.modo === "multiplos") return selecao.anos.map((a) => `anos=${a}`).join("&");
+  return `anos=${selecao.ano}`;
+}
+
