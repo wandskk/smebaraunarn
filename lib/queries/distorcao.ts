@@ -45,61 +45,103 @@ function calcularDataReferenciaPadrao(anoLetivo: number): string {
   return `${anoLetivo}-03-31`;
 }
 
+export interface MatriculaResolvida {
+  dataNascimento: string | null;
+  escolaId: number | null;
+  serieTexto: string | null;
+  /** Código interno da turma (ex.: "EFAFM6A") — usado para contagem de turmas ativas, nunca exibido como nome legível sozinho. */
+  turma: string | null;
+}
+
 /**
- * Resolve, para cada matrícula do ano letivo pedido, a escola e a série em
- * que ela de fato estava naquele ano — preferindo os próprios registros de
- * nota daquele ano (que carregam escola/série no momento em que a nota foi
- * lançada) e caindo para o snapshot atual do aluno (`Estudante`) só quando
- * não há nota lançada naquele ano E o aluno ainda está matriculado nesse
- * mesmo ano (`Estudante.ano === anoLetivo`) — ou seja, "ainda não lançaram
- * nota este ano", não "lançaram nota, mas em outra escola".
+ * Resolve, para cada um dos anos letivos pedidos, a escola/turma/série em
+ * que cada matrícula de fato estava naquele ano — preferindo os próprios
+ * registros de nota daquele ano (que carregam escola/turma/série no momento
+ * em que a nota foi lançada) e caindo para o snapshot atual do aluno
+ * (`Estudante`) só quando não há nota lançada naquele ano E o aluno ainda
+ * está matriculado nesse mesmo ano (`Estudante.ano === anoLetivo`) — ou
+ * seja, "ainda não lançaram nota este ano", não "lançaram nota, mas em
+ * outra escola".
  *
  * Isso importa porque `Estudante.escolaId`/`turmaSerie` guardam só a
  * matrícula MAIS RECENTE do aluno (ver nota em upsertEstudante em
  * lib/sync/sigeduc-sync.ts) — usá-los direto para um ano anterior atribuiria
- * a distorção de anos passados à escola/turma atual de quem já mudou de
- * escola desde então.
+ * a distorção/população de anos passados à escola/turma atual de quem já
+ * mudou de escola desde então.
+ *
+ * Recebe uma lista de anos para poder resolver vários anos numa única
+ * leitura de `Estudante`/`Escola` (tabelas inteiras, sem `where`) em vez de
+ * refazer essas duas queries a cada ano — só `NotaEstudante` é filtrada por
+ * ano, com `ano: {in: anos}` numa única query. Chamar isto num loop
+ * `anos.map(a => resolverMatriculaPorAno(a))` reintroduziria exatamente o
+ * N+1 que esta função existe para evitar.
  */
-export async function resolverMatriculaPorAno(
-  anoLetivo: number,
-): Promise<Map<string, { dataNascimento: string | null; escolaId: number | null; serieTexto: string | null }>> {
-  const [estudantesDoAno, notasDoAno, escolas] = await Promise.all([
+export async function resolverMatriculaPorAnos(anos: number[]): Promise<Map<number, Map<string, MatriculaResolvida>>> {
+  const [estudantesTodos, notasDosAnos, escolas] = await Promise.all([
     prisma.estudante.findMany({
       select: { matricula: true, dataNascimento: true, ano: true, turmaSerie: true, escolaId: true },
     }),
     prisma.notaEstudante.findMany({
-      where: { ano: anoLetivo },
-      distinct: ["estudanteMatricula"],
-      select: { estudanteMatricula: true, escola: true, serie: true },
+      where: { ano: { in: anos } },
+      distinct: ["estudanteMatricula", "ano"],
+      select: { estudanteMatricula: true, ano: true, escola: true, serie: true, turma: true },
     }),
     prisma.escola.findMany({ select: { id: true, nome: true } }),
   ]);
 
-  const idPorNomeEscola = new Map(escolas.map((e) => [e.nome, e.id]));
-  const notaPorMatricula = new Map(notasDoAno.map((n) => [n.estudanteMatricula, n]));
+  // .trim() nos dois lados: nomes vindos de NotaEstudante.escola são texto
+  // livre importado do SIGEduc, sujeito a espaço em branco extra que não
+  // existe no cadastro de Escola — sem isso, um match legítimo falharia
+  // silenciosamente e o aluno "sumiria" de escolasAtivas (ver ETAPA 01 de
+  // docs/indicadores-historico-multianos, achado de revisão adversarial).
+  const idPorNomeEscola = new Map(escolas.map((e) => [e.nome.trim(), e.id]));
+  // Turmas atuais (snapshot) não dependem do ano pedido — resolvidas 1 vez só.
   const turmasAtuaisUnicas = Array.from(
-    new Set(estudantesDoAno.map((e) => e.turmaSerie).filter((t): t is string => Boolean(t))),
+    new Set(estudantesTodos.map((e) => e.turmaSerie).filter((t): t is string => Boolean(t))),
   );
   const seriesPorTurmaAtual = await getSeriePorTurma(turmasAtuaisUnicas);
 
-  const resolvido = new Map<string, { dataNascimento: string | null; escolaId: number | null; serieTexto: string | null }>();
-  for (const estudante of estudantesDoAno) {
-    const notaDoAno = notaPorMatricula.get(estudante.matricula);
-    if (notaDoAno) {
-      resolvido.set(estudante.matricula, {
-        dataNascimento: estudante.dataNascimento,
-        escolaId: notaDoAno.escola ? (idPorNomeEscola.get(notaDoAno.escola) ?? null) : null,
-        serieTexto: notaDoAno.serie,
-      });
-    } else if (estudante.ano === anoLetivo) {
-      resolvido.set(estudante.matricula, {
-        dataNascimento: estudante.dataNascimento,
-        escolaId: estudante.escolaId,
-        serieTexto: estudante.turmaSerie ? (seriesPorTurmaAtual.get(estudante.turmaSerie) ?? null) : null,
-      });
+  const notaPorAnoEMatricula = new Map<number, Map<string, { escola: string | null; serie: string | null; turma: string | null }>>();
+  for (const nota of notasDosAnos) {
+    let porMatricula = notaPorAnoEMatricula.get(nota.ano);
+    if (!porMatricula) {
+      porMatricula = new Map();
+      notaPorAnoEMatricula.set(nota.ano, porMatricula);
     }
+    porMatricula.set(nota.estudanteMatricula, { escola: nota.escola, serie: nota.serie, turma: nota.turma });
   }
-  return resolvido;
+
+  const resultado = new Map<number, Map<string, MatriculaResolvida>>();
+  for (const anoLetivo of anos) {
+    const notaPorMatricula = notaPorAnoEMatricula.get(anoLetivo) ?? new Map();
+    const resolvido = new Map<string, MatriculaResolvida>();
+    for (const estudante of estudantesTodos) {
+      const notaDoAno = notaPorMatricula.get(estudante.matricula);
+      if (notaDoAno) {
+        resolvido.set(estudante.matricula, {
+          dataNascimento: estudante.dataNascimento,
+          escolaId: notaDoAno.escola ? (idPorNomeEscola.get(notaDoAno.escola.trim()) ?? null) : null,
+          serieTexto: notaDoAno.serie,
+          turma: notaDoAno.turma,
+        });
+      } else if (estudante.ano === anoLetivo) {
+        resolvido.set(estudante.matricula, {
+          dataNascimento: estudante.dataNascimento,
+          escolaId: estudante.escolaId,
+          serieTexto: estudante.turmaSerie ? (seriesPorTurmaAtual.get(estudante.turmaSerie) ?? null) : null,
+          turma: estudante.turmaSerie,
+        });
+      }
+    }
+    resultado.set(anoLetivo, resolvido);
+  }
+  return resultado;
+}
+
+/** Wrapper de 1 ano só sobre `resolverMatriculaPorAnos` — mantido para não quebrar chamadores existentes. */
+export async function resolverMatriculaPorAno(anoLetivo: number): Promise<Map<string, MatriculaResolvida>> {
+  const porAnos = await resolverMatriculaPorAnos([anoLetivo]);
+  return porAnos.get(anoLetivo) ?? new Map();
 }
 
 /**

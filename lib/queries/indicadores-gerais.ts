@@ -59,11 +59,17 @@ export async function getIndicadoresGeraisRede(
   const faixasFrequencia = parametros.faixasFrequencia ?? FAIXAS_PADRAO_FREQUENCIA;
   const limiarDistorcaoAnos = parametros.limiarDistorcaoAnos ?? LIMIAR_DISTORCAO_ANOS;
 
-  const [estudantesDoAno, frequenciaPorEstudante, desempenhoAgregado] = await Promise.all([
-    prisma.estudante.findMany({
-      where: { ano: anoLetivo },
-      select: { matricula: true, dataNascimento: true, turmaSerie: true, escolaId: true },
-    }),
+  // `matriculaPorAno` resolve a matrícula histórica de cada aluno (nota do
+  // ano, senão snapshot do Estudante só se `Estudante.ano === anoLetivo`) —
+  // é a MESMA fonte já usada abaixo para distorção, agora reaproveitada
+  // também para população/escolas/turmas. Antes desta correção
+  // (ETAPA 01 de docs/indicadores-historico-multianos), esses 3 números
+  // vinham de `prisma.estudante.findMany({where:{ano:anoLetivo}})` —
+  // `Estudante.ano` é só o snapshot MAIS RECENTE de cada aluno, então um ano
+  // histórico contava só quem ainda não migrou de ano/escola desde então
+  // (medido: ~65-70% de subcontagem para 2024/2025 no banco de produção).
+  const [matriculaPorAno, frequenciaPorEstudante, desempenhoAgregado] = await Promise.all([
+    resolverMatriculaPorAno(anoLetivo),
     // Filtra por data (ano civil), não por `estudante: { ano: anoLetivo } }`:
     // esse join soma TODA a frequência já sincronizada de quem tem essa
     // matrícula vigente hoje, sem limite de data — para um aluno com vários
@@ -79,10 +85,14 @@ export async function getIndicadoresGeraisRede(
     }),
   ]);
 
-  const totalEstudantes = estudantesDoAno.length;
-  const escolasAtivas = new Set(estudantesDoAno.map((e) => e.escolaId)).size;
+  const totalEstudantes = matriculaPorAno.size;
+  const escolasAtivas = new Set(
+    Array.from(matriculaPorAno.values())
+      .map((d) => d.escolaId)
+      .filter((id): id is number => id !== null),
+  ).size;
   const turmasUnicas = Array.from(
-    new Set(estudantesDoAno.map((e) => e.turmaSerie).filter((t): t is string => Boolean(t))),
+    new Set(Array.from(matriculaPorAno.values()).map((d) => d.turma).filter((t): t is string => Boolean(t))),
   );
   const totalTurmas = turmasUnicas.length;
 
@@ -102,12 +112,9 @@ export async function getIndicadoresGeraisRede(
   }
   const frequenciaMediaRede = calcularPercentualFrequencia(totalAulasRede, totalFaltasRede);
 
-  // Distorção usa uma resolução de série própria (mesma de
-  // lib/queries/distorcao.ts): prefere a série do próprio registro de nota
-  // daquele ano em vez de `Estudante.turmaSerie` (que só guarda a matrícula
-  // mais recente do aluno) — necessário para o ano letivo poder ser
-  // histórico, não só o corrente.
-  const matriculaPorAno = await resolverMatriculaPorAno(anoLetivo);
+  // Distorção reaproveita a mesma `matriculaPorAno` resolvida acima — uma
+  // única fonte de verdade para "quem estava na rede naquele ano", em vez de
+  // duas fontes divergentes (ver comentário no Promise.all acima).
   let estudantesEmDistorcaoIdadeSerie = 0;
   let estudantesForaDoEscopoOuSemDadosParaDistorcao = 0;
   let estudantesElegiveisDistorcao = 0;
