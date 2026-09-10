@@ -1,7 +1,7 @@
 # Progresso — Observação Multi-Ano nos Indicadores + Avaliações do Município
 
-**Última atualização:** 2026-09-10 (ETAPA 01 concluída — aguardando autorização
-para iniciar a ETAPA 02)
+**Última atualização:** 2026-09-10 (ETAPA 02 concluída — aguardando autorização
+para iniciar a ETAPA 03)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -13,7 +13,7 @@ com o Markdown correspondente em `etapas/`.
 |---|---|---|---|
 | 00 | Fonte única de "anos letivos disponíveis" | **DONE** | 2026-09-10 |
 | 01 | Corrigir contagem de população histórica | **DONE** | 2026-09-10 |
-| 02 | Seletor de ano persistente (URL + cookie) | PENDENTE | |
+| 02 | Seletor de ano persistente (URL + cookie) | **DONE** | 2026-09-10 |
 | 03 | Componente de gráfico de evolução histórica | PENDENTE | |
 | 04 | Queries de evolução histórica por indicador | PENDENTE | |
 | 05 | Rollout: Frequência e Aprendizagem | PENDENTE | |
@@ -99,6 +99,29 @@ e aceito, sem impacto no dataset atual. `npm test` (263/263),
 `typecheck`/`lint`/`build` seguem limpos após o fix. Detalhe completo em
 [`etapas/01-corrigir-contagem-populacao-historica.md`](etapas/01-corrigir-contagem-populacao-historica.md).
 
+## Resumo da ETAPA 02
+
+Infraestrutura de seletor de ano persistente: `SelecaoAnosLetivos` +
+`resolverSelecaoAnosLetivos` (prioridade `?anos=` → `?ano=` legado → cookie
+→ default) em `lib/queries/anos-letivos.ts`; Server Action
+`salvarSelecaoAnosLetivosAction` (`lib/actions/anos-letivos.ts`) gravando o
+cookie `sme_anos_letivos` no mesmo padrão de `lib/auth.ts`; componente
+`AnosLetivosFiltro` (`components/ui/anos-letivos-filtro.tsx`), justificado
+pelos 7+ usos reais deste roadmap (limite que `docs/plano-evolucao-sme`
+usava pra adiar um componente equivalente com só 1 uso). 14 testes novos
+para a lógica de prioridade. Revisão adversarial (3 dimensões) encontrou 6
+achados reais, todos corrigidos: um gap de open-redirect no `pathname` da
+Server Action, checkboxes que não refletiam visualmente "Todos os anos",
+estado local que ficava desatualizado após o redirect pra mesma rota (React
+não remonta o Client Component), ausência de rótulo com só 1 ano
+disponível, acessibilidade do popover (role/foco) e ausência de guarda de
+estado pendente no botão — mais um achado secundário (redirect descartava
+outros query params da página). Todos os 6 fixes foram verificados **ao
+vivo no browser** (página de teste temporária, removida ao final), incluindo
+uma tentativa real de open-redirect que confirmou o bloqueio funcionando.
+`npm test` (277/277), `typecheck`/`lint`/`build` limpos. Detalhe completo em
+[`etapas/02-seletor-ano-persistente.md`](etapas/02-seletor-ano-persistente.md).
+
 ## Próximo passo permitido
 
-ETAPA 02 — aguardando autorização explícita do usuário.
+ETAPA 03 — aguardando autorização explícita do usuário.
