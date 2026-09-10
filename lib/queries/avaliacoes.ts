@@ -6,15 +6,21 @@ import {
   calcularDistribuicaoFluencia,
   calcularResumoResultadosTurma,
   ordemCicloCaed,
+  calcularEvolucaoCaedPorAno,
+  calcularEvolucaoPontuacaoPorAno,
+  calcularEvolucaoFluenciaPorAno,
   type StatusAvaliacao,
   type AnaliseItemResultado,
   type AnaliseDescritorResultado,
   type DistribuicaoFluencia,
   type ResumoResultadosTurma,
+  type PontoEvolucaoAnual,
+  type EntradaEvolucaoPontuacao,
+  type EntradaEvolucaoFluencia,
 } from "@/lib/analytics/avaliacoes";
 import { CAED_ANOS_ESCOLARES, CAED_CICLOS, CAED_COMPONENTES } from "@/lib/caed-catalogo";
 
-export { STATUS_AVALIACAO_LABEL, type StatusAvaliacao } from "@/lib/analytics/avaliacoes";
+export { STATUS_AVALIACAO_LABEL, type StatusAvaliacao, type PontoEvolucaoAnual } from "@/lib/analytics/avaliacoes";
 
 /** Rótulos compartilhados entre Admin e Direção — antes duplicados em cada tela. */
 export const TIPO_AVALIACAO_LABEL: Record<TipoAvaliacao, string> = {
@@ -672,3 +678,441 @@ export async function getCaedResumoPorCiclo(params: { etapaEnsino: string; compo
     .filter((r): r is CaedResumoCiclo => r !== null)
     .sort((a, b) => a.ano - b.ano || ordemCicloCaed(a.codigoCiclo) - ordemCicloCaed(b.codigoCiclo));
 }
+
+/**
+ * Evolução do % de aprendizagem adequada do CAEd por ano letivo sem N+1.
+ * Faz 1 busca pelos IDs das avaliações CAEd e 1 consulta agregada a `AvaliacaoResultadoTurma`,
+ * reduzindo em memória via `calcularEvolucaoCaedPorAno`.
+ */
+export async function getEvolucaoCaedPorAno(
+  anos: number[],
+  escolaId?: number,
+): Promise<PontoEvolucaoAnual[]> {
+  if (anos.length === 0) return [];
+
+  const avaliacoes = await prisma.avaliacao.findMany({
+    where: {
+      tipo: "AVALIACAO_CONTINUA_CAED",
+      ano: { in: anos },
+    },
+    select: { id: true, ano: true },
+  });
+
+  if (avaliacoes.length === 0) {
+    return anos.slice().sort((a, b) => a - b).map((ano) => ({ ano, valor: null }));
+  }
+
+  const anoMap = new Map(avaliacoes.map((a) => [a.id, a.ano]));
+
+  const turmas = await prisma.avaliacaoResultadoTurma.findMany({
+    where: {
+      avaliacaoId: { in: avaliacoes.map((a) => a.id) },
+      ...(escolaId ? { escolaId } : {}),
+    },
+    select: {
+      avaliacaoId: true,
+      avaliados: true,
+      quantidadeAdequado: true,
+      percentualAdequado: true,
+    },
+  });
+
+  return calcularEvolucaoCaedPorAno(
+    anos,
+    turmas.map((t) => ({
+      ano: anoMap.get(t.avaliacaoId)!,
+      avaliados: t.avaliados,
+      quantidadeAdequado: t.quantidadeAdequado,
+      percentualAdequado: t.percentualAdequado,
+    })),
+  );
+}
+
+/**
+ * Evolução da pontuação média (SPADEB, Simulado, Prova Municipal) por ano letivo sem N+1.
+ * Agrupa resultados por `avaliacaoId` direto no banco via `groupBy` e pondera pelo total de avaliados.
+ */
+export async function getEvolucaoPontuacaoPorAno(
+  anos: number[],
+  tipo: TipoAvaliacao,
+  escolaId?: number,
+): Promise<PontoEvolucaoAnual[]> {
+  if (anos.length === 0) return [];
+
+  const avaliacoes = await prisma.avaliacao.findMany({
+    where: {
+      tipo,
+      ano: { in: anos },
+    },
+    select: { id: true, ano: true },
+  });
+
+  if (avaliacoes.length === 0) {
+    return anos.slice().sort((a, b) => a - b).map((ano) => ({ ano, valor: null }));
+  }
+
+  const anoMap = new Map(avaliacoes.map((a) => [a.id, a.ano]));
+
+  const grupos = await prisma.avaliacaoResultadoAluno.groupBy({
+    by: ["avaliacaoId"],
+    where: {
+      avaliacaoId: { in: avaliacoes.map((a) => a.id) },
+      pontuacao: { not: null },
+      ...(escolaId ? { escolaId } : {}),
+    },
+    _avg: { pontuacao: true },
+    _count: { id: true },
+  });
+
+  const dados: EntradaEvolucaoPontuacao[] = grupos.map((g) => ({
+    ano: anoMap.get(g.avaliacaoId)!,
+    somaPontuacao: (g._avg.pontuacao ?? 0) * g._count.id,
+    totalAvaliados: g._count.id,
+  }));
+
+  return calcularEvolucaoPontuacaoPorAno(anos, dados);
+}
+
+/**
+ * Evolução do % de leitores fluentes por ano letivo sem N+1.
+ * Agrupa contagens por nível de desempenho e calcula a proporção ponderada de leitores fluentes.
+ */
+export async function getEvolucaoFluenciaPorAno(
+  anos: number[],
+  escolaId?: number,
+): Promise<PontoEvolucaoAnual[]> {
+  if (anos.length === 0) return [];
+
+  const avaliacoes = await prisma.avaliacao.findMany({
+    where: {
+      tipo: "FLUENCIA_LEITORA",
+      ano: { in: anos },
+    },
+    select: { id: true, ano: true },
+  });
+
+  if (avaliacoes.length === 0) {
+    return anos.slice().sort((a, b) => a - b).map((ano) => ({ ano, valor: null }));
+  }
+
+  const anoMap = new Map(avaliacoes.map((a) => [a.id, a.ano]));
+
+  const grupos = await prisma.avaliacaoResultadoAluno.groupBy({
+    by: ["avaliacaoId", "nivelDesempenho"],
+    where: {
+      avaliacaoId: { in: avaliacoes.map((a) => a.id) },
+      nivelDesempenho: { not: null },
+      ...(escolaId ? { escolaId } : {}),
+    },
+    _count: { id: true },
+  });
+
+  const porAvaliacao = new Map<string, { leitorFluente: number; totalComNivel: number }>();
+  for (const g of grupos) {
+    const atual = porAvaliacao.get(g.avaliacaoId) ?? { leitorFluente: 0, totalComNivel: 0 };
+    atual.totalComNivel += g._count.id;
+    if (g.nivelDesempenho === "LEITOR_FLUENTE") {
+      atual.leitorFluente += g._count.id;
+    }
+    porAvaliacao.set(g.avaliacaoId, atual);
+  }
+
+  const dados: EntradaEvolucaoFluencia[] = Array.from(porAvaliacao.entries()).map(([id, stats]) => ({
+    ano: anoMap.get(id)!,
+    leitorFluente: stats.leitorFluente,
+    totalComNivel: stats.totalComNivel,
+  }));
+
+  return calcularEvolucaoFluenciaPorAno(anos, dados);
+}
+
+export interface ItemAvaliacaoIndicador {
+  id: string;
+  codigo: string;
+  nome: string;
+  tipo: TipoAvaliacao;
+  ano: number;
+  etapaEnsino: string | null;
+  totalAvaliados: number;
+  totalEsperado: number | null;
+  taxaParticipacao: number | null;
+  metricaPrincipal: {
+    rotulo: string;
+    valor: number | null;
+    unidade: "percentual" | "numero";
+  };
+  status: StatusAvaliacao;
+}
+
+export interface ResumoIndicadoresAvaliacoes {
+  totalAvaliacoes: number;
+  tiposAtivos: TipoAvaliacao[];
+  totalAvaliadosGeral: number;
+  coberturaMedia: number | null;
+  caed: {
+    totalAvaliacoes: number;
+    totalAvaliados: number;
+    percentualAdequado: number | null;
+  };
+  fluencia: {
+    totalAvaliacoes: number;
+    totalAvaliados: number;
+    percentualFluente: number | null;
+  };
+  spadeb: {
+    totalAvaliacoes: number;
+    totalAvaliados: number;
+    mediaPontuacao: number | null;
+  };
+  simulado: {
+    totalAvaliacoes: number;
+    totalAvaliados: number;
+    mediaPontuacao: number | null;
+  };
+  provaMunicipal: {
+    totalAvaliacoes: number;
+    totalAvaliados: number;
+    mediaPontuacao: number | null;
+  };
+  avaliacoes: ItemAvaliacaoIndicador[];
+}
+
+/**
+ * Compila o resumo analítico completo das avaliações para o ano letivo de referência,
+ * cobrindo tanto avaliações agregadas por turma (CAEd) quanto por aluno (Fluência, SPADEB, etc.).
+ */
+export async function getResumoIndicadoresAvaliacoes(
+  anoLetivo: number,
+  escolaId?: number,
+): Promise<ResumoIndicadoresAvaliacoes> {
+  const avaliacoes = await prisma.avaliacao.findMany({
+    where: { ano: anoLetivo },
+    orderBy: [{ tipo: "asc" }, { nome: "asc" }],
+  });
+
+  const vazio: ResumoIndicadoresAvaliacoes = {
+    totalAvaliacoes: 0,
+    tiposAtivos: [],
+    totalAvaliadosGeral: 0,
+    coberturaMedia: null,
+    caed: { totalAvaliacoes: 0, totalAvaliados: 0, percentualAdequado: null },
+    fluencia: { totalAvaliacoes: 0, totalAvaliados: 0, percentualFluente: null },
+    spadeb: { totalAvaliacoes: 0, totalAvaliados: 0, mediaPontuacao: null },
+    simulado: { totalAvaliacoes: 0, totalAvaliados: 0, mediaPontuacao: null },
+    provaMunicipal: { totalAvaliacoes: 0, totalAvaliados: 0, mediaPontuacao: null },
+    avaliacoes: [],
+  };
+
+  if (avaliacoes.length === 0) return vazio;
+
+  const avaliacaoIds = avaliacoes.map((a) => a.id);
+
+  const [turmas, alunosGrupos, fluenciaGrupos] = await Promise.all([
+    prisma.avaliacaoResultadoTurma.findMany({
+      where: {
+        avaliacaoId: { in: avaliacaoIds },
+        ...(escolaId ? { escolaId } : {}),
+      },
+      select: {
+        avaliacaoId: true,
+        previstos: true,
+        avaliados: true,
+        quantidadeAdequado: true,
+        percentualAdequado: true,
+      },
+    }),
+    prisma.avaliacaoResultadoAluno.groupBy({
+      by: ["avaliacaoId"],
+      where: {
+        avaliacaoId: { in: avaliacaoIds },
+        ...(escolaId ? { escolaId } : {}),
+      },
+      _count: { id: true },
+      _avg: { pontuacao: true },
+    }),
+    prisma.avaliacaoResultadoAluno.groupBy({
+      by: ["avaliacaoId", "nivelDesempenho"],
+      where: {
+        avaliacaoId: { in: avaliacaoIds },
+        nivelDesempenho: { not: null },
+        ...(escolaId ? { escolaId } : {}),
+      },
+      _count: { id: true },
+    }),
+  ]);
+
+  const turmasPorAvaliacao = new Map<string, typeof turmas>();
+  for (const t of turmas) {
+    const list = turmasPorAvaliacao.get(t.avaliacaoId) ?? [];
+    list.push(t);
+    turmasPorAvaliacao.set(t.avaliacaoId, list);
+  }
+
+  const alunosPorAvaliacao = new Map(alunosGrupos.map((g) => [g.avaliacaoId, g]));
+
+  const fluenciaPorAvaliacao = new Map<string, typeof fluenciaGrupos>();
+  for (const f of fluenciaGrupos) {
+    const list = fluenciaPorAvaliacao.get(f.avaliacaoId) ?? [];
+    list.push(f);
+    fluenciaPorAvaliacao.set(f.avaliacaoId, list);
+  }
+
+  const itens: ItemAvaliacaoIndicador[] = [];
+  const taxasValidas: number[] = [];
+
+  for (const av of avaliacoes) {
+    if (av.tipo === "AVALIACAO_CONTINUA_CAED") {
+      const turmasAv = turmasPorAvaliacao.get(av.id) ?? [];
+      const totalAvaliados = turmasAv.reduce((acc, t) => acc + (t.avaliados ?? 0), 0);
+      const totalEsperado = turmasAv.reduce((acc, t) => acc + (t.previstos ?? 0), 0);
+      const taxaParticipacao = totalEsperado > 0 ? (totalAvaliados / totalEsperado) * 100 : null;
+      if (taxaParticipacao !== null) taxasValidas.push(taxaParticipacao);
+
+      const somaAdequado = turmasAv.reduce((acc, t) => {
+        if (!t.avaliados) return acc;
+        if (t.quantidadeAdequado !== null) return acc + t.quantidadeAdequado;
+        if (t.percentualAdequado !== null) return acc + (t.avaliados * t.percentualAdequado) / 100;
+        return acc;
+      }, 0);
+
+      const percentualAdequado = totalAvaliados > 0 ? (somaAdequado / totalAvaliados) * 100 : null;
+
+      itens.push({
+        id: av.id,
+        codigo: av.codigo,
+        nome: av.nome,
+        tipo: av.tipo,
+        ano: av.ano,
+        etapaEnsino: av.etapaEnsino,
+        totalAvaliados,
+        totalEsperado: totalEsperado > 0 ? totalEsperado : null,
+        taxaParticipacao,
+        metricaPrincipal: {
+          rotulo: "% Aprendizagem adequada",
+          valor: percentualAdequado !== null ? Number(percentualAdequado.toFixed(1)) : null,
+          unidade: "percentual",
+        },
+        status: totalAvaliados === 0 ? "preparacao" : taxaParticipacao !== null && taxaParticipacao >= 90 ? "consolidada" : "coleta_parcial",
+      });
+    } else if (av.tipo === "FLUENCIA_LEITORA") {
+      const alunoGrupo = alunosPorAvaliacao.get(av.id);
+      const totalAvaliados = alunoGrupo?._count.id ?? 0;
+      const niveis = fluenciaPorAvaliacao.get(av.id) ?? [];
+      const totalComNivel = niveis.reduce((acc, n) => acc + n._count.id, 0);
+      const fluentes = niveis.filter((n) => n.nivelDesempenho === "LEITOR_FLUENTE").reduce((acc, n) => acc + n._count.id, 0);
+      const percentualFluente = totalComNivel > 0 ? (fluentes / totalComNivel) * 100 : null;
+
+      itens.push({
+        id: av.id,
+        codigo: av.codigo,
+        nome: av.nome,
+        tipo: av.tipo,
+        ano: av.ano,
+        etapaEnsino: av.etapaEnsino,
+        totalAvaliados,
+        totalEsperado: null,
+        taxaParticipacao: null,
+        metricaPrincipal: {
+          rotulo: "% Leitores fluentes",
+          valor: percentualFluente !== null ? Number(percentualFluente.toFixed(1)) : null,
+          unidade: "percentual",
+        },
+        status: totalAvaliados === 0 ? "preparacao" : "consolidada",
+      });
+    } else {
+      // SPADEB, SIMULADO, PROVA_MUNICIPAL
+      const alunoGrupo = alunosPorAvaliacao.get(av.id);
+      const totalAvaliados = alunoGrupo?._count.id ?? 0;
+      const mediaPontuacao = alunoGrupo?._avg.pontuacao ?? null;
+
+      itens.push({
+        id: av.id,
+        codigo: av.codigo,
+        nome: av.nome,
+        tipo: av.tipo,
+        ano: av.ano,
+        etapaEnsino: av.etapaEnsino,
+        totalAvaliados,
+        totalEsperado: null,
+        taxaParticipacao: null,
+        metricaPrincipal: {
+          rotulo: "Pontuação média",
+          valor: mediaPontuacao !== null ? Number(mediaPontuacao.toFixed(1)) : null,
+          unidade: "numero",
+        },
+        status: totalAvaliados === 0 ? "preparacao" : "consolidada",
+      });
+    }
+  }
+
+  // Agregações por tipo
+  const itensCaed = itens.filter((i) => i.tipo === "AVALIACAO_CONTINUA_CAED");
+  const caedAvaliados = itensCaed.reduce((acc, i) => acc + i.totalAvaliados, 0);
+  const caedAdequadoPontos = calcularEvolucaoCaedPorAno(
+    [anoLetivo],
+    turmas.map((t) => ({
+      ano: anoLetivo,
+      avaliados: t.avaliados,
+      quantidadeAdequado: t.quantidadeAdequado,
+      percentualAdequado: t.percentualAdequado,
+    })),
+  );
+
+  const itensFluencia = itens.filter((i) => i.tipo === "FLUENCIA_LEITORA");
+  const fluenciaAvaliados = itensFluencia.reduce((acc, i) => acc + i.totalAvaliados, 0);
+  const fluenciaPontos = calcularEvolucaoFluenciaPorAno(
+    [anoLetivo],
+    itensFluencia.map((i) => {
+      const niveis = fluenciaPorAvaliacao.get(i.id) ?? [];
+      const totalComNivel = niveis.reduce((acc, n) => acc + n._count.id, 0);
+      const leitorFluente = niveis.filter((n) => n.nivelDesempenho === "LEITOR_FLUENTE").reduce((acc, n) => acc + n._count.id, 0);
+      return { ano: anoLetivo, leitorFluente, totalComNivel };
+    }),
+  );
+
+  function resumoTipoPontuacao(tipo: TipoAvaliacao) {
+    const itensDoTipo = itens.filter((i) => i.tipo === tipo);
+    const avaliadosTipo = itensDoTipo.reduce((acc, i) => acc + i.totalAvaliados, 0);
+    const dadosPontuacao = itensDoTipo.map((i) => {
+      const g = alunosPorAvaliacao.get(i.id);
+      return {
+        ano: anoLetivo,
+        somaPontuacao: (g?._avg.pontuacao ?? 0) * (g?._count.id ?? 0),
+        totalAvaliados: g?._count.id ?? 0,
+      };
+    });
+    const pontos = calcularEvolucaoPontuacaoPorAno([anoLetivo], dadosPontuacao);
+    return {
+      totalAvaliacoes: itensDoTipo.length,
+      totalAvaliados: avaliadosTipo,
+      mediaPontuacao: pontos[0]?.valor ?? null,
+    };
+  }
+
+  const tiposAtivos = Array.from(new Set(itens.filter((i) => i.totalAvaliados > 0).map((i) => i.tipo)));
+  const totalAvaliadosGeral = itens.reduce((acc, i) => acc + i.totalAvaliados, 0);
+  const coberturaMedia =
+    taxasValidas.length > 0 ? Number((taxasValidas.reduce((a, b) => a + b, 0) / taxasValidas.length).toFixed(1)) : null;
+
+  return {
+    totalAvaliacoes: avaliacoes.length,
+    tiposAtivos,
+    totalAvaliadosGeral,
+    coberturaMedia,
+    caed: {
+      totalAvaliacoes: itensCaed.length,
+      totalAvaliados: caedAvaliados,
+      percentualAdequado: caedAdequadoPontos[0]?.valor ?? null,
+    },
+    fluencia: {
+      totalAvaliacoes: itensFluencia.length,
+      totalAvaliados: fluenciaAvaliados,
+      percentualFluente: fluenciaPontos[0]?.valor ?? null,
+    },
+    spadeb: resumoTipoPontuacao("SPADEB"),
+    simulado: resumoTipoPontuacao("SIMULADO"),
+    provaMunicipal: resumoTipoPontuacao("PROVA_MUNICIPAL"),
+    avaliacoes: itens,
+  };
+}
+

@@ -329,3 +329,131 @@ export function ordemCicloCaed(codigoCiclo: string): number {
   const numero = Number(codigoCiclo.replace(/^AV/i, ""));
   return Number.isNaN(numero) ? Number.MAX_SAFE_INTEGER : numero;
 }
+
+export interface PontoEvolucaoAnual {
+  ano: number;
+  /** Percentual ou pontuação da métrica. Null indica ausência de dados no ano. */
+  valor: number | null;
+}
+
+export interface EntradaEvolucaoCaedTurma {
+  ano: number;
+  avaliados: number | null;
+  quantidadeAdequado: number | null;
+  percentualAdequado: number | null;
+}
+
+/**
+ * Calcula a evolução do % de aprendizagem adequada do CAEd por ano letivo,
+ * ponderado pelo total de estudantes avaliados em cada turma/escola.
+ * Quando a linha possui `quantidadeAdequado`, usa a contagem exata; caso
+ * contrário, calcula a contagem aproximada via `(avaliados * percentualAdequado) / 100`.
+ */
+export function calcularEvolucaoCaedPorAno(
+  anos: number[],
+  turmas: EntradaEvolucaoCaedTurma[],
+): PontoEvolucaoAnual[] {
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+  const anosValidos = new Set(anosOrdenados);
+
+  const totaisPorAno = new Map<number, { avaliados: number; adequado: number }>();
+  for (const t of turmas) {
+    if (!anosValidos.has(t.ano)) continue;
+    if (t.avaliados === null || t.avaliados <= 0) continue;
+
+    const acum = totaisPorAno.get(t.ano) ?? { avaliados: 0, adequado: 0 };
+    acum.avaliados += t.avaliados;
+    if (t.quantidadeAdequado !== null) {
+      acum.adequado += t.quantidadeAdequado;
+    } else if (t.percentualAdequado !== null) {
+      acum.adequado += (t.avaliados * t.percentualAdequado) / 100;
+    }
+    totaisPorAno.set(t.ano, acum);
+  }
+
+  return anosOrdenados.map((ano) => {
+    const acum = totaisPorAno.get(ano);
+    if (!acum || acum.avaliados <= 0) {
+      return { ano, valor: null };
+    }
+    const percentual = (acum.adequado / acum.avaliados) * 100;
+    return { ano, valor: Number(percentual.toFixed(1)) };
+  });
+}
+
+export interface EntradaEvolucaoPontuacao {
+  ano: number;
+  somaPontuacao: number;
+  totalAvaliados: number;
+}
+
+/**
+ * Calcula a evolução da pontuação média (SPADEB, Simulado, Prova Municipal)
+ * por ano letivo, ponderada pelo total de avaliados de cada avaliação.
+ */
+export function calcularEvolucaoPontuacaoPorAno(
+  anos: number[],
+  dados: EntradaEvolucaoPontuacao[],
+): PontoEvolucaoAnual[] {
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+  const anosValidos = new Set(anosOrdenados);
+
+  const totaisPorAno = new Map<number, { somaPontuacao: number; totalAvaliados: number }>();
+  for (const d of dados) {
+    if (!anosValidos.has(d.ano)) continue;
+    if (d.totalAvaliados <= 0) continue;
+
+    const acum = totaisPorAno.get(d.ano) ?? { somaPontuacao: 0, totalAvaliados: 0 };
+    acum.somaPontuacao += d.somaPontuacao;
+    acum.totalAvaliados += d.totalAvaliados;
+    totaisPorAno.set(d.ano, acum);
+  }
+
+  return anosOrdenados.map((ano) => {
+    const acum = totaisPorAno.get(ano);
+    if (!acum || acum.totalAvaliados <= 0) {
+      return { ano, valor: null };
+    }
+    const media = acum.somaPontuacao / acum.totalAvaliados;
+    return { ano, valor: Number(media.toFixed(1)) };
+  });
+}
+
+export interface EntradaEvolucaoFluencia {
+  ano: number;
+  leitorFluente: number;
+  totalComNivel: number;
+}
+
+/**
+ * Calcula a evolução do % de estudantes classificados como "Leitor Fluente"
+ * por ano letivo, sobre o total de estudantes com nível de fluência registrado.
+ */
+export function calcularEvolucaoFluenciaPorAno(
+  anos: number[],
+  dados: EntradaEvolucaoFluencia[],
+): PontoEvolucaoAnual[] {
+  const anosOrdenados = Array.from(new Set(anos)).sort((a, b) => a - b);
+  const anosValidos = new Set(anosOrdenados);
+
+  const totaisPorAno = new Map<number, { leitorFluente: number; totalComNivel: number }>();
+  for (const d of dados) {
+    if (!anosValidos.has(d.ano)) continue;
+    if (d.totalComNivel <= 0) continue;
+
+    const acum = totaisPorAno.get(d.ano) ?? { leitorFluente: 0, totalComNivel: 0 };
+    acum.leitorFluente += d.leitorFluente;
+    acum.totalComNivel += d.totalComNivel;
+    totaisPorAno.set(d.ano, acum);
+  }
+
+  return anosOrdenados.map((ano) => {
+    const acum = totaisPorAno.get(ano);
+    if (!acum || acum.totalComNivel <= 0) {
+      return { ano, valor: null };
+    }
+    const percentual = (acum.leitorFluente / acum.totalComNivel) * 100;
+    return { ano, valor: Number(percentual.toFixed(1)) };
+  });
+}
+

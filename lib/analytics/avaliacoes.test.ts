@@ -7,6 +7,9 @@ import {
   calcularResumoResultadosTurma,
   faixaAcertoHabilidade,
   ordemCicloCaed,
+  calcularEvolucaoCaedPorAno,
+  calcularEvolucaoPontuacaoPorAno,
+  calcularEvolucaoFluenciaPorAno,
   type ResultadoTurmaInput,
 } from "./avaliacoes";
 
@@ -322,3 +325,97 @@ describe("ordemCicloCaed", () => {
     assert.equal(ordemCicloCaed("XYZ"), Number.MAX_SAFE_INTEGER);
   });
 });
+
+describe("calcularEvolucaoCaedPorAno", () => {
+  test("calcula % adequado ponderado por avaliados para múltiplos anos", () => {
+    const turmas = [
+      // 2024: turma 1 com 10 avaliados e 4 adequados (40%), turma 2 com 30 avaliados e 18 adequados (60%)
+      // Total 2024: 22 adequados / 40 avaliados = 55.0%
+      { ano: 2024, avaliados: 10, quantidadeAdequado: 4, percentualAdequado: 40 },
+      { ano: 2024, avaliados: 30, quantidadeAdequado: 18, percentualAdequado: 60 },
+      // 2025: turma única com 20 avaliados e 15 adequados (75%)
+      { ano: 2025, avaliados: 20, quantidadeAdequado: 15, percentualAdequado: 75 },
+    ];
+
+    const pontos = calcularEvolucaoCaedPorAno([2025, 2024, 2026], turmas);
+
+    assert.deepEqual(pontos, [
+      { ano: 2024, valor: 55.0 },
+      { ano: 2025, valor: 75.0 },
+      { ano: 2026, valor: null }, // sem dados no ano
+    ]);
+  });
+
+  test("calcula contagem aproximada quando quantidadeAdequado é null", () => {
+    const turmas = [
+      { ano: 2024, avaliados: 50, quantidadeAdequado: null, percentualAdequado: 40 }, // 20
+      { ano: 2024, avaliados: 50, quantidadeAdequado: 30, percentualAdequado: 60 },   // 30
+    ];
+
+    const pontos = calcularEvolucaoCaedPorAno([2024], turmas);
+    assert.deepEqual(pontos, [{ ano: 2024, valor: 50.0 }]);
+  });
+
+  test("ignora linhas sem avaliados ou com zero avaliados", () => {
+    const turmas = [
+      { ano: 2024, avaliados: 0, quantidadeAdequado: 0, percentualAdequado: 0 },
+      { ano: 2024, avaliados: null, quantidadeAdequado: 10, percentualAdequado: 100 },
+    ];
+
+    const pontos = calcularEvolucaoCaedPorAno([2024], turmas);
+    assert.deepEqual(pontos, [{ ano: 2024, valor: null }]);
+  });
+});
+
+describe("calcularEvolucaoPontuacaoPorAno", () => {
+  test("calcula média ponderada de pontuação por avaliados", () => {
+    const dados = [
+      // 2024: avaliação 1 (100 alunos, soma 650 -> média 6.5), avaliação 2 (200 alunos, soma 1600 -> média 8.0)
+      // Total 2024: (650 + 1600) / 300 = 7.5
+      { ano: 2024, somaPontuacao: 650, totalAvaliados: 100 },
+      { ano: 2024, somaPontuacao: 1600, totalAvaliados: 200 },
+      // 2025: avaliação única (50 alunos, soma 370 -> média 7.4)
+      { ano: 2025, somaPontuacao: 370, totalAvaliados: 50 },
+    ];
+
+    const pontos = calcularEvolucaoPontuacaoPorAno([2025, 2024, 2026], dados);
+
+    assert.deepEqual(pontos, [
+      { ano: 2024, valor: 7.5 },
+      { ano: 2025, valor: 7.4 },
+      { ano: 2026, valor: null },
+    ]);
+  });
+
+  test("ano com totalAvaliados <= 0 retorna valor null", () => {
+    const pontos = calcularEvolucaoPontuacaoPorAno([2024], [{ ano: 2024, somaPontuacao: 0, totalAvaliados: 0 }]);
+    assert.deepEqual(pontos, [{ ano: 2024, valor: null }]);
+  });
+});
+
+describe("calcularEvolucaoFluenciaPorAno", () => {
+  test("calcula % de leitores fluentes sobre total com nível", () => {
+    const dados = [
+      // 2024: turma 1 (10 fluentes em 50 alunos com nível), turma 2 (30 fluentes em 50 alunos com nível)
+      // Total 2024: 40 fluentes / 100 alunos = 40.0%
+      { ano: 2024, leitorFluente: 10, totalComNivel: 50 },
+      { ano: 2024, leitorFluente: 30, totalComNivel: 50 },
+      // 2025: 60 fluentes em 100 alunos = 60.0%
+      { ano: 2025, leitorFluente: 60, totalComNivel: 100 },
+    ];
+
+    const pontos = calcularEvolucaoFluenciaPorAno([2025, 2024, 2026], dados);
+
+    assert.deepEqual(pontos, [
+      { ano: 2024, valor: 40.0 },
+      { ano: 2025, valor: 60.0 },
+      { ano: 2026, valor: null },
+    ]);
+  });
+
+  test("retorna valor null se não houver estudantes com nível no ano", () => {
+    const pontos = calcularEvolucaoFluenciaPorAno([2024], [{ ano: 2024, leitorFluente: 0, totalComNivel: 0 }]);
+    assert.deepEqual(pontos, [{ ano: 2024, valor: null }]);
+  });
+});
+

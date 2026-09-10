@@ -1,7 +1,7 @@
 # Progresso — Observação Multi-Ano nos Indicadores + Avaliações do Município
 
-**Última atualização:** 2026-09-10 (ETAPA 07 concluída — aguardando autorização
-para iniciar a ETAPA 08)
+**Última atualização:** 2026-09-10 (ETAPA 08 concluída — aguardando autorização
+para iniciar a ETAPA 09)
 
 Este arquivo é a fonte de verdade sobre qual etapa está pendente, em
 andamento ou concluída. Ao final de cada etapa, atualizar esta tabela junto
@@ -19,7 +19,7 @@ com o Markdown correspondente em `etapas/`.
 | 05 | Rollout: Frequência e Aprendizagem | **DONE** | 2026-09-10 |
 | 06 | Rollout: Fluxo-Trajetória e Comparativos | **DONE** | 2026-09-10 |
 | 07 | Rollout: Portal da Direção | **DONE** | 2026-09-10 |
-| 08 | Nova página `/admin/indicadores/avaliacoes` | PENDENTE | |
+| 08 | Nova página `/admin/indicadores/avaliacoes` | **DONE** | 2026-09-10 |
 | 09 | Atualizar a Central (`/admin/indicadores`) | PENDENTE | |
 | 10 | Validação final e fechamento | PENDENTE | |
 
@@ -326,6 +326,52 @@ npm run build      # sucesso, 52 rotas geradas
 ## Próximo passo permitido
 
 ETAPA 08 — Nova página `/admin/indicadores/avaliacoes` (aguardando autorização explícita do usuário).
+
+## Resumo da ETAPA 08
+
+Criação da nova página analítica de avaliações municipais
+(`/admin/indicadores/avaliacoes`):
+- `lib/analytics/avaliacoes.ts`: implementadas funções analíticas puras
+  `calcularEvolucaoCaedPorAno`, `calcularEvolucaoPontuacaoPorAno` e
+  `calcularEvolucaoFluenciaPorAno`, acompanhadas da interface `PontoEvolucaoAnual`.
+- `lib/analytics/avaliacoes.test.ts`: adicionados 7 novos testes unitários
+  cobrindo cálculos ponderados por avaliados, anos sem registros (`valor: null`),
+  turmas vazias e ordenação cronológica.
+- `lib/queries/avaliacoes.ts`: implementadas as queries batch multi-ano sem N+1
+  `getEvolucaoCaedPorAno`, `getEvolucaoPontuacaoPorAno` e `getEvolucaoFluenciaPorAno`,
+  além de `getResumoIndicadoresAvaliacoes(anoLetivo, escolaId?)`, que consolida
+  dados de `AvaliacaoResultadoTurma` (CAEd) e `AvaliacaoResultadoAluno` (Fluência,
+  SPADEB, Simulados e Provas Municipais).
+- `app/admin/indicadores/avaliacoes/page.tsx`: nova página construída com
+  `AnosLetivosFiltro` persistente, cards de KPI do ano de referência (Total de
+  Avaliações, CAEd % Adequado, Fluência % Fluentes e Cobertura da Rede), seções
+  dedicadas por instrumento com `HistoricalEvolutionChart` e
+  `TEXTO_TRANSPARENCIA_EVOLUCAO_ANUAL`, além de tabela analítica completa de todas
+  as avaliações aplicadas no ano selecionado.
+- Detalhe completo em
+  [`etapas/08-pagina-indicadores-avaliacoes.md`](etapas/08-pagina-indicadores-avaliacoes.md).
+
+## Testes executados
+
+```bash
+npm test        # 305/305 testes passando (+7 testes novos de analytics de avaliações)
+npm run typecheck  # sem erros
+npm run lint       # sem warnings/erros
+npm run build      # sucesso, 53 rotas geradas
+```
+
+## Critério de pronto
+
+- [x] Funções puras de evolução histórica de avaliações criadas e testadas.
+- [x] Queries multi-ano e de resumo implementadas em `lib/queries/avaliacoes.ts` sem N+1.
+- [x] Nova página `/admin/indicadores/avaliacoes` criada com seletor persistente, cards de KPI, gráficos por tipo e tabela.
+- [x] Verificação em runtime validada (HTTP 200 em 2024, 2025, 2026 e anos=todos).
+- [x] `npm test`/`typecheck`/`lint`/`build` 100% limpos.
+
+## Próximo passo permitido
+
+ETAPA 09 — Atualizar a Central (`/admin/indicadores`) (aguardando autorização explícita do usuário).
+
 
 
 
