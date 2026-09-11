@@ -73,7 +73,10 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
         actions={
           <>
             <Link href="/admin/avaliacoes/caed" className={buttonVariants({ variant: "secondary" })}>
-              Painel CAEd
+              CAEd · Anos Iniciais
+            </Link>
+            <Link href="/admin/avaliacoes/anos-finais" className={buttonVariants({ variant: "secondary" })}>
+              CAEd · Anos Finais
             </Link>
             <Link href="/admin/avaliacoes/caed/importar" className={buttonVariants({ variant: "secondary" })}>
               Importar CAEd

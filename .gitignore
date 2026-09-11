@@ -27,3 +27,7 @@ scripts/.sync-historico-progresso.json
 # dados brutos extraídos do CAEd (nome de aluno — PII), nunca commitar
 scripts/caed_*.jsonl
 
+.anosfinais_session
+# dados brutos extraídos do portal Anos Finais (MEC/CAEd), nunca commitar
+scripts/anosfinais_*.jsonl
+

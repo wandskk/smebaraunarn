@@ -29,6 +29,7 @@ export const TIPO_AVALIACAO_LABEL: Record<TipoAvaliacao, string> = {
   SIMULADO: "Simulado",
   PROVA_MUNICIPAL: "Prova Municipal",
   AVALIACAO_CONTINUA_CAED: "Avaliação Contínua da Aprendizagem (CAEd)",
+  AVALIACAO_CONTINUA_ANOS_FINAIS: "Avaliação Contínua da Aprendizagem nos Anos Finais",
 };
 
 export const NIVEL_FLUENCIA_LABEL: Record<NivelFluencia, string> = {
@@ -585,7 +586,7 @@ export async function getResumoResultadosTurma(avaliacaoId: string): Promise<Res
  * grudados no mesmo segmento. Reaproveitado por `getCaedFiltrosDisponiveis`
  * e `getCaedResumoPorCiclo` — nenhuma migração nova precisa desses dois.
  */
-function extrairCicloEComponenteDoCodigo(codigo: string, ano: number): { codigoCiclo: string; componenteSlug: string } {
+export function extrairCicloEComponenteDoCodigo(codigo: string, ano: number): { codigoCiclo: string; componenteSlug: string } {
   const partes = codigo.split("-");
   const cicloAnoSegmento = partes[1] ?? "";
   const codigoCiclo = cicloAnoSegmento.slice(0, cicloAnoSegmento.length - String(ano).length);
