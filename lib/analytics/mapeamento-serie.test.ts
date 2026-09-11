@@ -34,6 +34,15 @@ describe("normalizarSerie", () => {
     assert.equal(normalizarSerie("1° Série"), "EM_1");
   });
 
+  test("mapeia Trajetória de Sucesso usando o ano mais baixo do par (I→EF_6, II→EF_8)", () => {
+    // Ver comentário no topo de mapeamento-serie.ts: SIGEduc não expõe a
+    // série individual do aluno dentro dessas turmas agrupadas — o ano mais
+    // baixo é a aproximação conservadora adotada, não uma exclusão.
+    assert.equal(normalizarSerie("TRAJETÓRIA DE SUCESSO I (6° E 7° ANO)"), "EF_6");
+    assert.equal(normalizarSerie("TRAJETÓRIA DE SUCESSO II (8° E 9° ANO)"), "EF_8");
+    assert.equal(normalizarSerie("trajetória de sucesso i (6° e 7° ano)"), "EF_6");
+  });
+
   test("retorna null para entradas vazias", () => {
     assert.equal(normalizarSerie(null), null);
     assert.equal(normalizarSerie(undefined), null);
@@ -56,8 +65,6 @@ describe("normalizarSerie", () => {
       "3º PERIODO (4º E 5º ANO)",
       "4º PERIODO (6º E 7º ANO)",
       "5º PERÍODO (8º E 9º ANO)",
-      "TRAJETÓRIA DE SUCESSO I (6° E 7° ANO)",
-      "TRAJETÓRIA DE SUCESSO II (8° E 9° ANO)",
       "EDUCAÇÃO ESPECIAL",
       "MISTA (CRECHE + PRÉ)",
       "MISTA (CRECHE I E II)",

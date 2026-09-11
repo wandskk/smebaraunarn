@@ -131,7 +131,7 @@ export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
           value={formatNumber(totalForaDoEscopoRede)}
           icon={Users2}
           accent="warning"
-          helpText="Educação Infantil, EJA, Educação Especial, turmas multianuais, Trajetória de Sucesso, ou sem data de nascimento válida"
+          helpText="Educação Infantil, EJA, Educação Especial, turmas multianuais, ou sem data de nascimento válida"
         />
       </div>
 
@@ -139,10 +139,12 @@ export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
         <summary className="cursor-pointer font-medium text-foreground">Como este indicador é calculado</summary>
         <p className="mt-2">
           Percentual calculado só sobre estudantes elegíveis (série regular mapeada + data de nascimento válida) —
-          Educação Infantil, EJA, Educação Especial, turmas multianuais e a trilha Trajetória de Sucesso ficam fora,
-          por definição, e entram só na contagem &quot;Fora do escopo do cálculo&quot; acima. Distorção considera a diferença
-          entre a idade do estudante na data de referência e a idade esperada para a série (metodologia INEP, limiar
-          de 2 anos); defasagem severa é a partir de 4 anos.
+          Educação Infantil, EJA, Educação Especial e turmas multianuais ficam fora, por definição, e entram só na
+          contagem &quot;Fora do escopo do cálculo&quot; acima. A trilha Trajetória de Sucesso entra no cálculo
+          (mapeada para o ano mais baixo do par de séries que corrige, já que o SIGEduc não registra a série
+          individual do aluno dentro dessas turmas). Distorção considera a diferença entre a idade do estudante na
+          data de referência e a idade esperada para a série (metodologia INEP, limiar de 2 anos); defasagem severa
+          é a partir de 4 anos.
         </p>
       </details>
 

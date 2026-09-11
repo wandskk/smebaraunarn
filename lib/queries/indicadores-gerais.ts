@@ -36,10 +36,12 @@ export interface IndicadoresGeraisRede {
   estudantesElegiveisDistorcao: number;
   /**
    * Estudantes cuja turma está fora do escopo do indicador de distorção
-   * (Educação Infantil, EJA, Educação Especial, turmas multianuais e
-   * "Trajetória de Sucesso" — nenhuma delas tem uma única idade esperada
-   * bem definida) somados aos que têm dado de nascimento ausente ou
-   * corrompido. Exposto separadamente para não maquiar o indicador: ver
+   * (Educação Infantil, EJA, Educação Especial, turmas multianuais —
+   * nenhuma delas tem uma única idade esperada bem definida) somados aos
+   * que têm dado de nascimento ausente ou corrompido. "Trajetória de
+   * Sucesso" NÃO está mais nesta lista — é mapeada para uma série regular
+   * (ver lib/analytics/mapeamento-serie.ts) e entra no cálculo normalmente.
+   * Exposto separadamente para não maquiar o indicador: ver
    * lib/analytics/mapeamento-serie.ts para a lista de casos e
    * centro_indicadores_educacionais.md §19 sobre transparência de dados
    * incompletos.

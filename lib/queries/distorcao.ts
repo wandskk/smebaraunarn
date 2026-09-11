@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   calcularDistorcaoIdadeSerie,
@@ -57,13 +58,23 @@ export interface MatriculaResolvida {
 
 /**
  * Resolve, para cada um dos anos letivos pedidos, a escola/turma/série em
- * que cada matrícula de fato estava naquele ano — preferindo os próprios
- * registros de nota daquele ano (que carregam escola/turma/série no momento
- * em que a nota foi lançada) e caindo para o snapshot atual do aluno
- * (`Estudante`) só quando não há nota lançada naquele ano E o aluno ainda
- * está matriculado nesse mesmo ano (`Estudante.ano === anoLetivo`) — ou
- * seja, "ainda não lançaram nota este ano", não "lançaram nota, mas em
- * outra escola".
+ * que cada matrícula de fato estava naquele ano, em 3 níveis de preferência:
+ *   1. Registro de nota daquele ano (`NotaEstudante`) — carrega
+ *      escola/turma/série no momento em que a nota foi lançada.
+ *   2. Registro de frequência daquele ano (`FrequenciaEstudante`) — mesma
+ *      forma (escola/turma/série no momento do registro), usado quando não
+ *      há nota lançada. Existe porque `NotaEstudante` não cobre todas as
+ *      séries: confirmado com dado real que 2025 não tem NENHUM registro de
+ *      nota para 1º/2º/3º Ano (essas séries usam avaliação descritiva no
+ *      SIGEduc, não nota numérica por bimestre) — sem este nível, esses
+ *      ~700 alunos ficavam invisíveis para qualquer ano em que já tivessem
+ *      avançado de série no momento da consulta (ver nível 3 abaixo), o que
+ *      subcontava fortemente a população de Anos Iniciais em anos
+ *      históricos (achado ao comparar com o indicador público do QEdu).
+ *   3. Snapshot atual do aluno (`Estudante`), só quando não há nota NEM
+ *      frequência lançada naquele ano E o aluno ainda está matriculado
+ *      nesse mesmo ano (`Estudante.ano === anoLetivo`) — ou seja, "ainda
+ *      não lançaram nada este ano", não "lançaram, mas em outra escola".
  *
  * Isso importa porque `Estudante.escolaId`/`turmaSerie` guardam só a
  * matrícula MAIS RECENTE do aluno (ver nota em upsertEstudante em
@@ -73,13 +84,19 @@ export interface MatriculaResolvida {
  *
  * Recebe uma lista de anos para poder resolver vários anos numa única
  * leitura de `Estudante`/`Escola` (tabelas inteiras, sem `where`) em vez de
- * refazer essas duas queries a cada ano — só `NotaEstudante` é filtrada por
- * ano, com `ano: {in: anos}` numa única query. Chamar isto num loop
- * `anos.map(a => resolverMatriculaPorAno(a))` reintroduziria exatamente o
- * N+1 que esta função existe para evitar.
+ * refazer essas duas queries a cada ano — `NotaEstudante` é filtrada por
+ * ano com `ano: {in: anos}` numa única query, e `FrequenciaEstudante` (que
+ * não tem coluna de ano, só `data` em texto) é agregada com `DISTINCT ON`
+ * via SQL bruto numa única query também — `FrequenciaEstudante` tem
+ * milhões de linhas (uma por aluno/dia/disciplina), então buscar todas as
+ * linhas e deduplicar em memória seria proibitivo; o `DISTINCT ON` faz a
+ * dedução no banco, devolvendo no máximo 1 linha por (aluno, ano). Chamar
+ * isto num loop `anos.map(a => resolverMatriculaPorAno(a))` reintroduziria
+ * exatamente o N+1 que esta função existe para evitar.
  */
 export async function resolverMatriculaPorAnos(anos: number[]): Promise<Map<number, Map<string, MatriculaResolvida>>> {
-  const [estudantesTodos, notasDosAnos, escolas] = await Promise.all([
+  const anosTexto = anos.map(String);
+  const [estudantesTodos, notasDosAnos, frequenciasDosAnos, escolas] = await Promise.all([
     prisma.estudante.findMany({
       select: { matricula: true, dataNascimento: true, ano: true, turmaSerie: true, escolaId: true },
     }),
@@ -88,14 +105,26 @@ export async function resolverMatriculaPorAnos(anos: number[]): Promise<Map<numb
       distinct: ["estudanteMatricula", "ano"],
       select: { estudanteMatricula: true, ano: true, escola: true, serie: true, turma: true },
     }),
+    anosTexto.length > 0
+      ? prisma.$queryRaw<
+          { estudanteMatricula: string; ano: string; escola: string | null; serie: string | null; turma: string | null }[]
+        >(Prisma.sql`
+          SELECT DISTINCT ON ("estudanteMatricula", LEFT(data, 4))
+            "estudanteMatricula", LEFT(data, 4) AS ano, escola, serie, turma
+          FROM "FrequenciaEstudante"
+          WHERE LEFT(data, 4) IN (${Prisma.join(anosTexto)})
+          ORDER BY "estudanteMatricula", LEFT(data, 4), data DESC
+        `)
+      : Promise.resolve([]),
     prisma.escola.findMany({ select: { id: true, nome: true } }),
   ]);
 
-  // .trim() nos dois lados: nomes vindos de NotaEstudante.escola são texto
-  // livre importado do SIGEduc, sujeito a espaço em branco extra que não
-  // existe no cadastro de Escola — sem isso, um match legítimo falharia
-  // silenciosamente e o aluno "sumiria" de escolasAtivas (ver ETAPA 01 de
-  // docs/indicadores-historico-multianos, achado de revisão adversarial).
+  // .trim() nos dois lados: nomes vindos de NotaEstudante.escola/
+  // FrequenciaEstudante.escola são texto livre importado do SIGEduc,
+  // sujeito a espaço em branco extra que não existe no cadastro de Escola —
+  // sem isso, um match legítimo falharia silenciosamente e o aluno "sumiria"
+  // de escolasAtivas (ver ETAPA 01 de docs/indicadores-historico-multianos,
+  // achado de revisão adversarial).
   const idPorNomeEscola = new Map(escolas.map((e) => [e.nome.trim(), e.id]));
   // Turmas atuais (snapshot) não dependem do ano pedido — resolvidas 1 vez só.
   const turmasAtuaisUnicas = Array.from(
@@ -113,18 +142,32 @@ export async function resolverMatriculaPorAnos(anos: number[]): Promise<Map<numb
     porMatricula.set(nota.estudanteMatricula, { escola: nota.escola, serie: nota.serie, turma: nota.turma });
   }
 
+  const frequenciaPorAnoEMatricula = new Map<number, Map<string, { escola: string | null; serie: string | null; turma: string | null }>>();
+  for (const freq of frequenciasDosAnos) {
+    const ano = Number(freq.ano);
+    let porMatricula = frequenciaPorAnoEMatricula.get(ano);
+    if (!porMatricula) {
+      porMatricula = new Map();
+      frequenciaPorAnoEMatricula.set(ano, porMatricula);
+    }
+    porMatricula.set(freq.estudanteMatricula, { escola: freq.escola, serie: freq.serie, turma: freq.turma });
+  }
+
   const resultado = new Map<number, Map<string, MatriculaResolvida>>();
   for (const anoLetivo of anos) {
     const notaPorMatricula = notaPorAnoEMatricula.get(anoLetivo) ?? new Map();
+    const frequenciaPorMatricula = frequenciaPorAnoEMatricula.get(anoLetivo) ?? new Map();
     const resolvido = new Map<string, MatriculaResolvida>();
     for (const estudante of estudantesTodos) {
       const notaDoAno = notaPorMatricula.get(estudante.matricula);
-      if (notaDoAno) {
+      const frequenciaDoAno = frequenciaPorMatricula.get(estudante.matricula);
+      const origemDoAno = notaDoAno ?? frequenciaDoAno;
+      if (origemDoAno) {
         resolvido.set(estudante.matricula, {
           dataNascimento: estudante.dataNascimento,
-          escolaId: notaDoAno.escola ? (idPorNomeEscola.get(notaDoAno.escola.trim()) ?? null) : null,
-          serieTexto: notaDoAno.serie,
-          turma: notaDoAno.turma,
+          escolaId: origemDoAno.escola ? (idPorNomeEscola.get(origemDoAno.escola.trim()) ?? null) : null,
+          serieTexto: origemDoAno.serie,
+          turma: origemDoAno.turma,
         });
       } else if (estudante.ano === anoLetivo) {
         resolvido.set(estudante.matricula, {
