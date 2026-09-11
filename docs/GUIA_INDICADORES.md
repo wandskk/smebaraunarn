@@ -57,23 +57,31 @@ Testar só este motor: `npx tsx --test lib/analytics/frequencia.test.ts` (22 tes
 
 ### 1.2 Distorção idade-série — `lib/analytics/distorcao.ts`
 
-Segue a metodologia do **INEP** (a mesma do Censo Escolar): compara a idade do estudante numa data
-de referência com a idade teoricamente esperada para a série cursada.
+Segue a metodologia **oficial** do INEP (Dicionário de Indicadores Educacionais, item D.2 — a mesma
+do Censo Escolar/TDI): compara a idade que o estudante completa (ou já tinha completado) durante o
+ano letivo com a idade teoricamente esperada para a série cursada.
 
-- **Fórmula:** `idade na data de referência − idade esperada para a série`. Distorção quando a
-  diferença é **≥ 2 anos**.
-- **Data de referência padrão:** 31/03 do ano letivo selecionado (convenção usual do INEP — ainda
-  não confirmada formalmente pelo município).
+- **Fórmula:** `(ano de referência − ano de nascimento) − idade esperada para a série`. Distorção
+  quando a diferença é **≥ 2 anos**. Note que a idade usa só o ANO de nascimento, sem olhar mês/dia
+  — um aluno nascido em dezembro conta como tendo completado a idade o ano inteiro, porque em algum
+  momento do ano (1º de janeiro a 31 de dezembro) ele de fato tinha aquela idade. Isso é
+  deliberadamente diferente de "idade calendário numa data fixa" (ex.: 31/03) — uma versão anterior
+  deste motor usava 31/03 e subestimava a distorção em boa parte das séries, porque a maioria dos
+  aniversários cai depois de março. Validado comparando com o TDI oficial publicado pelo INEP para
+  Baraúna (diferença ≤2pp por série).
+- **Ano de referência:** o próprio ano letivo selecionado — não é mais um parâmetro configurável
+  separado, porque só o ano importa (ver acima).
 - **Intensidade:** defasagem de 2-3 anos é "moderada"; **4 anos ou mais é "severa"**.
-- **Fora do escopo, por definição:** Educação Infantil, EJA, Educação Especial, turmas
-  multianuais e a trilha "Trajetória de Sucesso" — nenhuma delas tem uma única idade esperada bem
-  definida. Estudantes nessas situações (ou com data de nascimento ausente/corrompida) entram como
-  "fora do escopo", nunca como "sem distorção" — para não maquiar o número.
-- **Importante:** como parte dos estudantes defasados já é direcionada para a trilha "Trajetória de
-  Sucesso" (fora do escopo), o número contado nas turmas regulares é um **piso**, não o total real
-  de estudantes em distorção na rede.
+- **Fora do escopo, por definição:** Educação Infantil, EJA, Educação Especial e turmas
+  multianuais (rurais) — nenhuma delas tem uma única idade esperada bem definida. Estudantes nessas
+  situações (ou com data de nascimento ausente/corrompida) entram como "fora do escopo", nunca como
+  "sem distorção" — para não maquiar o número.
+- **Trajetória de Sucesso:** ao contrário das categorias acima, ENTRA no cálculo — mapeada para o
+  ano mais baixo do par de séries que corrige (ex.: "6º e 7º Ano" → 6º), já que o SIGEduc não
+  registra a série individual do aluno dentro dessas turmas agrupadas. Excluí-la do cálculo (como
+  era feito antes) removia do indicador exatamente os alunos mais distorcidos.
 
-Testar só este motor: `npx tsx --test lib/analytics/distorcao.test.ts` (14 testes).
+Testar só este motor: `npx tsx --test lib/analytics/distorcao.test.ts`.
 
 ### 1.3 Estatística de distribuição — `lib/analytics/estatistica.ts`
 
@@ -200,7 +208,7 @@ a crescer?"
 
 **Por escola** (tabela): elegíveis, em distorção, % de distorção, quantos estão em **defasagem
 severa (4+ anos)**, e quantos ficaram **fora do escopo** do cálculo (creches, EJA, Educação
-Especial, turmas multianuais, Trajetória de Sucesso).
+Especial, turmas multianuais).
 
 ### Como testar
 

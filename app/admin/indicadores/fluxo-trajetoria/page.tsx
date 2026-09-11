@@ -142,9 +142,9 @@ export default async function FluxoTrajetoriaPage({ searchParams }: PageProps) {
           Educação Infantil, EJA, Educação Especial e turmas multianuais ficam fora, por definição, e entram só na
           contagem &quot;Fora do escopo do cálculo&quot; acima. A trilha Trajetória de Sucesso entra no cálculo
           (mapeada para o ano mais baixo do par de séries que corrige, já que o SIGEduc não registra a série
-          individual do aluno dentro dessas turmas). Distorção considera a diferença entre a idade do estudante na
-          data de referência e a idade esperada para a série (metodologia INEP, limiar de 2 anos); defasagem severa
-          é a partir de 4 anos.
+          individual do aluno dentro dessas turmas). Distorção considera a diferença entre a idade que o estudante
+          completa no ano letivo e a idade esperada para a série (metodologia oficial do INEP, limiar de 2 anos);
+          defasagem severa é a partir de 4 anos.
         </p>
       </details>
 

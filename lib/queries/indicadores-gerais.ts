@@ -11,13 +11,6 @@ import { resolverMatriculaPorAno } from "@/lib/queries/distorcao";
 
 export interface ParametrosIndicadoresGerais {
   anoLetivo: number;
-  /**
-   * Data de referência (YYYY-MM-DD) para o cálculo de distorção
-   * idade-série. Sem valor informado, usa 31/03 do ano letivo — convenção
-   * usual do INEP, ainda não confirmada formalmente para o município (ver
-   * docs/PLANO_DESENVOLVIMENTO.md §8.1).
-   */
-  dataReferenciaDistorcao?: string;
   faixasFrequencia?: FaixasFrequencia;
   limiarDistorcaoAnos?: number;
 }
@@ -49,15 +42,10 @@ export interface IndicadoresGeraisRede {
   estudantesForaDoEscopoOuSemDadosParaDistorcao: number;
 }
 
-function calcularDataReferenciaPadrao(anoLetivo: number): string {
-  return `${anoLetivo}-03-31`;
-}
-
 export async function getIndicadoresGeraisRede(
   parametros: ParametrosIndicadoresGerais,
 ): Promise<IndicadoresGeraisRede> {
   const { anoLetivo } = parametros;
-  const dataReferenciaDistorcao = parametros.dataReferenciaDistorcao ?? calcularDataReferenciaPadrao(anoLetivo);
   const faixasFrequencia = parametros.faixasFrequencia ?? FAIXAS_PADRAO_FREQUENCIA;
   const limiarDistorcaoAnos = parametros.limiarDistorcaoAnos ?? LIMIAR_DISTORCAO_ANOS;
 
@@ -124,7 +112,7 @@ export async function getIndicadoresGeraisRede(
     const serie = normalizarSerie(dados.serieTexto);
 
     const resultado = serie && dados.dataNascimento
-      ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, dataReferenciaDistorcao, limiarDistorcaoAnos)
+      ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, anoLetivo, limiarDistorcaoAnos)
       : null;
 
     if (resultado === null) {

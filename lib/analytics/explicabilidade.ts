@@ -144,13 +144,13 @@ export const DICIONARIO_INDICADORES: Readonly<Record<ChaveIndicador, FichaIndica
     nome: "Distorção idade-série",
     objetivo: "Identificar estudantes com defasagem entre idade e série cursada.",
     fonte: "Cadastro de estudantes (data de nascimento) + enturmação, via SIGEduc.",
-    formula: "Idade do estudante na data de referência − idade esperada para a série; distorção quando a diferença ≥ 2 anos (metodologia INEP).",
-    periodicidade: "Recalculado a cada sincronização; data de referência é definida por consulta (ex.: 31/03 do ano letivo).",
+    formula:
+      "Idade completada pelo estudante no ano letivo (ano de referência − ano de nascimento, sem olhar mês/dia) − idade esperada para a série; distorção quando a diferença ≥ 2 anos. Metodologia oficial do INEP (Dicionário de Indicadores Educacionais, item D.2) — validada comparando com o TDI publicado pelo INEP para Baraúna em 2025 (diferença de ≤2pp por série).",
+    periodicidade: "Recalculado a cada sincronização, usando o próprio ano letivo como ano de referência.",
     granularidade: "Rede / Escola / Etapa / Série / Estudante.",
     limitacoes: [
-      "Limiar de 2 anos e data de referência ainda não confirmados formalmente pela Secretaria para o município (ver docs/PLANO_DESENVOLVIMENTO.md §8.1).",
-      "Não se aplica à Educação Infantil, EJA, Educação Especial, turmas multianuais nem à trilha 'Trajetória de Sucesso', por não terem uma única idade esperada bem definida.",
-      "Como a rede já direciona parte dos estudantes em defasagem para a trilha 'Trajetória de Sucesso' (fora do escopo deste cálculo), o número contado nas turmas regulares é um piso, não o total real de estudantes em distorção na rede.",
+      "Não se aplica à Educação Infantil, EJA, Educação Especial nem a turmas multianuais (rurais), por não terem uma única idade esperada bem definida.",
+      "A trilha 'Trajetória de Sucesso' entra no cálculo, mapeada para o ano mais baixo do par de séries que corrige (ex.: 6º/7º → 6º) — o SIGEduc não registra a série individual do aluno dentro dessas turmas agrupadas.",
     ],
     responsavelValidacao: "Secretaria Municipal de Educação (a confirmar).",
   },

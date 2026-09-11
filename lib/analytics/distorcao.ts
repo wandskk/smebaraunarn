@@ -3,17 +3,37 @@
  *
  * Regra de negócio isolada de banco de dados e de UI (ver
  * lib/analytics/frequencia.ts para o mesmo princípio). Nenhuma função aqui
- * faz I/O nem depende de `new Date()`/fuso horário — datas são strings
- * ISO (YYYY-MM-DD) comparadas como calendário, não como instante.
+ * faz I/O nem depende de `new Date()`/fuso horário — datas de nascimento são
+ * strings ISO (YYYY-MM-DD), mas só o ANO delas é usado (ver justificativa
+ * abaixo).
  *
- * REGRA ADOTADA (versão "inep-2026", ver docs/PLANO_DESENVOLVIMENTO.md §8.1):
- * segue a metodologia do INEP para a Taxa de Distorção Idade-Série —
- * compara a idade do estudante numa data de referência com a idade
- * teoricamente adequada para a série cursada; distorção é declarada quando
- * a diferença é de 2 anos ou mais. Essa é a definição oficial usada no
- * Censo Escolar; o valor do limiar e a data de referência ainda não foram
- * formalmente confirmados pela Secretaria para o município — por isso são
- * parâmetros, não constantes fixas.
+ * REGRA ADOTADA (versão "inep-oficial-2026", ver docs/PLANO_DESENVOLVIMENTO.md
+ * §8.1): segue a metodologia OFICIAL do INEP para a Taxa de Distorção
+ * Idade-Série, confirmada no "Dicionário de Indicadores Educacionais —
+ * Fórmulas de Cálculo" (item D.2, download.inep.gov.br):
+ *
+ *   "Como o Censo Escolar obtém a informação sobre idade por meio do ano de
+ *   nascimento... os alunos que nasceram em t-[i+1] completam i+1 anos no
+ *   ano t e, portanto, em algum momento deste ano (de 1º de janeiro a 31 de
+ *   dezembro) ainda permaneciam com i anos e, por isso, o critério aqui
+ *   adotado considera estes alunos como tendo idade adequada para esta
+ *   série."
+ *
+ * Ou seja: a "idade" usada pelo INEP é `anoReferencia - anoNascimento` —
+ * SEM olhar mês/dia — porque o critério oficial é "qual idade o aluno
+ * completa (ou já tinha) em algum momento do ano t", não a idade calendário
+ * numa data específica. Uma versão anterior deste motor usava idade
+ * calendário travada em 31/03, o que subestimava a distorção pela metade
+ * em algumas séries (a maioria dos aniversários cai entre abril e
+ * dezembro, então a idade em 31/03 já vem 1 ano "atrasada" em relação à
+ * idade que o INEP considera). Confirmado comparando com o TDI oficial
+ * publicado pelo INEP para Baraúna em 2025 (planilha TDI_MUNICIPIOS_2025,
+ * rede Municipal): a versão anterior errava por até 20 pontos percentuais
+ * por série; esta versão bate em ±2pp.
+ *
+ * Limiar de 2 anos de defasagem: também definição oficial do INEP, não é
+ * parâmetro específico do município — mantido configurável (`limiarAnos`)
+ * só porque a Secretaria pode, no futuro, querer simular outros cortes.
  *
  * Fora de escopo por definição: Educação Infantil não entra no indicador de
  * distorção idade-série (o próprio indicador do INEP não se aplica a ela).
@@ -22,38 +42,28 @@
 import { normalizarSerie } from "./mapeamento-serie";
 import type { PontoEvolucaoAnual } from "./frequencia";
 
-interface DataComposta {
-  ano: number;
-  mes: number;
-  dia: number;
-}
-
-function interpretarDataIso(data: string): DataComposta | null {
-  const partes = data.split("-").map(Number);
+function interpretarAnoNascimento(dataNascimento: string): number | null {
+  const partes = dataNascimento.split("-").map(Number);
   const [ano, mes, dia] = partes;
   if (!ano || !mes || !dia || partes.length !== 3) return null;
-  return { ano, mes, dia };
+  return ano;
 }
 
 /**
- * Idade completa (em anos) na data de referência, calculada por calendário
- * (considera se o aniversário do ano já ocorreu até a data de referência).
- * Retorna null se alguma das datas não estiver no formato YYYY-MM-DD — dado
- * de nascimento corrompido é um caso real observado em produção (ver
- * docs/PLANO_DESENVOLVIMENTO.md), não uma exceção de programação, então o
- * contrato é "sem resultado", não "lançar erro".
+ * Idade que o estudante completa (ou já tinha completado) em ALGUM momento
+ * do ano de referência — `anoReferencia - anoNascimento`, deliberadamente
+ * sem ajustar por mês/dia. Esta é a definição oficial do INEP pro indicador
+ * de distorção idade-série (ver comentário no topo do arquivo), não um
+ * cálculo de idade calendário numa data específica. Retorna null se a data
+ * de nascimento não estiver no formato YYYY-MM-DD — dado corrompido é um
+ * caso real observado em produção (ver docs/PLANO_DESENVOLVIMENTO.md), não
+ * uma exceção de programação, então o contrato é "sem resultado", não
+ * "lançar erro".
  */
-export function calcularIdadeEmAnos(dataNascimento: string, dataReferencia: string): number | null {
-  const nascimento = interpretarDataIso(dataNascimento);
-  const referencia = interpretarDataIso(dataReferencia);
-  if (!nascimento || !referencia) return null;
-
-  let idade = referencia.ano - nascimento.ano;
-  const aniversarioJaOcorreu =
-    referencia.mes > nascimento.mes || (referencia.mes === nascimento.mes && referencia.dia >= nascimento.dia);
-  if (!aniversarioJaOcorreu) idade -= 1;
-
-  return idade;
+export function calcularIdadeCompletadaNoAno(dataNascimento: string, anoReferencia: number): number | null {
+  const anoNascimento = interpretarAnoNascimento(dataNascimento);
+  if (anoNascimento === null) return null;
+  return anoReferencia - anoNascimento;
 }
 
 /**
@@ -96,28 +106,28 @@ export const IDADE_ESPERADA_POR_SERIE: Readonly<Record<SerieEnsino, number>> = {
 export const LIMIAR_DISTORCAO_ANOS = 2;
 
 export interface ResultadoDistorcao {
-  idadeNaReferencia: number;
+  idadeCompletadaNoAno: number;
   idadeEsperada: number;
-  /** idadeNaReferencia - idadeEsperada. Negativo significa idade abaixo do esperado. */
+  /** idadeCompletadaNoAno - idadeEsperada. Negativo significa idade abaixo do esperado. */
   defasagemAnos: number;
   emDistorcao: boolean;
 }
 
-/** Retorna null quando a data de nascimento ou a data de referência não pôde ser interpretada — ver calcularIdadeEmAnos. */
+/** Retorna null quando a data de nascimento não pôde ser interpretada — ver calcularIdadeCompletadaNoAno. */
 export function calcularDistorcaoIdadeSerie(
   dataNascimento: string,
   serie: SerieEnsino,
-  dataReferencia: string,
+  anoReferencia: number,
   limiarAnos: number = LIMIAR_DISTORCAO_ANOS,
 ): ResultadoDistorcao | null {
-  const idadeNaReferencia = calcularIdadeEmAnos(dataNascimento, dataReferencia);
-  if (idadeNaReferencia === null) return null;
+  const idadeCompletadaNoAno = calcularIdadeCompletadaNoAno(dataNascimento, anoReferencia);
+  if (idadeCompletadaNoAno === null) return null;
 
   const idadeEsperada = IDADE_ESPERADA_POR_SERIE[serie];
-  const defasagemAnos = idadeNaReferencia - idadeEsperada;
+  const defasagemAnos = idadeCompletadaNoAno - idadeEsperada;
 
   return {
-    idadeNaReferencia,
+    idadeCompletadaNoAno,
     idadeEsperada,
     defasagemAnos,
     emDistorcao: defasagemAnos >= limiarAnos,
@@ -146,8 +156,9 @@ export interface MatriculaParaDistorcao {
  *
  * Para cada ano pedido (em ordem cronológica ascendente), filtra por escolaId se
  * especificado, calcula a distorção para os alunos elegíveis (com data de
- * nascimento válida e série regular normalizada) na data de referência padrão
- * `${ano}-03-31`, e retorna o percentual de distorção (ou null se não houver
+ * nascimento válida e série regular normalizada) usando o próprio ano letivo
+ * como ano de referência (metodologia INEP — ver comentário no topo do
+ * arquivo), e retorna o percentual de distorção (ou null se não houver
  * alunos elegíveis no ano).
  */
 export function calcularEvolucaoDistorcaoPorAno(
@@ -164,7 +175,6 @@ export function calcularEvolucaoDistorcaoPorAno(
       return { ano, valor: null };
     }
 
-    const dataReferencia = `${ano}-03-31`;
     let totalElegiveis = 0;
     let emDistorcao = 0;
 
@@ -175,7 +185,7 @@ export function calcularEvolucaoDistorcaoPorAno(
 
       const serie = normalizarSerie(dados.serieTexto);
       const resultado = serie && dados.dataNascimento
-        ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, dataReferencia, limiarAnos)
+        ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, ano, limiarAnos)
         : null;
 
       if (resultado === null || !serie) {

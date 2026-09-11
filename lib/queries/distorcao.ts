@@ -14,8 +14,6 @@ import { getSeriePorTurma } from "@/lib/queries/academico";
 
 export interface FiltroDistorcao {
   anoLetivo: number;
-  /** YYYY-MM-DD. Sem valor, usa 31/03 do ano letivo — ver lib/queries/indicadores-gerais.ts. */
-  dataReferencia?: string;
   limiarDistorcaoAnos?: number;
 }
 
@@ -42,10 +40,6 @@ export interface DistorcaoSerie {
 export interface ResultadoDistorcaoRede {
   porEscola: DistorcaoEscola[];
   porSerie: DistorcaoSerie[];
-}
-
-function calcularDataReferenciaPadrao(anoLetivo: number): string {
-  return `${anoLetivo}-03-31`;
 }
 
 export interface MatriculaResolvida {
@@ -198,7 +192,6 @@ export async function resolverMatriculaPorAno(anoLetivo: number): Promise<Map<st
  * o total da rede).
  */
 export async function getDistorcaoPorEscolaESerie(filtro: FiltroDistorcao): Promise<ResultadoDistorcaoRede> {
-  const dataReferencia = filtro.dataReferencia ?? calcularDataReferenciaPadrao(filtro.anoLetivo);
   const limiarDistorcaoAnos = filtro.limiarDistorcaoAnos ?? LIMIAR_DISTORCAO_ANOS;
 
   const [matriculaPorAno, escolas] = await Promise.all([
@@ -227,7 +220,7 @@ export async function getDistorcaoPorEscolaESerie(filtro: FiltroDistorcao): Prom
     const serie = normalizarSerie(dados.serieTexto);
 
     const resultado = serie && dados.dataNascimento
-      ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, dataReferencia, limiarDistorcaoAnos)
+      ? calcularDistorcaoIdadeSerie(dados.dataNascimento, serie, filtro.anoLetivo, limiarDistorcaoAnos)
       : null;
 
     if (resultado === null || !serie) {

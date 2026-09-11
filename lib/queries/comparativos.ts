@@ -7,7 +7,6 @@ import { getDistorcaoPorEscolaESerie, type FiltroDistorcao } from "@/lib/queries
 export interface FiltroComparativos extends JanelaComparativa {
   anoLetivo: number;
   notaMinimaEsperada?: FiltroDesempenhoPorEscola["notaMinimaEsperada"];
-  dataReferenciaDistorcao?: FiltroDistorcao["dataReferencia"];
   limiarDistorcaoAnos?: FiltroDistorcao["limiarDistorcaoAnos"];
 }
 
@@ -61,7 +60,6 @@ export async function getComparativosPorEscola(filtro: FiltroComparativos): Prom
     getDesempenhoPorEscola({ anoLetivo: filtro.anoLetivo, notaMinimaEsperada: filtro.notaMinimaEsperada }),
     getDistorcaoPorEscolaESerie({
       anoLetivo: filtro.anoLetivo,
-      dataReferencia: filtro.dataReferenciaDistorcao,
       limiarDistorcaoAnos: filtro.limiarDistorcaoAnos,
     }),
   ]);

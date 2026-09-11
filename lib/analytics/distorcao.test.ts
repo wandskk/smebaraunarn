@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
-  calcularIdadeEmAnos,
+  calcularIdadeCompletadaNoAno,
   calcularDistorcaoIdadeSerie,
   calcularEvolucaoDistorcaoPorAno,
   classificarIntensidadeDefasagem,
@@ -10,64 +10,71 @@ import {
   type MatriculaParaDistorcao,
 } from "./distorcao";
 
-describe("calcularIdadeEmAnos", () => {
-  test("calcula idade quando o aniversário já ocorreu no ano de referência", () => {
-    assert.equal(calcularIdadeEmAnos("2015-01-10", "2026-03-31"), 11);
+describe("calcularIdadeCompletadaNoAno", () => {
+  // Metodologia oficial do INEP (Dicionário de Indicadores Educacionais,
+  // item D.2): idade = anoReferencia - anoNascimento, SEM olhar mês/dia —
+  // o aluno é tratado como tendo completado essa idade em algum momento do
+  // ano, mesmo que o aniversário ainda não tenha ocorrido.
+  test("subtrai só o ano de nascimento, independente do mês/dia", () => {
+    assert.equal(calcularIdadeCompletadaNoAno("2015-01-10", 2026), 11);
+    assert.equal(calcularIdadeCompletadaNoAno("2015-12-31", 2026), 11);
   });
 
-  test("calcula idade quando o aniversário ainda não ocorreu no ano de referência", () => {
-    assert.equal(calcularIdadeEmAnos("2015-06-15", "2026-03-31"), 10);
-  });
-
-  test("conta o aniversário exatamente na data de referência como já ocorrido", () => {
-    assert.equal(calcularIdadeEmAnos("2015-03-31", "2026-03-31"), 11);
-  });
-
-  test("um dia antes do aniversário ainda não soma o ano", () => {
-    assert.equal(calcularIdadeEmAnos("2015-04-01", "2026-03-31"), 10);
+  test("aluno que nasceu no fim do ano ainda conta como tendo completado a idade (regra oficial do INEP)", () => {
+    // Nascido em dezembro de 2015: só completa 11 anos em dezembro de 2026,
+    // mas o INEP considera que ele "teve" 11 anos em algum momento de 2026.
+    assert.equal(calcularIdadeCompletadaNoAno("2015-12-25", 2026), 11);
   });
 
   test("retorna null para datas fora do formato ISO (dado corrompido, não exceção)", () => {
-    assert.equal(calcularIdadeEmAnos("15/06/2015", "2026-03-31"), null);
-    assert.equal(calcularIdadeEmAnos("", "2026-03-31"), null);
-    assert.equal(calcularIdadeEmAnos("2015-01-10", "31/03/2026"), null);
+    assert.equal(calcularIdadeCompletadaNoAno("15/06/2015", 2026), null);
+    assert.equal(calcularIdadeCompletadaNoAno("", 2026), null);
+    assert.equal(calcularIdadeCompletadaNoAno("2015-06", 2026), null);
   });
 });
 
 describe("calcularDistorcaoIdadeSerie", () => {
   test("idade exata para a série: sem distorção", () => {
-    // 6º ano espera 11 anos; nascido em 2015, na referência de 2026-03-31 tem 11.
-    const resultado = calcularDistorcaoIdadeSerie("2015-01-10", "EF_6", "2026-03-31");
+    // 6º ano espera 11 anos; nascido em 2015, em 2026 completa 11.
+    const resultado = calcularDistorcaoIdadeSerie("2015-01-10", "EF_6", 2026);
     assert.ok(resultado);
-    assert.equal(resultado.idadeNaReferencia, 11);
+    assert.equal(resultado.idadeCompletadaNoAno, 11);
     assert.equal(resultado.idadeEsperada, 11);
     assert.equal(resultado.defasagemAnos, 0);
     assert.equal(resultado.emDistorcao, false);
   });
 
+  test("nascido em dezembro do ano esperado: mesmo resultado que nascido em janeiro (regra oficial, não idade calendário)", () => {
+    const nascidoJaneiro = calcularDistorcaoIdadeSerie("2015-01-10", "EF_6", 2026);
+    const nascidoDezembro = calcularDistorcaoIdadeSerie("2015-12-25", "EF_6", 2026);
+    assert.ok(nascidoJaneiro);
+    assert.ok(nascidoDezembro);
+    assert.equal(nascidoJaneiro.defasagemAnos, nascidoDezembro.defasagemAnos);
+  });
+
   test("um ano acima do esperado ainda não é distorção (limiar é 2)", () => {
-    const resultado = calcularDistorcaoIdadeSerie("2014-01-10", "EF_6", "2026-03-31");
+    const resultado = calcularDistorcaoIdadeSerie("2014-01-10", "EF_6", 2026);
     assert.ok(resultado);
     assert.equal(resultado.defasagemAnos, 1);
     assert.equal(resultado.emDistorcao, false);
   });
 
   test("exatamente 2 anos acima já é distorção", () => {
-    const resultado = calcularDistorcaoIdadeSerie("2013-01-10", "EF_6", "2026-03-31");
+    const resultado = calcularDistorcaoIdadeSerie("2013-01-10", "EF_6", 2026);
     assert.ok(resultado);
     assert.equal(resultado.defasagemAnos, 2);
     assert.equal(resultado.emDistorcao, true);
   });
 
   test("idade abaixo do esperado não é distorção (defasagem negativa)", () => {
-    const resultado = calcularDistorcaoIdadeSerie("2016-01-10", "EF_6", "2026-03-31");
+    const resultado = calcularDistorcaoIdadeSerie("2016-01-10", "EF_6", 2026);
     assert.ok(resultado);
     assert.equal(resultado.defasagemAnos, -1);
     assert.equal(resultado.emDistorcao, false);
   });
 
   test("aceita limiar customizado por rede", () => {
-    const resultado = calcularDistorcaoIdadeSerie("2014-01-10", "EF_6", "2026-03-31", 1);
+    const resultado = calcularDistorcaoIdadeSerie("2014-01-10", "EF_6", 2026, 1);
     assert.ok(resultado);
     assert.equal(resultado.defasagemAnos, 1);
     assert.equal(resultado.emDistorcao, true);
@@ -75,15 +82,15 @@ describe("calcularDistorcaoIdadeSerie", () => {
 
   test("cobre todas as séries da tabela de idade esperada", () => {
     for (const [serie, idadeEsperada] of Object.entries(IDADE_ESPERADA_POR_SERIE)) {
-      const nascimento = `${2026 - idadeEsperada}-03-31`;
-      const resultado = calcularDistorcaoIdadeSerie(nascimento, serie as keyof typeof IDADE_ESPERADA_POR_SERIE, "2026-03-31");
+      const nascimento = `${2026 - idadeEsperada}-01-10`;
+      const resultado = calcularDistorcaoIdadeSerie(nascimento, serie as keyof typeof IDADE_ESPERADA_POR_SERIE, 2026);
       assert.ok(resultado, `${serie} deveria retornar um resultado`);
       assert.equal(resultado.defasagemAnos, 0, `${serie} deveria ter defasagem 0`);
     }
   });
 
   test("retorna null quando a data de nascimento está corrompida", () => {
-    assert.equal(calcularDistorcaoIdadeSerie("24/03/0201", "EF_6", "2026-03-31"), null);
+    assert.equal(calcularDistorcaoIdadeSerie("24/03/0201", "EF_6", 2026), null);
   });
 
   test("o limiar padrão exportado é 2, conforme metodologia INEP", () => {
