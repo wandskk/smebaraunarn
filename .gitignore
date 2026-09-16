@@ -31,3 +31,5 @@ scripts/caed_*.jsonl
 # dados brutos extraídos do portal Anos Finais (MEC/CAEd), nunca commitar
 scripts/anosfinais_*.jsonl
 
+# cache de planilhas brutas do SAEB/INEP (arquivos nacionais grandes)
+saeb_cache/

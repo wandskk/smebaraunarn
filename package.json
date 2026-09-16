@@ -14,7 +14,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "sync:historico": "tsx --conditions=react-server scripts/sync-historico.ts"
+    "sync:historico": "tsx --conditions=react-server scripts/sync-historico.ts",
+    "saeb:baixar": "tsx scripts/baixar-saeb.ts"
   },
   "dependencies": {
     "@prisma/client": "5.18.0",
