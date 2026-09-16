@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useNavigationLoading } from "@/components/navigation-loading";
 
 interface SearchInputProps {
   placeholder?: string;
@@ -15,6 +16,7 @@ export function SearchInput({ placeholder = "Buscar...", paramName = "q" }: Sear
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get(paramName) ?? "");
   const [, startTransition] = useTransition();
+  const { start } = useNavigationLoading();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Só ressincroniza a partir da URL quando o campo não está em foco — evita apagar o que
@@ -33,6 +35,7 @@ export function SearchInput({ placeholder = "Buscar...", paramName = "q" }: Sear
       if (value) params.set(paramName, value);
       else params.delete(paramName);
       params.delete("page");
+      start();
       startTransition(() => {
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       });

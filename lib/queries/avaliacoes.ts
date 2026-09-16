@@ -654,6 +654,11 @@ export interface CaedResumoCiclo {
  * cards "lado a lado" de um mesmo ano (o chamador filtra por `ano`) quanto
  * o gráfico de evolução histórica (o chamador usa a lista inteira). Ordenado
  * cronologicamente (ano, depois ciclo dentro do ano).
+ *
+ * Sem N+1: 1 busca pelas avaliações do ciclo e 1 busca agregada a
+ * `AvaliacaoResultadoTurma` pelos IDs encontrados — antes disparava 1 query
+ * de `AvaliacaoResultadoTurma` por avaliação dentro do `Promise.all`, mesmo
+ * padrão já corrigido em `getEvolucaoCaedPorAno`.
  */
 export async function getCaedResumoPorCiclo(params: { etapaEnsino: string; componenteSlug: string }): Promise<CaedResumoCiclo[]> {
   const avaliacoes = await prisma.avaliacao.findMany({
@@ -664,16 +669,46 @@ export async function getCaedResumoPorCiclo(params: { etapaEnsino: string; compo
     },
     select: { id: true, codigo: true, ano: true },
   });
+  if (avaliacoes.length === 0) return [];
 
-  const resultados = await Promise.all(
-    avaliacoes.map(async (a): Promise<CaedResumoCiclo | null> => {
-      const resumo = await getResumoResultadosTurma(a.id);
-      if (!resumo) return null;
-      const { codigoCiclo } = extrairCicloEComponenteDoCodigo(a.codigo, a.ano);
-      const nomeCiclo = CAED_CICLOS.find((c) => c.codigoCiclo === codigoCiclo)?.nomeCiclo ?? codigoCiclo;
-      return { avaliacaoId: a.id, ano: a.ano, codigoCiclo, nomeCiclo, resumo };
-    }),
-  );
+  const linhas = await prisma.avaliacaoResultadoTurma.findMany({
+    where: { avaliacaoId: { in: avaliacoes.map((a) => a.id) } },
+    include: { escola: { select: { nome: true } } },
+  });
+
+  const linhasPorAvaliacao = new Map<string, typeof linhas>();
+  for (const linha of linhas) {
+    const grupo = linhasPorAvaliacao.get(linha.avaliacaoId);
+    if (grupo) grupo.push(linha);
+    else linhasPorAvaliacao.set(linha.avaliacaoId, [linha]);
+  }
+
+  const resultados = avaliacoes.map((a): CaedResumoCiclo | null => {
+    const linhasDaAvaliacao = linhasPorAvaliacao.get(a.id);
+    if (!linhasDaAvaliacao || linhasDaAvaliacao.length === 0) return null;
+
+    const resumo = calcularResumoResultadosTurma(
+      linhasDaAvaliacao.map((l) => ({
+        escolaId: l.escolaId,
+        escolaNome: l.escola.nome,
+        turma: l.turma,
+        previstos: l.previstos,
+        avaliados: l.avaliados,
+        percentualParticipacao: l.percentualParticipacao,
+        percentualDefasagem: l.percentualDefasagem,
+        percentualIntermediario: l.percentualIntermediario,
+        percentualAdequado: l.percentualAdequado,
+        quantidadeDefasagem: l.quantidadeDefasagem,
+        quantidadeIntermediario: l.quantidadeIntermediario,
+        quantidadeAdequado: l.quantidadeAdequado,
+        acertoPorHabilidade: l.acertoPorHabilidade as Record<string, number> | null,
+      })),
+    );
+
+    const { codigoCiclo } = extrairCicloEComponenteDoCodigo(a.codigo, a.ano);
+    const nomeCiclo = CAED_CICLOS.find((c) => c.codigoCiclo === codigoCiclo)?.nomeCiclo ?? codigoCiclo;
+    return { avaliacaoId: a.id, ano: a.ano, codigoCiclo, nomeCiclo, resumo };
+  });
 
   return resultados
     .filter((r): r is CaedResumoCiclo => r !== null)

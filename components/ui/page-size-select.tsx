@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import { useNavigationLoading } from "@/components/navigation-loading";
 
 interface PageSizeSelectProps {
   paramName?: string;
@@ -20,6 +21,7 @@ export function PageSizeSelect({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const { start } = useNavigationLoading();
   const current = Number(searchParams.get(paramName)) || defaultValue;
 
   return (
@@ -32,6 +34,7 @@ export function PageSizeSelect({
           const params = new URLSearchParams(searchParams.toString());
           params.set(paramName, e.target.value);
           params.delete("page");
+          start();
           startTransition(() => {
             router.replace(`${pathname}?${params.toString()}`, { scroll: false });
           });

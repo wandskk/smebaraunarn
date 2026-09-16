@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { NavigationLoadingProvider } from "@/components/navigation-loading";
 
 export const metadata: Metadata = {
   title: {
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <NavigationLoadingProvider>{children}</NavigationLoadingProvider>
+      </body>
     </html>
   );
 }
