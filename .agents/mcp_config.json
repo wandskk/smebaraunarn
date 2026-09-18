@@ -8,6 +8,12 @@
         "--api-key",
         "YOUR_API_KEY"
       ]
+    },
+    "stitch": {
+      "serverUrl": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "AQ.Ab8RN6Lag2xtxFO0u4URYPe_Xdk-lzn8mcGtpQDNjarwGLMd4g"
+      }
     }
   }
 }
