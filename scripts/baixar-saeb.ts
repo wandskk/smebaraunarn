@@ -311,18 +311,24 @@ async function extrairEscolasStream(xlsxPath: string): Promise<DadosEscolasExtra
           }
         }
 
-        // Coluna B (colNum 2) é CO_MUNICIPIO
+        // Coluna B (colNum 2) é CO_MUNICIPIO — filtra Baraúna
         const codMun = String(cells[2] ?? '');
-        if (
+        const ehBarauna =
           codMun === BARAUNA_CONFIG.codigoIbge7 ||
           codMun === BARAUNA_CONFIG.codigoIbgeInformado ||
-          codMun.startsWith(BARAUNA_CONFIG.prefixoIbge)
-        ) {
+          codMun.startsWith(BARAUNA_CONFIG.prefixoIbge);
+
+        if (ehBarauna) {
           const rowArr: string[] = [];
           for (let c = 1; c <= maxCol; c++) {
             rowArr.push(cells[c] ?? '');
           }
-          rows.push(rowArr);
+
+          // Coluna F (colNum 6) é REDE — mantém apenas escolas Municipais
+          const rede = normalizarTexto(cells[6] ?? '');
+          if (rede === 'municipal') {
+            rows.push(rowArr);
+          }
         }
       }
     });
@@ -414,7 +420,7 @@ function processarPlanilhaMunicipal(
 }
 
 function imprimirResumoEscolas(iniciais: DadosEscolasExtraidos, finais: DadosEscolasExtraidos): void {
-  console.log('\n🏫 --- ESCOLAS DE BARAÚNA - RN NOS ANOS INICIAIS (5º ANO) ---');
+  console.log('\n🏫 --- ESCOLAS MUNICIPAIS DE BARAÚNA - RN (ANOS INICIAIS / 5º ANO) ---');
   const hIni = iniciais.header;
   const idxLp23 = hIni.indexOf('VL_NOTA_PORTUGUES_2023');
   const idxMt23 = hIni.indexOf('VL_NOTA_MATEMATICA_2023');
@@ -435,7 +441,7 @@ function imprimirResumoEscolas(iniciais: DadosEscolasExtraidos, finais: DadosEsc
   }
   console.log('-'.repeat(105));
 
-  console.log('\n🏫 --- ESCOLAS DE BARAÚNA - RN NOS ANOS FINAIS (9º ANO) ---');
+  console.log('\n🏫 --- ESCOLAS MUNICIPAIS DE BARAÚNA - RN (ANOS FINAIS / 9º ANO) ---');
   const hFin = finais.header;
   const idxFinLp23 = hFin.indexOf('VL_NOTA_PORTUGUES_2023');
   const idxFinMt23 = hFin.indexOf('VL_NOTA_MATEMATICA_2023');

@@ -42,11 +42,11 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
   const where = {
     ...(q
       ? {
-          OR: [
-            { nome: { contains: q, mode: "insensitive" as const } },
-            { codigo: { contains: q, mode: "insensitive" as const } },
-          ],
-        }
+        OR: [
+          { nome: { contains: q, mode: "insensitive" as const } },
+          { codigo: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
       : {}),
     ...(tipoFiltro ? { tipo: tipoFiltro } : {}),
     ...(anoFiltro ? { ano: anoFiltro } : {}),
@@ -59,7 +59,7 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
       skip,
       take,
       include: { _count: { select: { resultados: true, questoes: true } } },
-    }),
+    }), +
     prisma.avaliacao.count({ where }),
   ]);
 
@@ -72,6 +72,9 @@ export default async function AdminAvaliacoesPage({ searchParams }: PageProps) {
         description={`Fluência Leitora, SPADEB, simulados e provas municipais. ${total} avaliação(ões).`}
         actions={
           <>
+            <Link href="/admin/avaliacoes/saeb" className={buttonVariants({ variant: "secondary" })}>
+              SAEB · Baraúna
+            </Link>
             <Link href="/admin/avaliacoes/caed" className={buttonVariants({ variant: "secondary" })}>
               CAEd · Anos Iniciais
             </Link>
